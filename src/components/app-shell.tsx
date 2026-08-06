@@ -1,8 +1,12 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { Bell, Search, Plus } from "lucide-react";
+import Link from "next/link";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { useSessionUser } from "@/components/session-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -17,10 +21,19 @@ export function AppShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const user = useSessionUser();
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar />
+        <AppSidebar
+          user={{
+            name: user.name,
+            role: user.roleLabel,
+            branch: user.branch,
+            initials: user.initials,
+          }}
+        />
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur">
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
@@ -33,12 +46,16 @@ export function AppShell({
                 />
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Button variant="ghost" size="icon" className="relative rounded-lg">
-                  <Bell className="size-4" />
-                  <span className="absolute right-2 top-2 size-1.5 rounded-full bg-destructive" />
+                <Button variant="ghost" size="icon" className="relative rounded-lg" asChild>
+                  <Link href="/notifications" aria-label="Notifications">
+                    <Bell className="size-4" />
+                    <span className="absolute right-2 top-2 size-1.5 rounded-full bg-destructive" />
+                  </Link>
                 </Button>
-                <Button size="sm" className="hidden rounded-lg sm:inline-flex">
-                  <Plus className="size-4" /> New sale
+                <Button size="sm" className="hidden rounded-lg sm:inline-flex" asChild>
+                  <Link href="/pos">
+                    <Plus className="size-4" /> New sale
+                  </Link>
                 </Button>
               </div>
             </div>

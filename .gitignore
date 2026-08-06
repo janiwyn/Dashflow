@@ -12,6 +12,18 @@ dist
 dist-ssr
 *.local
 
+# Next.js
+.next/
+*.tsbuildinfo
+out/
+next-env.d.ts
+.vercel
+
+# Env — never commit real credentials
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,4 +1,7 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ScanBarcode,
@@ -9,7 +12,6 @@ import {
   Wallet,
   LineChart,
   Building2,
-  LogOut,
   Package,
   Images,
   CalendarClock,
@@ -37,6 +39,8 @@ import {
   UserCog,
 } from "lucide-react";
 
+import { HexMark } from "@/components/brand-mark";
+import { SignOutButton } from "@/components/sign-out-button";
 import {
   Sidebar,
   SidebarContent,
@@ -123,10 +127,17 @@ const platform: NavItem[] = [
   { title: "Profile", url: "/profile", icon: UserRound },
 ];
 
-export function AppSidebar() {
+export type SidebarUser = {
+  name: string;
+  role: string;
+  branch: string | null;
+  initials: string;
+};
+
+export function AppSidebar({ user }: { user: SidebarUser }) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const pathname = usePathname();
 
   const renderGroup = (label: string, items: NavItem[]) => (
     <SidebarGroup key={label}>
@@ -147,7 +158,7 @@ export function AppSidebar() {
                   tooltip={item.title}
                   className="h-9 rounded-lg text-sidebar-foreground/75 transition-colors data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
                 >
-                  <Link to={item.url} className="flex items-center gap-3">
+                  <Link href={item.url} className="flex items-center gap-3">
                     <item.icon className="size-4 shrink-0" />
                     <span className="truncate text-sm">{item.title}</span>
                     {active && (
@@ -167,15 +178,17 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-sidebar-border">
       <SidebarHeader className="px-3 py-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">
-            M
+          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
+            <HexMark className="size-5" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate font-display text-sm font-bold text-sidebar-accent-foreground">
                 Meridian POS
               </p>
-              <p className="truncate text-xs text-sidebar-foreground/50">Nairobi · Main Branch</p>
+              <p className="truncate text-xs text-sidebar-foreground/50">
+                {user.branch ?? "All branches"}
+              </p>
             </div>
           )}
         </div>
@@ -194,19 +207,17 @@ export function AppSidebar() {
       <SidebarFooter className="p-3">
         <div className="flex min-w-0 items-center gap-3 rounded-xl bg-sidebar-accent/60 p-2">
           <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-sidebar-border text-xs font-semibold text-sidebar-accent-foreground">
-            JK
+            {user.initials}
           </div>
           {!collapsed && (
             <>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-sidebar-accent-foreground">
-                  James Kariuki
+                  {user.name}
                 </p>
-                <p className="truncate text-xs text-sidebar-foreground/50">Administrator</p>
+                <p className="truncate text-xs text-sidebar-foreground/50">{user.role}</p>
               </div>
-              <Link to="/login" aria-label="Sign out">
-                <LogOut className="size-4 shrink-0 text-sidebar-foreground/50" />
-              </Link>
+              <SignOutButton />
             </>
           )}
         </div>
