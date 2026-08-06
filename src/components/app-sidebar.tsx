@@ -184,7 +184,7 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate font-display text-sm font-bold text-sidebar-accent-foreground">
-                Meridian POS
+                Dashflow POS
               </p>
               <p className="truncate text-xs text-sidebar-foreground/50">
                 {user.branch ?? "All branches"}

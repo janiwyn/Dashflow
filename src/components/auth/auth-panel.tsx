@@ -23,7 +23,7 @@ export function AuthPanel({
 
       <div className="relative flex items-center gap-3 text-lg font-semibold">
         <HexMark className="size-8 shrink-0" />
-        Meridian POS
+        Dashflow POS
       </div>
 
       <div className="relative max-w-md">
@@ -37,7 +37,7 @@ export function AuthPanel({
       </div>
 
       <p className="relative text-xs text-primary-foreground/60">
-        © {new Date().getFullYear()} Meridian POS. All rights reserved.
+        © {new Date().getFullYear()} Dashflow POS. All rights reserved.
       </p>
     </div>
   );
