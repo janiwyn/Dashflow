@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getBranchById, getBranches } from "@/db/queries/branches";
+import { requireRole } from "@/lib/session";
 
 import BranchEditPage from "./branch-edit-client";
 
@@ -15,6 +16,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ id?: string }>;
 }) {
+  await requireRole("super", "admin");
   const { id } = await searchParams;
   const branches = await getBranches();
   const branch = (id ? await getBranchById(Number(id)) : null) ?? branches[0];

@@ -5,7 +5,7 @@ import { and, asc, count, desc, eq, isNotNull, lte, sql, sum } from "drizzle-orm
 import { db } from "@/db";
 import { branches, categories, products, suppliers } from "@/db/schema";
 
-import { businessScope, num } from "./_helpers";
+import { businessScope, enforcedBranchId, num } from "./_helpers";
 
 export type ProductRow = {
   id: number;
@@ -41,8 +41,9 @@ const productSelect = {
 
 export async function getProducts(options?: { branchId?: number }): Promise<ProductRow[]> {
   const businessId = await businessScope();
-  const where = options?.branchId
-    ? and(eq(products.businessId, businessId), eq(products.branchId, options.branchId))
+  const branchId = await enforcedBranchId(options?.branchId);
+  const where = branchId
+    ? and(eq(products.businessId, businessId), eq(products.branchId, branchId))
     : eq(products.businessId, businessId);
 
   return db
@@ -137,6 +138,11 @@ export async function getSuppliers() {
 
 export async function getInventorySummary() {
   const businessId = await businessScope();
+  const branchId = await enforcedBranchId();
+  const where = branchId
+    ? and(eq(products.businessId, businessId), eq(products.branchId, branchId))
+    : eq(products.businessId, businessId);
+
   const [row] = await db
     .select({
       skuCount: count(products.id),
@@ -146,7 +152,7 @@ export async function getInventorySummary() {
       lowStock: sql<number>`count(*) filter (where ${products.stock} <= ${products.lowStockThreshold})`,
     })
     .from(products)
-    .where(eq(products.businessId, businessId));
+    .where(where);
 
   return {
     skuCount: num(row?.skuCount),

@@ -39,7 +39,7 @@ export default function CustomerPortalPage({ branches, storefrontProducts }: Pro
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
-            <p className="font-display text-lg font-semibold">Meridian Retail</p>
+            <p className="font-display text-lg font-semibold">Dashflow Retail</p>
             <p className="text-xs text-muted-foreground">Order your favourite products online</p>
           </div>
           <Link href="/track-order" className="text-sm font-medium text-primary hover:underline">

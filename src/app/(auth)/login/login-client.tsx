@@ -52,7 +52,7 @@ export default function LoginPage({
     <div className="grid min-h-screen w-full lg:grid-cols-2">
       <AuthPanel
         headline="Run every branch from one dashboard."
-        blurb="Sales, stock, expenses and staff performance across all your locations in Kenya — in real time."
+        blurb="Sales, stock, expenses and staff performance across all your locations in Uganda — in real time."
         footnote={
           <>
             <ShieldCheck className="size-4 shrink-0" />

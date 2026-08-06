@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getActiveBusinessId } from "@/lib/session";
+import { getActiveBranchScope, getActiveBusinessId } from "@/lib/session";
 
 /**
  * Every query in this layer is tenant-scoped. Resolving the business id here
@@ -8,6 +8,27 @@ import { getActiveBusinessId } from "@/lib/session";
  * every page component.
  */
 export const businessScope = getActiveBusinessId;
+
+/**
+ * Resolves the branch a manager/staff account is locked to (or `undefined`
+ * for admin/super, who see every branch). Combine with an explicit
+ * `options.branchId` like: `options?.branchId ?? (await branchScope())` —
+ * or, safer, let the enforced scope win outright with `enforcedBranchId(options?.branchId)`.
+ */
+export const branchScope = getActiveBranchScope;
+
+/**
+ * Resolves the branchId a query should filter on: the caller's requested
+ * branch (e.g. from a filter dropdown) narrowed by whatever the signed-in
+ * user is actually allowed to see. A manager/staff member can never widen
+ * their view by passing a different branchId — their enforced branch always
+ * wins.
+ */
+export async function enforcedBranchId(requested?: number): Promise<number | undefined> {
+  const enforced = await branchScope();
+  if (enforced != null) return enforced;
+  return requested;
+}
 
 /** Postgres NUMERIC comes back as `number` (mode:"number") but may be null. */
 export const num = (v: number | null | undefined) => Number(v ?? 0);

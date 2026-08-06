@@ -45,7 +45,7 @@ export default function TrackOrderPage({ trackableOrder }: Props) {
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <p className="font-display text-lg font-semibold">Meridian Retail</p>
+          <p className="font-display text-lg font-semibold">Dashflow Retail</p>
           <Link href="/customer-portal" className="text-xs text-primary hover:underline">Back to storefront</Link>
         </div>
 

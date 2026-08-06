@@ -4,8 +4,8 @@ import { viewBranchOptions, viewStorefrontProducts } from "@/db/queries/views";
 import CustomerPortalPage from "./customer-portal-client";
 
 export const metadata: Metadata = {
-  title: "Order Online \u2014 Meridian Retail",
-  description: "Browse products and place an order for pickup at your nearest Meridian Retail branch.",
+  title: "Order Online \u2014 Dashflow Retail",
+  description: "Browse products and place an order for pickup at your nearest Dashflow Retail branch.",
 };
 
 export default async function Page() {

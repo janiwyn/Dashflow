@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { viewDashboardStats, viewPosProducts, viewRevenueSeries, viewSales } from "@/db/queries/views";
 
 import {
@@ -18,6 +19,7 @@ import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/status-pill";
+import { useSessionUser } from "@/components/session-provider";
 import { currency } from "@/lib/format";
 
 
@@ -28,14 +30,40 @@ type Props = {
   sales: Awaited<ReturnType<typeof viewSales>>;
 };
 
+function greetingFor(hour: number) {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function Dashboard({ stats, products, revenueSeries, sales }: Props) {
+  const user = useSessionUser();
   const lowStock = products.filter((p) => p.stock <= 12);
 
+  // Computed on mount (not during server render) so the greeting/date always
+  // reflects the visitor's own clock and never mismatches between server and client.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
+  const title = now ? `${greetingFor(now.getHours())}, ${firstName}` : `Welcome, ${firstName}`;
+  const dateLabel = now
+    ? now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
+    : "";
+  const subtitle = now
+    ? user.branch
+      ? `${dateLabel} · ${user.branch}`
+      : dateLabel
+    : undefined;
 
   return (
     <AppShell
-      title="Good afternoon, James"
-      subtitle="Wednesday, 5 August · Main Branch till open since 07:12"
+      title={title}
+      subtitle={subtitle}
       actions={
         <Button variant="outline" size="sm" className="rounded-lg">
           Export day sheet

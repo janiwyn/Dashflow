@@ -40,3 +40,24 @@ export async function getActiveBusinessId(): Promise<number> {
   const user = await getCurrentUser();
   return user?.businessId ?? 1;
 }
+
+/**
+ * Roles that can see every branch within their business. Everyone else
+ * (manager, staff) is locked to the single branch they're assigned to.
+ */
+const BUSINESS_WIDE_ROLES = new Set(["super", "admin"]);
+
+/**
+ * Returns the branch id a query must be restricted to, or `undefined` when
+ * the signed-in user is allowed to see every branch in the business.
+ *
+ * Query functions should treat `undefined` as "no branch filter" and a
+ * number as a hard filter that overrides any branchId the caller passed in
+ * — a manager or staff member can never widen their own view.
+ */
+export async function getActiveBranchScope(): Promise<number | undefined> {
+  const user = await getCurrentUser();
+  if (!user) return undefined;
+  if (BUSINESS_WIDE_ROLES.has(user.role ?? "staff")) return undefined;
+  return user.branchId ?? undefined;
+}

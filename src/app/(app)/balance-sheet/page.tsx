@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { requireRole } from "@/lib/session";
 import BalanceSheetPage from "./balance-sheet-client";
 
 export const metadata: Metadata = {
@@ -7,6 +8,7 @@ export const metadata: Metadata = {
   description: "Assets, liabilities and owner's equity at a glance.",
 };
 
-export default function Page() {
+export default async function Page() {
+  await requireRole("super", "admin", "manager");
   return <BalanceSheetPage />;
 }

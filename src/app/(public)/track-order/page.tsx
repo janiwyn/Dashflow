@@ -5,7 +5,7 @@ import { viewTrackableOrder } from "@/db/queries/views";
 import TrackOrderPage from "./track-order-client";
 
 export const metadata: Metadata = {
-  title: "Track Your Order \u2014 Meridian Retail",
+  title: "Track Your Order \u2014 Dashflow Retail",
   description: "Track the status of your online order using your order reference number.",
 };
 
