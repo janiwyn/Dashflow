@@ -29,7 +29,8 @@ export function AppShell({
         <AppSidebar
           user={{
             name: user.name,
-            role: user.roleLabel,
+            role: user.role,
+            roleLabel: user.roleLabel,
             branch: user.branch,
             initials: user.initials,
           }}

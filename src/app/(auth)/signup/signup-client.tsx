@@ -90,7 +90,7 @@ export default function SignupPage({ branches, providers }: Props) {
         <div className="w-full max-w-sm py-6">
           <div className="mb-6 text-center lg:text-left">
             <h2 className="text-2xl font-bold tracking-tight">Create an account</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Join Meridian POS</p>
+            <p className="mt-1 text-sm text-muted-foreground">Join Dashflow POS</p>
           </div>
 
           {message && (

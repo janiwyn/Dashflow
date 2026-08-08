@@ -7,12 +7,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Meridian POS",
-    template: "%s — Meridian POS",
+    default: "Dashflow POS",
+    template: "%s — Dashflow POS",
   },
   description: "Retail point of sale, inventory and branch management.",
-  authors: [{ name: "Meridian" }],
-  openGraph: { type: "website", title: "Meridian POS" },
+  authors: [{ name: "Dashflow" }],
+  openGraph: { type: "website", title: "Dashflow POS" },
   twitter: { card: "summary_large_image" },
   icons: { icon: "/favicon.svg" },
 };

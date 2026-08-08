@@ -12,7 +12,7 @@ import {
   users,
 } from "@/db/schema";
 
-import { businessScope, num, startOfDay } from "./_helpers";
+import { businessScope, enforcedBranchId, num, startOfDay } from "./_helpers";
 
 export type BranchRow = {
   id: number;
@@ -28,7 +28,15 @@ export type BranchRow = {
 /** Branch list with today's takings and headcount, used by every branch screen. */
 export async function getBranches(): Promise<BranchRow[]> {
   const businessId = await businessScope();
+  // A manager/staff account only ever sees the branch they're assigned to —
+  // this covers every screen that lists branches (branch pages, HR/branch
+  // filter dropdowns, the manager dashboard's branch card, etc.).
+  const branchId = await enforcedBranchId();
   const todayStart = startOfDay(new Date());
+
+  const where = branchId
+    ? and(eq(branches.businessId, businessId), eq(branches.id, branchId))
+    : eq(branches.businessId, businessId);
 
   const rows = await db
     .select({
@@ -51,7 +59,7 @@ export async function getBranches(): Promise<BranchRow[]> {
       )`,
     })
     .from(branches)
-    .where(eq(branches.businessId, businessId))
+    .where(where)
     .orderBy(asc(branches.id));
 
   return rows.map((r) => ({ ...r, staff: num(r.staff), todaySales: num(r.todaySales) }));

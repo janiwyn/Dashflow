@@ -5,7 +5,7 @@ import { and, count, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { branches, businesses, customers, saleItems, sales } from "@/db/schema";
 
-import { businessScope, num, startOfDay } from "./_helpers";
+import { businessScope, enforcedBranchId, num, startOfDay } from "./_helpers";
 
 export type SaleRow = {
   id: number;
@@ -43,8 +43,9 @@ export async function getSales(options?: {
   since?: Date;
 }): Promise<SaleRow[]> {
   const businessId = await businessScope();
+  const branchId = await enforcedBranchId(options?.branchId);
   const filters = [eq(sales.businessId, businessId)];
-  if (options?.branchId) filters.push(eq(sales.branchId, options.branchId));
+  if (branchId) filters.push(eq(sales.branchId, branchId));
   if (options?.since) filters.push(gte(sales.soldAt, options.since));
 
   const rows = await db
@@ -149,10 +150,18 @@ export async function getLatestSaleReference(): Promise<string | null> {
 }
 
 /** Daily totals for the trailing `days` window, oldest first. */
-export async function getRevenueSeries(days = 7) {
+export async function getRevenueSeries(days = 7, branchId?: number) {
   const businessId = await businessScope();
+  const scopedBranchId = await enforcedBranchId(branchId);
   const since = startOfDay(new Date());
   since.setDate(since.getDate() - (days - 1));
+
+  const filters = [
+    eq(sales.businessId, businessId),
+    gte(sales.soldAt, since),
+    sql`${sales.status} <> 'refunded'`,
+  ];
+  if (scopedBranchId) filters.push(eq(sales.branchId, scopedBranchId));
 
   const rows = await db
     .select({
@@ -162,13 +171,7 @@ export async function getRevenueSeries(days = 7) {
       orders: count(sales.id),
     })
     .from(sales)
-    .where(
-      and(
-        eq(sales.businessId, businessId),
-        gte(sales.soldAt, since),
-        sql`${sales.status} <> 'refunded'`,
-      ),
-    )
+    .where(and(...filters))
     .groupBy(sql`to_char(${sales.soldAt}, 'YYYY-MM-DD')`, sql`to_char(${sales.soldAt}, 'Dy')`)
     .orderBy(sql`to_char(${sales.soldAt}, 'YYYY-MM-DD')`);
 
@@ -225,11 +228,15 @@ export async function getTopProducts(limit = 5) {
 }
 
 /** Headline figures for a day, plus the previous day for the delta chips. */
-export async function getSalesTotals() {
+export async function getSalesTotals(branchId?: number) {
   const businessId = await businessScope();
+  const scopedBranchId = await enforcedBranchId(branchId);
   const todayStart = startOfDay(new Date());
   const yesterdayStart = new Date(todayStart);
   yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+  const filters = [eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`];
+  if (scopedBranchId) filters.push(eq(sales.branchId, scopedBranchId));
 
   const [row] = await db
     .select({
@@ -240,7 +247,7 @@ export async function getSalesTotals() {
       weekRevenue: sql<number>`coalesce(sum(${sales.total}) filter (where ${sales.soldAt} >= current_date - 6), 0)`,
     })
     .from(sales)
-    .where(and(eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`));
+    .where(and(...filters));
 
   const todayRevenue = num(row?.todayRevenue);
   const todayReceipts = num(row?.todayReceipts);

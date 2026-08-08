@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { viewLedgerAccounts } from "@/db/queries/views";
 import TrialBalancePage from "./trial-balance-client";
+import { requireRole } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Trial Balance",
@@ -9,6 +10,8 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
+  await requireRole("super", "admin", "manager");
+
   const accounts = await viewLedgerAccounts();
   return <TrialBalancePage accounts={accounts} />;
 }

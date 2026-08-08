@@ -6,7 +6,7 @@ import LoginPage from "./login-client";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Secure login portal for Meridian POS business system.",
+  description: "Secure login portal for Dashflow POS business system.",
 };
 
 /**
