@@ -8,25 +8,10 @@ import { DataTable, type Column } from "@/components/data-table";
 import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 
 type Sale = Awaited<ReturnType<typeof viewSales>>[number];
-
-const columns: Column<Sale>[] = [
-  { key: "id", header: "Receipt", render: (r) => <span className="num font-medium">{r.id}</span> },
-  { key: "customer", header: "Customer", render: (r) => r.customer },
-  { key: "items", header: "Items", render: (r) => <span className="num text-muted-foreground">{r.items}</span> },
-  { key: "method", header: "Method", render: (r) => <span className="text-muted-foreground">{r.method}</span> },
-  { key: "time", header: "Time", render: (r) => <span className="num text-muted-foreground">{r.time}</span> },
-  { key: "status", header: "Status", render: (r) => <StatusPill status={r.status} /> },
-  {
-    key: "amount",
-    header: "Amount",
-    align: "right",
-    render: (r) => <span className="num font-semibold">{currency(r.amount)}</span>,
-  },
-];
 
 type Props = {
   stats: Awaited<ReturnType<typeof viewSalesStats>>;
@@ -34,6 +19,23 @@ type Props = {
 };
 
 export default function SalesPage({ stats, sales }: Props) {
+  const { format: currency } = useCurrency();
+
+  const columns: Column<Sale>[] = [
+    { key: "id", header: "Receipt", render: (r) => <span className="num font-medium">{r.id}</span> },
+    { key: "customer", header: "Customer", render: (r) => r.customer },
+    { key: "items", header: "Items", render: (r) => <span className="num text-muted-foreground">{r.items}</span> },
+    { key: "method", header: "Method", render: (r) => <span className="text-muted-foreground">{r.method}</span> },
+    { key: "time", header: "Time", render: (r) => <span className="num text-muted-foreground">{r.time}</span> },
+    { key: "status", header: "Status", render: (r) => <StatusPill status={r.status} /> },
+    {
+      key: "amount",
+      header: "Amount",
+      align: "right",
+      render: (r) => <span className="num font-semibold">{currency(r.amount)}</span>,
+    },
+  ];
+
   return (
     <AppShell
       title="Sales"

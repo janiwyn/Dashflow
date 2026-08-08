@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { currency } from "@/lib/format";
+import { useSessionUser } from "@/components/session-provider";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewPosProducts, viewStaffStats } from "@/db/queries/views";
 
 type Props = {
@@ -24,6 +25,8 @@ type Props = {
   products: Awaited<ReturnType<typeof viewPosProducts>>;
 };
 
+// TODO: sample rows until a real "my sales today" line-item query is wired up —
+// the stat cards above already use live data, this table still does not.
 const mySales = [
   { time: "14:12", product: "Arabica Beans 1kg", quantity: 3, amount: 5550 },
   { time: "13:20", product: "Fresh Milk 500ml", quantity: 6, amount: 390 },
@@ -32,6 +35,8 @@ const mySales = [
 ];
 
 export default function StaffDashboardPage({ stats, products }: Props) {
+  const user = useSessionUser();
+  const { format: currency } = useCurrency();
   const [productId, setProductId] = useState<string>("");
   const [quantity, setQuantity] = useState("1");
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
@@ -51,12 +56,17 @@ export default function StaffDashboardPage({ stats, products }: Props) {
     setMessage({ text: `Recorded sale of ${qty} × ${product.name}.` });
   };
 
+  const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
+
   return (
-    <AppShell title="Welcome, Peter Mwangi" subtitle="Staff dashboard · Nairobi — Main branch">
+    <AppShell
+      title={`Welcome, ${firstName}`}
+      subtitle={`Staff dashboard${user.branch ? ` · ${user.branch}` : ""}`}
+    >
       <section className="grid gap-4 sm:grid-cols-3">
         <StatCard label="My sales today" value={currency(stats.revenue)} icon={Banknote} hint={`${stats.receipts} receipts`} />
-        <StatCard label="Items sold today" value="15" icon={Package} hint="Across all products" />
-        <StatCard label="Receipts issued" value="4" icon={Receipt} hint="Since 07:00" />
+        <StatCard label="Items sold today" value={String(stats.items)} icon={Package} hint="Across all products" />
+        <StatCard label="Receipts issued" value={String(stats.receipts)} icon={Receipt} hint="Today" />
       </section>
 
       <div className="panel min-w-0 p-5">

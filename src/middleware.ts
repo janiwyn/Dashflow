@@ -13,9 +13,12 @@ const PUBLIC_PREFIXES = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  // "/" is the public marketing homepage — only an exact match, so every
+  // authenticated route (which all live one level deeper, e.g. /dashboard,
+  // /pos, /sales) is still guarded normally below.
+  const isPublic =
+    pathname === "/" ||
+    PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
   // Cookie presence only — an optimistic check, deliberately not a DB read.
   // Pages still call requireUser(), which validates the session for real.
@@ -27,10 +30,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // /new-password stays reachable while signed in — a user resetting from an
-  // emailed link may well still have a live session in that browser.
-  if (hasSession && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/", request.url));
+  // Signed-in visitors don't need the marketing pitch or the auth forms —
+  // send them straight into the app. /new-password stays reachable while
+  // signed in — a user resetting from an emailed link may well still have a
+  // live session in that browser.
+  if (hasSession && (pathname === "/" || pathname === "/login" || pathname === "/signup")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();

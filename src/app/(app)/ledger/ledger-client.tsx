@@ -5,7 +5,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { DataTable, type Column } from "@/components/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewLedgerAccounts, viewLedgerEntries } from "@/db/queries/views";
 
 type Props = {
@@ -17,6 +17,7 @@ type Entry = { date: string; description: string; debit: number; credit: number 
 
 
 export default function LedgerPage({ accounts, ledgerEntries }: Props) {
+  const { format: currency } = useCurrency();
   const [accountId, setAccountId] = useState<string>("");
   const account = accounts.find((a) => String(a.id) === accountId);
   const entries = accountId ? ledgerEntries[Number(accountId)] ?? [] : [];

@@ -6,7 +6,7 @@ import { ShoppingCart, Plus, Minus, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewBranchOptions, viewStorefrontProducts } from "@/db/queries/views";
 
 type Props = {
@@ -15,6 +15,7 @@ type Props = {
 };
 
 export default function CustomerPortalPage({ branches, storefrontProducts }: Props) {
+  const { format: currency } = useCurrency();
   const [branch, setBranch] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Record<number, number>>({});

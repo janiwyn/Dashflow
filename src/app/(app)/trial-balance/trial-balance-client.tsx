@@ -7,7 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 
 const rows = [
@@ -23,17 +23,19 @@ const rows = [
 
 type Row = (typeof rows)[number];
 
-const columns: Column<Row>[] = [
-  { key: "account", header: "Account Name", render: (r) => r.account },
-  { key: "debit", header: "Debit (Dr)", align: "right", render: (r) => <span className="num">{currency(r.debit)}</span> },
-  { key: "credit", header: "Credit (Cr)", align: "right", render: (r) => <span className="num">{currency(r.credit)}</span> },
-];
-
 type Props = {
   accounts: Awaited<ReturnType<typeof viewLedgerAccounts>>;
 };
 
 export default function TrialBalancePage({ accounts }: Props) {
+  const { format: currency } = useCurrency();
+
+  const columns: Column<Row>[] = [
+    { key: "account", header: "Account Name", render: (r) => r.account },
+    { key: "debit", header: "Debit (Dr)", align: "right", render: (r) => <span className="num">{currency(r.debit)}</span> },
+    { key: "credit", header: "Credit (Cr)", align: "right", render: (r) => <span className="num">{currency(r.credit)}</span> },
+  ];
+
   const grandDebit = rows.reduce((s, r) => s + r.debit, 0);
   const grandCredit = rows.reduce((s, r) => s + r.credit, 0);
   const balanced = grandDebit === grandCredit;

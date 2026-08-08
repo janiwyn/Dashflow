@@ -6,7 +6,7 @@ import { QrCode, ScanLine, CheckCircle2, RefreshCcw } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewRemoteOrders } from "@/db/queries/views";
 
 type Props = {
@@ -14,6 +14,7 @@ type Props = {
 };
 
 export default function QrScannerPage({ remoteOrders }: Props) {
+  const { format: currency } = useCurrency();
   const [scanned, setScanned] = useState<Props["remoteOrders"][number] | null>(null);
   const [method, setMethod] = useState("Cash");
   const [recorded, setRecorded] = useState<string | null>(null);

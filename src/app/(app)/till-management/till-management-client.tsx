@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { Till } from "@/db/queries/views";
 import type { viewBranchOptions, viewTillRemovals, viewTills } from "@/db/queries/views";
 
@@ -21,16 +21,18 @@ type Props = {
   tills: Awaited<ReturnType<typeof viewTills>>;
 };
 
-const tillColumns: Column<Till>[] = [
-  { key: "created", header: "Date created", render: (t) => <span className="num text-muted-foreground">{t.created}</span> },
-  { key: "name", header: "Till", render: (t) => <span className="font-medium">{t.name}</span> },
-  { key: "branch", header: "Branch", render: (t) => t.branch },
-  { key: "staff", header: "Staff", render: (t) => t.staff },
-  { key: "phone", header: "Phone", render: (t) => <span className="num text-muted-foreground">{t.phone}</span> },
-  { key: "balance", header: "Balance", align: "right", render: (t) => <span className="num font-semibold">{currency(t.balance)}</span> },
-];
-
 export default function TillManagementPage({ branches, tillRemovals, tills }: Props) {
+  const { format: currency } = useCurrency();
+
+  const tillColumns: Column<Till>[] = [
+    { key: "created", header: "Date created", render: (t) => <span className="num text-muted-foreground">{t.created}</span> },
+    { key: "name", header: "Till", render: (t) => <span className="font-medium">{t.name}</span> },
+    { key: "branch", header: "Branch", render: (t) => t.branch },
+    { key: "staff", header: "Staff", render: (t) => t.staff },
+    { key: "phone", header: "Phone", render: (t) => <span className="num text-muted-foreground">{t.phone}</span> },
+    { key: "balance", header: "Balance", align: "right", render: (t) => <span className="num font-semibold">{currency(t.balance)}</span> },
+  ];
+
   const [safeTill, setSafeTill] = useState("");
   const [safeAmount, setSafeAmount] = useState("");
   const [message, setMessage] = useState<string | null>(null);

@@ -30,7 +30,7 @@ import type {
   getBranches,
 } from "@/db/queries/branches";
 import type { getPaymentMix, getRevenueSeries } from "@/db/queries/sales";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 type Props = {
   branch: Awaited<ReturnType<typeof getBranches>>[number];
@@ -49,6 +49,7 @@ export default function BranchPage({
   revenueSeries,
   paymentMix,
 }: Props) {
+  const { format: currency } = useCurrency();
   return (
     <AppShell
       title="Branch Dashboard"

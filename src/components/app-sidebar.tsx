@@ -37,6 +37,7 @@ import {
   CreditCard,
   Store,
   UserCog,
+  Settings,
 } from "lucide-react";
 
 import { HexMark } from "@/components/brand-mark";
@@ -60,10 +61,11 @@ type NavItem = { title: string; url: string; icon: typeof Boxes; roles: Role[] }
 
 const ALL: Role[] = ["super", "admin", "manager", "staff"];
 const MANAGER_UP: Role[] = ["super", "admin", "manager"];
+const ADMIN_UP: Role[] = ["super", "admin"];
 const SUPER_ONLY: Role[] = ["super"];
 
 const operate: NavItem[] = [
-  { title: "Overview", url: "/", icon: LayoutDashboard, roles: ["super", "admin"] },
+  { title: "Overview", url: "/dashboard", icon: LayoutDashboard, roles: ["super", "admin"] },
   { title: "Terminal", url: "/pos", icon: ScanBarcode, roles: ALL },
   { title: "Sales", url: "/sales", icon: Receipt, roles: ALL },
   { title: "Remote orders", url: "/remote-orders", icon: ShoppingBag, roles: ALL },
@@ -123,6 +125,7 @@ const network: NavItem[] = [
 ];
 
 const platform: NavItem[] = [
+  { title: "Settings", url: "/settings", icon: Settings, roles: ADMIN_UP },
   { title: "Super admin", url: "/super", icon: ShieldCheck, roles: SUPER_ONLY },
   { title: "Businesses", url: "/manage-business", icon: Briefcase, roles: SUPER_ONLY },
   { title: "Admins", url: "/manage-admin", icon: UserCog, roles: SUPER_ONLY },

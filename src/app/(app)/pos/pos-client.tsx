@@ -7,7 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewCategories, viewPosProducts } from "@/db/queries/views";
 
 type Props = {
@@ -16,6 +16,7 @@ type Props = {
 };
 
 export default function Terminal({ categories, products }: Props) {
+  const { format: currency } = useCurrency();
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Record<string, number>>({ "P-1041": 1, "P-1042": 3 });

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { CurrencyProvider } from "@/components/currency-provider";
 import { viewTrackableOrder } from "@/db/queries/views";
+import { getBusinessProfile } from "@/db/queries/profile";
+import type { CurrencyCode } from "@/lib/currency";
 import TrackOrderPage from "./track-order-client";
 
 export const metadata: Metadata = {
@@ -10,7 +13,11 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const trackableOrder = await viewTrackableOrder();
+  const [trackableOrder, business] = await Promise.all([viewTrackableOrder(), getBusinessProfile()]);
   if (!trackableOrder) notFound();
-  return <TrackOrderPage trackableOrder={trackableOrder} />;
+  return (
+    <CurrencyProvider code={(business?.currency as CurrencyCode) ?? "KES"}>
+      <TrackOrderPage trackableOrder={trackableOrder} />
+    </CurrencyProvider>
+  );
 }

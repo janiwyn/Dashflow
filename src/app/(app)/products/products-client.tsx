@@ -24,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { StockProduct } from "@/db/queries/views";
 import type { viewBranchNames, viewStockProducts } from "@/db/queries/views";
 
@@ -34,6 +34,7 @@ type Props = {
 };
 
 export default function ProductsPage({ branches, stockProducts }: Props) {
+  const { format: currency } = useCurrency();
   const [rows, setRows] = useState<StockProduct[]>(stockProducts);
   const [branch, setBranch] = useState("All branches");
   const [open, setOpen] = useState(false);

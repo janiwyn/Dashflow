@@ -4,7 +4,7 @@ import { Printer } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewInvoice } from "@/db/queries/views";
 
 type Props = {
@@ -12,6 +12,7 @@ type Props = {
 };
 
 export default function InvoicePreviewPage({ invoicePreview }: Props) {
+  const { format: currency } = useCurrency();
   const inv = invoicePreview;
   const subTotal = inv.items.reduce((s, i) => s + i.qty * i.price, 0);
   const tax = Math.round((subTotal * inv.taxRate) / 100);

@@ -69,7 +69,7 @@ export default function SignupPage({ branches, providers }: Props) {
     }
 
     setMessage({ text: "Account created. Redirecting…" });
-    router.push("/");
+    router.push("/dashboard");
     router.refresh();
   }
 

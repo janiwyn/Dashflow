@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewCashBookEntries } from "@/db/queries/views";
 
 type Props = {
@@ -18,6 +18,7 @@ type Props = {
 type Entry = { date: string; particulars: string; cashIn: number; bankIn: number; cashOut: number; bankOut: number; source: string };
 
 export default function AddCashEntryPage({ seedEntries }: Props) {
+  const { format: currency } = useCurrency();
   const [entries, setEntries] = useState<Entry[]>(seedEntries);
   const [date, setDate] = useState("");
   const [type, setType] = useState("receipt");

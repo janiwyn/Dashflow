@@ -13,7 +13,7 @@ import type {
   getBranchWorkers,
   getBranches,
 } from "@/db/queries/branches";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 type Props = {
   branch: Awaited<ReturnType<typeof getBranches>>[number];
@@ -23,6 +23,7 @@ type Props = {
 };
 
 export default function BranchViewPage({ branch, fin, stock, workers }: Props) {
+  const { format: currency } = useCurrency();
   return (
 
     <AppShell

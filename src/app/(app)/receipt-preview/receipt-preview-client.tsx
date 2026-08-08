@@ -7,7 +7,7 @@ import { Printer, X } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 
 type Props = {
@@ -15,6 +15,7 @@ type Props = {
 };
 
 export default function ReceiptPreviewPage({ receiptSample }: Props) {
+  const { format: currency } = useCurrency();
   const subtotal = receiptSample.items.reduce((s, it) => s + it.qty * it.price, 0);
   const paid = subtotal;
   const balance = 0;

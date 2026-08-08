@@ -6,7 +6,7 @@ import { AlertCircle, Bell, Check, Clock, PackageX, Users, X } from "lucide-reac
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { CustomerDebtorNotif, LowStockNotif, ShopDebtorNotif } from "@/db/queries/views";
 import type { viewCustomerDebtorNotifs, viewLowStockNotifs, viewShopDebtorNotifs } from "@/db/queries/views";
 
@@ -27,6 +27,7 @@ function urgencyClass(days: number) {
 }
 
 export default function NotificationsPage({ customerDebtorNotifs, lowStockNotifs, shopDebtorNotifs }: Props) {
+  const { format: currency } = useCurrency();
   const [shop, setShop] = useState<ShopDebtorNotif[]>(shopDebtorNotifs);
   const [customer, setCustomer] = useState<CustomerDebtorNotif[]>(customerDebtorNotifs);
   const [lowStock, setLowStock] = useState<LowStockNotif[]>(lowStockNotifs);

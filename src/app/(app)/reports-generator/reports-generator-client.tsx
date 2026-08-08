@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewBranches } from "@/db/queries/views";
 
 type Props = {
@@ -115,6 +115,7 @@ const dataByType: Record<ReportType, { columns: { key: string; header: string; a
 };
 
 export default function ReportsGeneratorPage({ branchesData }: Props) {
+  const { format: currency } = useCurrency();
   const [type, setType] = useState<ReportType>("expenses");
   const [branch, setBranch] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");

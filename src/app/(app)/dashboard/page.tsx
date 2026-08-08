@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/session";
 import Dashboard from "./overview-client";
 
 export const metadata: Metadata = {
-  title: "Meridian POS \u2014 Retail Operations Overview",
+  title: "Dashboard \u2014 Dashflow POS",
   description: "Live sales, inventory and branch performance for your retail business in one clean dashboard.",
 };
 

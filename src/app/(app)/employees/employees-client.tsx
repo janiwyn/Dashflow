@@ -17,7 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import Link from "next/link";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { Employee } from "@/db/queries/views";
 import type { viewEmployees, viewHrBranches, viewSystemUsers } from "@/db/queries/views";
 
@@ -27,7 +27,7 @@ type Props = {
   systemUsers: Awaited<ReturnType<typeof viewSystemUsers>>;
 };
 
-const columns: Column<Employee>[] = [
+const columns = (currency: (n: number) => string): Column<Employee>[] => [
   { key: "name", header: "Name", render: (e) => <span className="font-medium">{e.name}</span> },
   { key: "email", header: "Email", render: (e) => <span className="text-muted-foreground">{e.email}</span> },
   { key: "phone", header: "Phone", render: (e) => <span className="num text-muted-foreground">{e.phone}</span> },
@@ -55,6 +55,8 @@ const columns: Column<Employee>[] = [
 ];
 
 export default function EmployeesPage({ branches, initialEmployees, systemUsers }: Props) {
+  const { format: currency } = useCurrency();
+  const employeeColumns = columns(currency);
   const employees = initialEmployees;
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -146,7 +148,7 @@ export default function EmployeesPage({ branches, initialEmployees, systemUsers 
         <StatCard label="Combined base salary" value={currency(totalPayroll)} icon={Users} hint="per month" />
         <StatCard label="Branches" value={String(branches.length)} icon={Users} hint="operating" />
       </section>
-      <DataTable title="Employee directory" description="All employees for this business" columns={columns} rows={employees} minWidth={960} />
+      <DataTable title="Employee directory" description="All employees for this business" columns={employeeColumns} rows={employees} minWidth={960} />
       <p className="text-xs text-muted-foreground">
         Looking for a single employee record? Visit <Link href="/employee" className="underline">the employee detail page</Link>.
       </p>

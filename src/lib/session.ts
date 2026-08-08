@@ -28,7 +28,7 @@ export async function requireUser(): Promise<SessionUser> {
 
 export async function requireRole(...roles: string[]): Promise<SessionUser> {
   const user = await requireUser();
-  if (!roles.includes(user.role ?? "staff")) redirect("/");
+  if (!roles.includes(user.role ?? "staff")) redirect("/dashboard");
   return user;
 }
 

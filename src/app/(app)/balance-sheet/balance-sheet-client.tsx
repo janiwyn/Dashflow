@@ -5,7 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 
 const assets = [
@@ -16,7 +16,17 @@ const assets = [
 const liabilities = [{ label: "Accounts Payable", value: 251100 }];
 const equity = [{ label: "Retained Earnings", value: 1051120 }];
 
-function Section({ title, rows, accent }: { title: string; rows: { label: string; value: number }[]; accent: string }) {
+function Section({
+  title,
+  rows,
+  accent,
+  currency,
+}: {
+  title: string;
+  rows: { label: string; value: number }[];
+  accent: string;
+  currency: (n: number) => string;
+}) {
   const total = rows.reduce((s, r) => s + r.value, 0);
   return (
     <div className="panel flex flex-col">
@@ -40,6 +50,7 @@ function Section({ title, rows, accent }: { title: string; rows: { label: string
 }
 
 export default function BalanceSheetPage() {
+  const { format: currency } = useCurrency();
 
   const totalAssets = assets.reduce((s, r) => s + r.value, 0);
   const totalLiab = liabilities.reduce((s, r) => s + r.value, 0);
@@ -49,9 +60,9 @@ export default function BalanceSheetPage() {
   return (
     <AppShell title="Balance Sheet" subtitle="As at 5 August 2026">
       <section className="grid gap-4 lg:grid-cols-3">
-        <Section title="Assets" rows={assets} accent="text-primary" />
-        <Section title="Liabilities" rows={liabilities} accent="text-destructive" />
-        <Section title="Owner's Equity" rows={equity} accent="text-foreground" />
+        <Section title="Assets" rows={assets} accent="text-primary" currency={currency} />
+        <Section title="Liabilities" rows={liabilities} accent="text-destructive" currency={currency} />
+        <Section title="Owner's Equity" rows={equity} accent="text-foreground" currency={currency} />
       </section>
 
       <section className="panel p-6 text-center">

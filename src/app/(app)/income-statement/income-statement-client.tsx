@@ -4,7 +4,7 @@ import type { viewExpenses, viewSales } from "@/db/queries/views";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
 };
 
 export default function IncomeStatementPage({ sales, expenses }: Props) {
+  const { format: currency } = useCurrency();
   const totalIncome = sales.reduce((s, r) => s + r.amount, 0);
   const totalExpense = expenses.reduce((s, r) => s + r.amount, 0);
   const net = totalIncome - totalExpense;

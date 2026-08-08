@@ -3,7 +3,7 @@
 import type { viewBranchSummaries } from "@/db/queries/views";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
 };
 
 export default function BranchesPage({ branches }: Props) {
+  const { format: currency } = useCurrency();
   return (
     <AppShell
       title="Branches"

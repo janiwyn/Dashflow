@@ -9,7 +9,7 @@ import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { Debtor } from "@/db/queries/views";
 import type { viewDebtors } from "@/db/queries/views";
 
@@ -18,6 +18,7 @@ type Props = {
 };
 
 export default function DebtorPaymentPage({ debtorsSeed }: Props) {
+  const { format: currency } = useCurrency();
   const [debtors, setDebtors] = useState<Debtor[]>(debtorsSeed);
   const [active, setActive] = useState<Debtor | null>(null);
   const [amount, setAmount] = useState("");

@@ -8,7 +8,7 @@ import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
 import { Banknote, Percent, ShoppingBag } from "lucide-react";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 
 type Props = {
@@ -17,6 +17,7 @@ type Props = {
 };
 
 export default function ReportsPage({ stats, revenueSeries }: Props) {
+  const { format: currency } = useCurrency();
   return (
     <AppShell
       title="Reports"

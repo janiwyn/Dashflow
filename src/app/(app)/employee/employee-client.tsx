@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { Employee } from "@/db/queries/views";
 import type { viewEmployees, viewHrBranches, viewSystemUsers } from "@/db/queries/views";
 
@@ -20,14 +20,16 @@ type Props = {
   systemUsers: Awaited<ReturnType<typeof viewSystemUsers>>;
 };
 
-const columns: Column<Employee>[] = [
-  { key: "name", header: "Name", render: (e) => <span className="font-medium">{e.name}</span> },
-  { key: "position", header: "Position", render: (e) => e.position },
-  { key: "branch", header: "Branch", render: (e) => e.branch },
-  { key: "baseSalary", header: "Base Salary", align: "right", render: (e) => <span className="num">{currency(e.baseSalary)}</span> },
-];
-
 export default function EmployeePage({ branches, employees, systemUsers }: Props) {
+  const { format: currency } = useCurrency();
+
+  const columns: Column<Employee>[] = [
+    { key: "name", header: "Name", render: (e) => <span className="font-medium">{e.name}</span> },
+    { key: "position", header: "Position", render: (e) => e.position },
+    { key: "branch", header: "Branch", render: (e) => e.branch },
+    { key: "baseSalary", header: "Base Salary", align: "right", render: (e) => <span className="num">{currency(e.baseSalary)}</span> },
+  ];
+
   const [selectedId, setSelectedId] = useState<number>(employees[0]!.id);
   const selected = employees.find((e) => e.id === selectedId) ?? employees[0]!;
 

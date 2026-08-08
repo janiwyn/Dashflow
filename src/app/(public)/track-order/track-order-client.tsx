@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewTrackableOrder } from "@/db/queries/views";
 
 type Props = {
@@ -15,6 +15,7 @@ type Props = {
 };
 
 export default function TrackOrderPage({ trackableOrder }: Props) {
+  const { format: currency } = useCurrency();
   const [ref, setRef] = useState("");
   const [result, setResult] = useState<typeof trackableOrder | null | "not-found">(null);
 

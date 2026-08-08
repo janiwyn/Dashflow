@@ -13,9 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { currency } from "@/lib/format";
+import { useSessionUser } from "@/components/session-provider";
+import { useCurrency } from "@/components/currency-provider";
 
 
+// TODO: sample rows until a real per-line-item "recent sales" query is wired
+// up — the stat cards above already use live data, this table still does not.
 const recentSales = [
   { date: "05 Aug 14:12", product: "Arabica Beans 1kg", quantity: 3, amount: 5550, soldBy: "Peter Mwangi", branch: "Nairobi — Main" },
   { date: "05 Aug 13:58", product: "Fresh Milk 500ml", quantity: 12, amount: 780, soldBy: "Grace Otieno", branch: "Nairobi — Main" },
@@ -30,13 +33,23 @@ type Props = {
 };
 
 export default function ManagerDashboardPage({ stats, branchesData }: Props) {
+  const user = useSessionUser();
+  const { format: currency } = useCurrency();
+  const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
+  // Managers are already scoped to their own branch(es) by the query layer,
+  // so this total reflects only the branch(es) this manager can see.
+  const totalStaff = branchesData.reduce((sum, b) => sum + b.staff, 0);
+
   return (
-    <AppShell title="Welcome, James Kariuki" subtitle="Manager dashboard · Nairobi — Main branch">
+    <AppShell
+      title={`Welcome, ${firstName}`}
+      subtitle={`Manager dashboard${user.branch ? ` · ${user.branch}` : ""}`}
+    >
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Sales today" value={currency(stats.salesToday)} icon={Banknote} hint="Across your branches" />
         <StatCard label="Expenses today" value={currency(stats.expensesToday)} icon={TrendingDown} hint="Across your branches" />
         <StatCard label="Total products" value={String(stats.productCount)} icon={Boxes} hint={`${stats.lowStock} low`} />
-        <StatCard label="Total staff" value="30" icon={Users} hint="On payroll" />
+        <StatCard label="Total staff" value={String(totalStaff)} icon={Users} hint="On payroll" />
       </section>
 
       <DataTable

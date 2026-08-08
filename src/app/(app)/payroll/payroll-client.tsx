@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { PayrollRecord } from "@/db/queries/views";
 import type { viewEmployees, viewPayrollRecords } from "@/db/queries/views";
 
@@ -23,6 +23,7 @@ type Props = {
 const thisMonth = "2026-06";
 
 export default function PayrollPage({ employees, initialRecords }: Props) {
+  const { format: currency } = useCurrency();
   const [records, setRecords] = useState(initialRecords);
   const [employeeId, setEmployeeId] = useState<string>("");
   const [form, setForm] = useState({ transport: 0, housing: 0, medical: 0, overtime: 0, nssf: 0, tax: 0, loan: 0, other: 0 });

@@ -15,6 +15,8 @@ export const businesses = pgTable("businesses", {
   address: text("address"),
   /** KRA PIN, printed on invoices. */
   taxPin: text("tax_pin"),
+  /** ISO 4217 code (KES, UGX, TZS, ...) — drives formatting across the app. */
+  currency: text("currency").notNull().default("KES"),
   status: businessStatus("status").notNull().default("active"),
   dateRegistered: date("date_registered").notNull().defaultNow(),
   subscriptionStart: date("subscription_start"),

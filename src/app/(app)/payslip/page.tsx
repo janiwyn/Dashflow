@@ -6,7 +6,8 @@ import { Download, Printer } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { getPayrollRecords } from "@/db/queries/hr";
-import { currency } from "@/lib/format";
+import { getBusinessProfile } from "@/db/queries/profile";
+import { formatMoney } from "@/lib/currency";
 
 export const metadata: Metadata = {
   title: "Payslip",
@@ -19,7 +20,8 @@ export default async function PayslipPage({
   searchParams: Promise<{ id?: string }>;
 }) {
   const { id } = await searchParams;
-  const records = await getPayrollRecords();
+  const [records, business] = await Promise.all([getPayrollRecords(), getBusinessProfile()]);
+  const currency = (n: number) => formatMoney(n, business?.currency);
   const record = (id ? records.find((r) => r.id === Number(id)) : null) ?? records[0];
   if (!record) notFound();
 

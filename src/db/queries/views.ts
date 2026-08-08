@@ -794,6 +794,20 @@ export async function viewProfile() {
   };
 }
 
+export async function viewBusinessSettings() {
+  const { getBusinessProfile } = await import("./profile");
+  const b = await getBusinessProfile();
+  if (!b) return null;
+  return {
+    name: b.name,
+    tagline: b.tagline ?? "",
+    phone: b.phone ?? "",
+    address: b.address ?? "",
+    taxPin: b.taxPin ?? "",
+    currency: b.currency,
+  };
+}
+
 /** Notification row shapes, kept for the alert screens. */
 export type LowStockNotif = Awaited<ReturnType<typeof viewLowStockNotifs>>[number];
 export type ShopDebtorNotif = Awaited<ReturnType<typeof viewShopDebtorNotifs>>[number];

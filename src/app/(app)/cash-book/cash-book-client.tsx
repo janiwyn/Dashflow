@@ -4,7 +4,7 @@ import type { viewCashBookEntries } from "@/db/queries/views";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 
 
 type Props = {
@@ -12,6 +12,7 @@ type Props = {
 };
 
 export default function CashBookPage({ cashBookEntries }: Props) {
+  const { format: currency } = useCurrency();
   const totals = cashBookEntries.reduce(
     (acc, e) => ({
       cashIn: acc.cashIn + e.cashIn,

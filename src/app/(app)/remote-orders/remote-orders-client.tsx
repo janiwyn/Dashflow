@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { currency } from "@/lib/format";
+import { useCurrency } from "@/components/currency-provider";
 import type { RemoteOrder } from "@/db/queries/views";
 import type { viewBranchOptions, viewRemoteOrders } from "@/db/queries/views";
 
@@ -26,6 +26,7 @@ function StatusBadge({ status }: { status: RemoteOrder["status"] }) {
 }
 
 export default function RemoteOrdersPage({ branches, remoteOrders }: Props) {
+  const { format: currency } = useCurrency();
   const [branch, setBranch] = useState("all");
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
