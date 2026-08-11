@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { viewInventoryStats, viewPosProducts } from "@/db/queries/views";
 import InventoryPage from "./inventory-client";
+import { requireModule } from "@/lib/module-access";
 
 export const metadata: Metadata = {
   title: "Inventory",
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
+  await requireModule("inventory");
   const stats = await viewInventoryStats();
   const products = await viewPosProducts();
   return <InventoryPage stats={stats} products={products} />;

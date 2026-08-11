@@ -41,7 +41,9 @@ import {
 } from "lucide-react";
 
 import { HexMark } from "@/components/brand-mark";
+import { useActiveModules } from "@/components/modules-provider";
 import { SignOutButton } from "@/components/sign-out-button";
+import type { ModuleKey } from "@/lib/modules";
 import {
   Sidebar,
   SidebarContent,
@@ -57,7 +59,8 @@ import {
 } from "@/components/ui/sidebar";
 
 type Role = "super" | "admin" | "manager" | "staff";
-type NavItem = { title: string; url: string; icon: typeof Boxes; roles: Role[] };
+/** `module: undefined` marks a Core System screen — never gated by subscription. */
+type NavItem = { title: string; url: string; icon: typeof Boxes; roles: Role[]; module?: ModuleKey };
 
 const ALL: Role[] = ["super", "admin", "manager", "staff"];
 const MANAGER_UP: Role[] = ["super", "admin", "manager"];
@@ -66,51 +69,51 @@ const SUPER_ONLY: Role[] = ["super"];
 
 const operate: NavItem[] = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard, roles: ["super", "admin"] },
-  { title: "Terminal", url: "/pos", icon: ScanBarcode, roles: ALL },
-  { title: "Sales", url: "/sales", icon: Receipt, roles: ALL },
-  { title: "Remote orders", url: "/remote-orders", icon: ShoppingBag, roles: ALL },
-  { title: "QR scanner", url: "/qr-scanner", icon: QrCode, roles: ALL },
-  { title: "Payment proofs", url: "/payment-proofs", icon: BadgeCheck, roles: MANAGER_UP },
-  { title: "Till management", url: "/till-management", icon: Coins, roles: MANAGER_UP },
-  { title: "Receipt preview", url: "/receipt-preview", icon: FileText, roles: ALL },
+  { title: "Terminal", url: "/pos", icon: ScanBarcode, roles: ALL, module: "pos" },
+  { title: "Sales", url: "/sales", icon: Receipt, roles: ALL, module: "sales" },
+  { title: "Remote orders", url: "/remote-orders", icon: ShoppingBag, roles: ALL, module: "sales" },
+  { title: "QR scanner", url: "/qr-scanner", icon: QrCode, roles: ALL, module: "pos" },
+  { title: "Payment proofs", url: "/payment-proofs", icon: BadgeCheck, roles: MANAGER_UP, module: "sales" },
+  { title: "Till management", url: "/till-management", icon: Coins, roles: MANAGER_UP, module: "pos" },
+  { title: "Receipt preview", url: "/receipt-preview", icon: FileText, roles: ALL, module: "pos" },
 ];
 
 const stock: NavItem[] = [
-  { title: "Products", url: "/products", icon: Package, roles: ALL },
-  { title: "Inventory", url: "/inventory", icon: Boxes, roles: MANAGER_UP },
-  { title: "Edit product", url: "/edit-product", icon: UserCog, roles: MANAGER_UP },
-  { title: "Product images", url: "/product-images", icon: Images, roles: MANAGER_UP },
-  { title: "Expiry tracking", url: "/expiry", icon: CalendarClock, roles: MANAGER_UP },
-  { title: "Suppliers", url: "/suppliers", icon: Truck, roles: MANAGER_UP },
+  { title: "Products", url: "/products", icon: Package, roles: ALL, module: "inventory" },
+  { title: "Inventory", url: "/inventory", icon: Boxes, roles: MANAGER_UP, module: "inventory" },
+  { title: "Edit product", url: "/edit-product", icon: UserCog, roles: MANAGER_UP, module: "inventory" },
+  { title: "Product images", url: "/product-images", icon: Images, roles: MANAGER_UP, module: "inventory" },
+  { title: "Expiry tracking", url: "/expiry", icon: CalendarClock, roles: MANAGER_UP, module: "inventory" },
+  { title: "Suppliers", url: "/suppliers", icon: Truck, roles: MANAGER_UP, module: "procurement" },
 ];
 
 const people: NavItem[] = [
-  { title: "Customers", url: "/customers", icon: Users, roles: ALL },
-  { title: "Customer file", url: "/customer-file", icon: FileText, roles: ALL },
-  { title: "Debtor payment", url: "/debtor-payment", icon: BadgeDollarSign, roles: ALL },
-  { title: "Employees", url: "/employees", icon: UsersRound, roles: MANAGER_UP },
-  { title: "Employee record", url: "/employee", icon: UserRound, roles: MANAGER_UP },
-  { title: "Payroll", url: "/payroll", icon: Wallet, roles: MANAGER_UP },
-  { title: "Payslip", url: "/payslip", icon: FileText, roles: ALL },
+  { title: "Customers", url: "/customers", icon: Users, roles: ALL, module: "customers" },
+  { title: "Customer file", url: "/customer-file", icon: FileText, roles: ALL, module: "customers" },
+  { title: "Debtor payment", url: "/debtor-payment", icon: BadgeDollarSign, roles: ALL, module: "customers" },
+  { title: "Employees", url: "/employees", icon: UsersRound, roles: MANAGER_UP, module: "hr" },
+  { title: "Employee record", url: "/employee", icon: UserRound, roles: MANAGER_UP, module: "hr" },
+  { title: "Payroll", url: "/payroll", icon: Wallet, roles: MANAGER_UP, module: "payroll" },
+  { title: "Payslip", url: "/payslip", icon: FileText, roles: ALL, module: "payroll" },
 ];
 
 const finance: NavItem[] = [
-  { title: "Accounting", url: "/accounting", icon: Calculator, roles: MANAGER_UP },
-  { title: "Ledger", url: "/ledger", icon: BookOpen, roles: MANAGER_UP },
-  { title: "Transactions", url: "/add-transaction", icon: BookMarked, roles: MANAGER_UP },
-  { title: "Chart of accounts", url: "/add-account", icon: Landmark, roles: MANAGER_UP },
-  { title: "Cash book", url: "/cash-book", icon: Coins, roles: MANAGER_UP },
-  { title: "Petty cash", url: "/petty-cash", icon: Wallet, roles: MANAGER_UP },
-  { title: "Trial balance", url: "/trial-balance", icon: Scale, roles: MANAGER_UP },
-  { title: "Income statement", url: "/income-statement", icon: LineChart, roles: MANAGER_UP },
-  { title: "Balance sheet", url: "/balance-sheet", icon: Scale, roles: MANAGER_UP },
-  { title: "Invoices", url: "/invoice-preview", icon: FileText, roles: ALL },
-  { title: "Expenses", url: "/expenses", icon: Wallet, roles: MANAGER_UP },
+  { title: "Accounting", url: "/accounting", icon: Calculator, roles: MANAGER_UP, module: "accounting" },
+  { title: "Ledger", url: "/ledger", icon: BookOpen, roles: MANAGER_UP, module: "accounting" },
+  { title: "Transactions", url: "/add-transaction", icon: BookMarked, roles: MANAGER_UP, module: "accounting" },
+  { title: "Chart of accounts", url: "/add-account", icon: Landmark, roles: MANAGER_UP, module: "accounting" },
+  { title: "Cash book", url: "/cash-book", icon: Coins, roles: MANAGER_UP, module: "accounting" },
+  { title: "Petty cash", url: "/petty-cash", icon: Wallet, roles: MANAGER_UP, module: "accounting" },
+  { title: "Trial balance", url: "/trial-balance", icon: Scale, roles: MANAGER_UP, module: "accounting" },
+  { title: "Income statement", url: "/income-statement", icon: LineChart, roles: MANAGER_UP, module: "accounting" },
+  { title: "Balance sheet", url: "/balance-sheet", icon: Scale, roles: MANAGER_UP, module: "accounting" },
+  { title: "Invoices", url: "/invoice-preview", icon: FileText, roles: ALL, module: "sales" },
+  { title: "Expenses", url: "/expenses", icon: Wallet, roles: MANAGER_UP, module: "accounting" },
 ];
 
 const insights: NavItem[] = [
-  { title: "Reports", url: "/reports", icon: LineChart, roles: MANAGER_UP },
-  { title: "Report builder", url: "/reports-generator", icon: FileText, roles: MANAGER_UP },
+  { title: "Reports", url: "/reports", icon: LineChart, roles: MANAGER_UP, module: "sales" },
+  { title: "Report builder", url: "/reports-generator", icon: FileText, roles: MANAGER_UP, module: "sales" },
   { title: "Notifications", url: "/notifications", icon: Bell, roles: ALL },
   { title: "Order alerts", url: "/order-notifications", icon: BellRing, roles: ALL },
   { title: "SMS centre", url: "/sms", icon: MessageSquare, roles: MANAGER_UP },
@@ -148,9 +151,12 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
   const collapsed = state === "collapsed";
   const pathname = usePathname();
   const role = (user.role as Role) || "staff";
+  const activeModules = useActiveModules();
 
   const renderGroup = (label: string, items: NavItem[]) => {
-    const visible = items.filter((item) => item.roles.includes(role));
+    const visible = items.filter(
+      (item) => item.roles.includes(role) && (!item.module || activeModules.has(item.module)),
+    );
     if (visible.length === 0) return null;
 
     return (

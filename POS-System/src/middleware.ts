@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PREFIXES = [
   "/login",
   "/signup",
+  "/subscribe",
   "/forgot-password",
   "/new-password",
   "/customer-portal",
@@ -30,14 +31,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Signed-in visitors don't need the marketing pitch or the auth forms —
-  // send them straight into the app. /new-password stays reachable while
-  // signed in — a user resetting from an emailed link may well still have a
-  // live session in that browser.
-  if (hasSession && (pathname === "/" || pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
+  // The marketing homepage stays reachable even when signed in — like most
+  // SaaS sites, a logged-in visitor can still browse it (the nav reflects
+  // their session instead of showing Log in/Sign up). It used to force a
+  // redirect to /dashboard here, which meant a signed-in admin could never
+  // actually reach the modules grid or /subscribe by browsing the site —
+  // only /login and /signup skip this file entirely (see PUBLIC_PREFIXES);
+  // those validate the session themselves rather than trusting the cookie.
   return NextResponse.next();
 }
 

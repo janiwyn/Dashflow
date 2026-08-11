@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { viewDebtors } from "@/db/queries/views";
 import DebtorPaymentPage from "./debtor-payment-client";
+import { requireModule } from "@/lib/module-access";
 
 export const metadata: Metadata = {
   title: "Debtor Payments",
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
+  await requireModule("customers");
   const debtorsSeed = await viewDebtors();
   return <DebtorPaymentPage debtorsSeed={debtorsSeed} />;
 }

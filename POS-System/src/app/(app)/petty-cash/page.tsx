@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { viewBranchSummaries, viewPettyCash } from "@/db/queries/views";
 import PettyCashPage from "./petty-cash-client";
 import { requireRole } from "@/lib/session";
+import { requireModule } from "@/lib/module-access";
 
 export const metadata: Metadata = {
   title: "Petty Cash",
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   await requireRole("super", "admin", "manager");
+  await requireModule("accounting");
 
   const pettyCash = await viewPettyCash();
   const branches = await viewBranchSummaries();

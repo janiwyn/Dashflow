@@ -21,18 +21,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { signUp } from "@/lib/auth-client";
+import { finishBusinessSignup } from "@/app/actions/signup";
+import { getSession, signUp } from "@/lib/auth-client";
+import { formatMoney } from "@/lib/currency";
+import { MODULE_CATALOG, modulesMonthlyTotal, type ModuleKey } from "@/lib/modules";
 
 type Props = {
   branches: { id: number; name: string }[];
   providers: ProviderAvailability;
+  initialModules: ModuleKey[];
 };
 
-export default function SignupPage({ branches, providers }: Props) {
+export default function SignupPage({ branches, providers, initialModules }: Props) {
   const router = useRouter();
-  const [role, setRole] = useState("staff");
+  const hasModules = initialModules.length > 0;
+  const [role, setRole] = useState(hasModules ? "admin" : "staff");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const monthlyTotal = modulesMonthlyTotal(initialModules);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,13 +67,33 @@ export default function SignupPage({ branches, providers }: Props) {
       phone: String(form.get("phone") ?? "").trim(),
     });
 
-    setPending(false);
-
     if (error) {
+      setPending(false);
       setMessage({ text: error.message ?? "Could not create the account.", error: true });
       return;
     }
 
+    // Staff join an existing branch — no business to create.
+    if (role !== "staff") {
+      const result = await finishBusinessSignup({
+        businessName: String(form.get("business_name") ?? "").trim(),
+        role: role === "manager" ? "manager" : "admin",
+        moduleKeys: initialModules,
+      });
+
+      if (!result.ok) {
+        setPending(false);
+        setMessage({ text: result.message, error: true });
+        return;
+      }
+
+      // The session cookie was cached at sign-up, before businessId/role were
+      // set — refetch it now (bypassing the cache) so the dashboard the next
+      // navigation loads sees the real business instead of falling back.
+      await getSession({ query: { disableCookieCache: true } });
+    }
+
+    setPending(false);
     setMessage({ text: "Account created. Redirecting…" });
     router.push("/dashboard");
     router.refresh();
@@ -92,6 +118,33 @@ export default function SignupPage({ branches, providers }: Props) {
             <h2 className="text-2xl font-bold tracking-tight">Create an account</h2>
             <p className="mt-1 text-sm text-muted-foreground">Join Dashflow POS</p>
           </div>
+
+          {hasModules && (
+            <div className="mb-6 rounded-xl border border-primary/25 bg-accent/40 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-primary">
+                  Your subscription
+                </p>
+                <p className="num text-sm font-semibold">{formatMoney(monthlyTotal, "KES")}/mo</p>
+              </div>
+              <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                {initialModules.map((key) => (
+                  <li
+                    key={key}
+                    className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium"
+                  >
+                    {MODULE_CATALOG[key].label}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2.5 text-xs text-muted-foreground">
+                These activate on your new business the moment you sign up.{" "}
+                <Link href="/subscribe" className="font-medium text-primary hover:underline">
+                  Change modules
+                </Link>
+              </p>
+            </div>
+          )}
 
           {message && (
             <div

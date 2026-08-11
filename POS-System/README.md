@@ -90,6 +90,31 @@ src/
   server/client boundary, so any screen using `DataTable` or `StatCard` is a
   client component.
 
+## Modules & subscriptions
+
+Each business subscribes to a subset of the platform's modules (`pos`,
+`inventory`, `sales`, `accounting`, `procurement`, `customers`, `hr`,
+`attendance`, `payroll`). A business's active set lives in `business_modules`
+(one row per active module — presence means subscribed) and is the single
+source of truth for what that business can see and do.
+
+- `src/lib/modules.ts` — the fixed module catalog (label, description, icon).
+  Adding a module to the platform starts here.
+- `src/lib/module-access.ts` — `requireModule("inventory")` guards a page the
+  same way `requireRole()` guards by role; `hasModule()` checks without
+  redirecting. The super admin bypasses this (they operate the platform, not
+  a single tenant).
+- `src/components/modules-provider.tsx` — publishes the signed-in business's
+  active modules to the client tree; `AppSidebar` uses `useActiveModules()` to
+  hide nav items for modules the business hasn't subscribed to.
+- Super admins manage a business's modules from **Subscriptions**
+  (`/subscription`) — the "Manage" button opens a per-business module editor
+  backed by `updateBusinessModules()` in `src/app/actions/super-admin.ts`.
+
+New module-gated pages should both call `requireModule()` in their `page.tsx`
+and set `module: "..."` on their sidebar entry in `app-sidebar.tsx` — the
+guard is the enforcement, the sidebar entry is what makes the UI adapt.
+
 ## Scripts
 
 | Command | Description |
