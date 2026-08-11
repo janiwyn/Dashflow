@@ -41,6 +41,20 @@ export async function setBusinessModuleKeys(businessId: number, keys: ModuleKey[
   await db.insert(businessModules).values(keys.map((moduleKey) => ({ businessId, moduleKey })));
 }
 
+/**
+ * Adds modules to a business's existing set — unlike setBusinessModuleKeys,
+ * this never removes any. Used for self-service "add a module" from
+ * /subscribe, where wiping out modules the business already pays for would
+ * be a real loss of access, not just a display bug.
+ */
+export async function addBusinessModuleKeys(businessId: number, keys: ModuleKey[]) {
+  if (keys.length === 0) return;
+  await db
+    .insert(businessModules)
+    .values(keys.map((moduleKey) => ({ businessId, moduleKey })))
+    .onConflictDoNothing();
+}
+
 /** Sanity check used by the subscription action before writing. */
 export async function businessExists(businessId: number): Promise<boolean> {
   const [row] = await db.select({ id: businesses.id }).from(businesses).where(eq(businesses.id, businessId)).limit(1);

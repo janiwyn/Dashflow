@@ -31,16 +31,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Signed-in visitors don't need the marketing pitch — send them straight
-  // into the app. /login and /signup are deliberately NOT redirected here:
-  // this check only sees a cookie, not a validated session, and a stale
-  // cookie (e.g. after a db:seed wipes the session table) would bounce
-  // /login -> /dashboard -> (requireUser fails) -> /login forever. Those
-  // pages validate the session themselves and redirect only when it's real.
-  if (hasSession && pathname === "/") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
+  // The marketing homepage stays reachable even when signed in — like most
+  // SaaS sites, a logged-in visitor can still browse it (the nav reflects
+  // their session instead of showing Log in/Sign up). It used to force a
+  // redirect to /dashboard here, which meant a signed-in admin could never
+  // actually reach the modules grid or /subscribe by browsing the site —
+  // only /login and /signup skip this file entirely (see PUBLIC_PREFIXES);
+  // those validate the session themselves rather than trusting the cookie.
   return NextResponse.next();
 }
 

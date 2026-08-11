@@ -4,7 +4,9 @@ import { ArrowLeft, ArrowRight, Check, Loader2, ScanBarcode, ShieldCheck, Smartp
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 
+import { addModulesToMyBusiness } from "@/app/actions/subscribe";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,16 +15,26 @@ import { MODULE_LIST, MODULE_TILE_STYLE, modulesMonthlyTotal, type ModuleKey } f
 
 type Step = "select" | "pay";
 
-export default function SubscribePage({ initialModules }: { initialModules: ModuleKey[] }) {
+type Props = {
+  initialModules: ModuleKey[];
+  /** Modules the signed-in visitor's business already has — offered as "Active", not for sale again. */
+  existingModules: ModuleKey[];
+  /** A signed-in admin/manager adding to their own business, vs. a visitor creating one via /signup. */
+  isLoggedIn: boolean;
+};
+
+export default function SubscribePage({ initialModules, existingModules, isLoggedIn }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<ModuleKey>>(new Set(initialModules));
   const [step, setStep] = useState<Step>("select");
   const [paying, setPaying] = useState(false);
+  const owned = useMemo(() => new Set(existingModules), [existingModules]);
 
   const keys = useMemo(() => Array.from(selected), [selected]);
   const total = modulesMonthlyTotal(keys);
 
   const toggle = (key: ModuleKey) => {
+    if (owned.has(key)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -35,9 +47,26 @@ export default function SubscribePage({ initialModules }: { initialModules: Modu
     event.preventDefault();
     setPaying(true);
     // No live payment gateway is wired up yet — this stands in for the
-    // M-Pesa STK push confirmation so the signup flow can be built and
-    // tested end to end. Swap for a real charge before going live.
+    // M-Pesa STK push confirmation so the flow can be built and tested end
+    // to end. Swap for a real charge before going live.
     await new Promise((resolve) => setTimeout(resolve, 1300));
+
+    if (isLoggedIn) {
+      // Already have an account — add straight to it instead of routing
+      // through /signup, which would just bounce a signed-in visitor to
+      // /dashboard and silently drop the modules they just "paid" for.
+      const result = await addModulesToMyBusiness(keys);
+      setPaying(false);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
     router.push(`/signup?modules=${keys.join(",")}`);
   }
 
@@ -53,9 +82,15 @@ export default function SubscribePage({ initialModules }: { initialModules: Modu
               Dashflow<span className="text-primary"> POS</span>
             </span>
           </Link>
-          <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-            Log in
-          </Link>
+          {isLoggedIn ? (
+            <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+              Back to dashboard
+            </Link>
+          ) : (
+            <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+              Log in
+            </Link>
+          )}
         </div>
       </header>
 
@@ -63,7 +98,9 @@ export default function SubscribePage({ initialModules }: { initialModules: Modu
         {step === "select" ? (
           <SelectStep
             selected={selected}
+            owned={owned}
             total={total}
+            isLoggedIn={isLoggedIn}
             onToggle={toggle}
             onContinue={() => setStep("pay")}
           />
@@ -72,6 +109,7 @@ export default function SubscribePage({ initialModules }: { initialModules: Modu
             keys={keys}
             total={total}
             paying={paying}
+            isLoggedIn={isLoggedIn}
             onBack={() => setStep("select")}
             onPay={onPay}
           />
@@ -83,12 +121,16 @@ export default function SubscribePage({ initialModules }: { initialModules: Modu
 
 function SelectStep({
   selected,
+  owned,
   total,
+  isLoggedIn,
   onToggle,
   onContinue,
 }: {
   selected: Set<ModuleKey>;
+  owned: Set<ModuleKey>;
   total: number;
+  isLoggedIn: boolean;
   onToggle: (key: ModuleKey) => void;
   onContinue: () => void;
 }) {
@@ -97,40 +139,54 @@ function SelectStep({
       <div className="text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Subscribe</p>
         <h1 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
-          Choose your modules
+          {isLoggedIn ? "Add modules to your business" : "Choose your modules"}
         </h1>
         <p className="mt-3 text-[15px] text-muted-foreground">
-          Pick as many or as few as your business needs today — add the rest later from Settings.
+          {isLoggedIn
+            ? "Modules you already subscribe to are marked Active. Pick more to add them to your account."
+            : "Pick as many or as few as your business needs today — add the rest later from Settings."}
         </p>
       </div>
 
       <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {MODULE_LIST.map((m) => {
           const active = selected.has(m.key);
+          const isOwned = owned.has(m.key);
           return (
             <button
               key={m.key}
               type="button"
               onClick={() => onToggle(m.key)}
+              disabled={isOwned}
               aria-pressed={active}
               className={`flex flex-col items-center gap-2.5 rounded-2xl border p-4 text-center transition-colors ${
-                active ? "border-primary bg-accent/50 shadow-card" : "border-border bg-card hover:bg-secondary/50"
+                isOwned
+                  ? "cursor-default border-success/30 bg-success/5"
+                  : active
+                    ? "border-primary bg-accent/50 shadow-card"
+                    : "border-border bg-card hover:bg-secondary/50"
               }`}
             >
               <span className="relative">
                 <span className={`grid size-12 place-items-center rounded-xl ${MODULE_TILE_STYLE[m.key]}`}>
                   <m.icon className="size-5" />
                 </span>
-                {active && (
-                  <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-primary text-primary-foreground">
+                {(active || isOwned) && (
+                  <span
+                    className={`absolute -right-1 -top-1 grid size-5 place-items-center rounded-full text-primary-foreground ${isOwned ? "bg-success" : "bg-primary"}`}
+                  >
                     <Check className="size-3" />
                   </span>
                 )}
               </span>
               <span className="text-sm font-semibold tracking-tight">{m.label}</span>
-              <span className="num text-xs font-medium text-muted-foreground">
-                {formatMoney(m.monthlyPrice, "KES")}/mo
-              </span>
+              {isOwned ? (
+                <span className="text-xs font-medium text-success">Active</span>
+              ) : (
+                <span className="num text-xs font-medium text-muted-foreground">
+                  {formatMoney(m.monthlyPrice, "KES")}/mo
+                </span>
+              )}
             </button>
           );
         })}
@@ -144,8 +200,11 @@ function SelectStep({
           )}
         </p>
         <div className="flex items-center gap-3">
-          <Link href="/signup" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-            Skip for now
+          <Link
+            href={isLoggedIn ? "/dashboard" : "/signup"}
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            {isLoggedIn ? "Not now" : "Skip for now"}
           </Link>
           <Button
             onClick={onContinue}
@@ -165,12 +224,14 @@ function PayStep({
   keys,
   total,
   paying,
+  isLoggedIn,
   onBack,
   onPay,
 }: {
   keys: ModuleKey[];
   total: number;
   paying: boolean;
+  isLoggedIn: boolean;
   onBack: () => void;
   onPay: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -238,7 +299,10 @@ function PayStep({
         </Button>
 
         <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-          <ShieldCheck className="size-3.5" /> You&apos;ll set up your login right after payment.
+          <ShieldCheck className="size-3.5" />
+          {isLoggedIn
+            ? "These activate on your account immediately after payment."
+            : "You'll set up your login right after payment."}
         </p>
       </form>
     </div>

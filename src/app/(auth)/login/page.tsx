@@ -24,7 +24,10 @@ export default async function Page({
   const { next } = await searchParams;
 
   // Only same-origin paths — an absolute URL here would be an open redirect.
-  const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  // Defaults to /dashboard, not "/": the marketing homepage no longer
+  // bounces a signed-in visitor away, so a bare /login (no ?next=, e.g. from
+  // clicking "Log in" in the nav) has to send them into the app itself.
+  const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
 
   // A validated check, unlike middleware's cookie-presence check — this is
   // what actually redirects an already-signed-in visitor away from the form,

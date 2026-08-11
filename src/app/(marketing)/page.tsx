@@ -30,6 +30,7 @@ import {
 
 import { formatMoney } from "@/lib/currency";
 import { MODULE_LIST, MODULE_TILE_STYLE } from "@/lib/modules";
+import { getCurrentUser } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Dashflow POS \u2014 Run every branch from one dashboard",
@@ -39,11 +40,17 @@ export const metadata: Metadata = {
 
 const CITIES = ["Nairobi", "Kampala", "Dar es Salaam", "Kigali", "Lagos", "Accra", "Mombasa", "Jinja"];
 
-export default function MarketingHome() {
+export default async function MarketingHome() {
+  // Signed-in visitors can still browse the marketing site \u2014 like most SaaS
+  // sites, the nav just reflects that they're already in rather than
+  // pretending they're not (or, as this used to do, redirecting them away
+  // from the homepage before they could see it at all).
+  const user = await getCurrentUser();
+
   return (
     <div className="bg-background text-foreground">
-      <SiteNav />
-      <Hero />
+      <SiteNav user={user} />
+      <Hero user={user} />
       <CityMarquee />
       <PhotoStrip />
       <ModulesGrid />
@@ -59,7 +66,7 @@ export default function MarketingHome() {
 
 /* ---------------------------------- Nav ---------------------------------- */
 
-function SiteNav() {
+function SiteNav({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -79,21 +86,36 @@ function SiteNav() {
           <Link href="/track-order" className="transition-colors hover:text-foreground">Track an order</Link>
         </nav>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href="/login"
-            className="hidden rounded-lg px-3.5 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary sm:inline-flex"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-          >
-            Sign up free
-            <ArrowRight className="size-3.5" />
-          </Link>
-        </div>
+        {user ? (
+          <div className="flex items-center gap-2">
+            <span className="hidden text-sm text-muted-foreground sm:inline">
+              Signed in as <span className="font-medium text-foreground">{user.name}</span>
+            </span>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+            >
+              Go to dashboard
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="hidden rounded-lg px-3.5 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary sm:inline-flex"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+            >
+              Sign up free
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );
@@ -101,7 +123,7 @@ function SiteNav() {
 
 /* ---------------------------------- Hero ---------------------------------- */
 
-function Hero() {
+function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
   return (
     <section className="relative overflow-hidden bg-[oklch(0.17_0.02_255)] text-[oklch(0.96_0.005_255)]">
       <div
@@ -141,18 +163,27 @@ function Hero() {
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
-              href="/subscribe"
+              href={user ? "/dashboard" : "/subscribe"}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
             >
-              Choose your modules
+              {user ? "Go to your dashboard" : "Choose your modules"}
               <ArrowRight className="size-4" />
             </Link>
-            <a
-              href="#modules"
-              className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white/85 transition-colors hover:bg-white/5"
-            >
-              See modules &amp; pricing
-            </a>
+            {user ? (
+              <Link
+                href="/subscribe"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white/85 transition-colors hover:bg-white/5"
+              >
+                Add more modules
+              </Link>
+            ) : (
+              <a
+                href="#modules"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white/85 transition-colors hover:bg-white/5"
+              >
+                See modules &amp; pricing
+              </a>
+            )}
           </div>
 
           <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/45">
