@@ -84,7 +84,7 @@ async function reset() {
       "notifications", "sms_logs", "system_logs", "system_updates",
       "products", "categories", "suppliers",
       "session", "account", "verification", "user",
-      "branches", "businesses"
+      "business_modules", "branches", "businesses"
     RESTART IDENTITY CASCADE
   `);
 }
@@ -122,6 +122,49 @@ async function seedBusinesses() {
     .returning();
 
   return { meridianId: meridian.id, tenants };
+}
+
+/**
+ * Per-business module subscriptions — mirrors the platform's worked examples:
+ * a lean retail shop, a full-stack supermarket, and a wholesaler running
+ * without a POS module at all.
+ */
+async function seedModules(meridianId: number, tenants: { id: number }[]) {
+  console.log("• module subscriptions");
+  const ALL: (typeof t.moduleKey.enumValues)[number][] = [
+    "pos",
+    "inventory",
+    "sales",
+    "accounting",
+    "procurement",
+    "customers",
+    "hr",
+    "attendance",
+    "payroll",
+  ];
+
+  const plans: { businessId: number; modules: (typeof t.moduleKey.enumValues)[number][] }[] = [
+    { businessId: meridianId, modules: ALL },
+    // Mama Njeri Supermarket — full-stack supermarket, no payroll yet.
+    { businessId: tenants[0].id, modules: ["pos", "inventory", "sales", "accounting", "procurement", "hr", "attendance"] },
+    // Kilimani Fresh Mart — small retail shop: POS + Inventory only.
+    { businessId: tenants[1].id, modules: ["pos", "inventory"] },
+    // Eastleigh Traders Ltd — wholesaler, no POS: inventory, sales, procurement, accounting, customer credit.
+    { businessId: tenants[2].id, modules: ["inventory", "sales", "procurement", "accounting", "customers"] },
+    // Westside Pharmacy
+    { businessId: tenants[3].id, modules: ["pos", "inventory", "sales", "customers"] },
+    // Thika Road Electronics
+    { businessId: tenants[4].id, modules: ["pos", "inventory", "sales", "accounting"] },
+    // Rongai Hardware
+    { businessId: tenants[5].id, modules: ["pos", "inventory"] },
+    // Karen Boutique House
+    { businessId: tenants[6].id, modules: ["pos", "inventory", "sales", "customers"] },
+  ];
+
+  await insertAll(
+    t.businessModules,
+    plans.flatMap((p) => p.modules.map((moduleKey) => ({ businessId: p.businessId, moduleKey }))),
+  );
 }
 
 async function seedBranches(businessId: number) {
@@ -681,6 +724,7 @@ async function main() {
   await reset();
 
   const { meridianId, tenants } = await seedBusinesses();
+  await seedModules(meridianId, tenants);
   const branches = await seedBranches(meridianId);
 
   const userId = await seedUsers([

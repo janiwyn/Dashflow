@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { businesses, users } from "@/db/schema";
+import { businessExists, setBusinessModuleKeys } from "@/db/queries/modules";
+import { MODULE_KEYS, type ModuleKey } from "@/lib/modules";
 import { requireRole } from "@/lib/session";
 
 import type { ActionResult } from "./users";
@@ -86,6 +88,19 @@ export async function createBusiness(input: {
   revalidatePath("/manage-business");
   revalidatePath("/super");
   return { ok: true, message: "Business registered successfully!" };
+}
+
+/** The set of modules a business is subscribed to — what gates its UI and server actions. */
+export async function updateBusinessModules(businessId: number, moduleKeys: ModuleKey[]): Promise<ActionResult> {
+  await requireRole("super");
+
+  const validKeys = moduleKeys.filter((k) => (MODULE_KEYS as readonly string[]).includes(k));
+  if (!(await businessExists(businessId))) return { ok: false, message: "Business not found." };
+
+  await setBusinessModuleKeys(businessId, validKeys);
+
+  revalidatePath("/subscription");
+  return { ok: true, message: "Modules updated." };
 }
 
 export async function updateAdmin(input: {

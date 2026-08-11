@@ -24,7 +24,12 @@ import {
   CalendarClock,
   AlertTriangle,
   UserX,
+  Printer,
+  Package,
 } from "lucide-react";
+
+import { formatMoney } from "@/lib/currency";
+import { MODULE_LIST, MODULE_TILE_STYLE } from "@/lib/modules";
 
 export const metadata: Metadata = {
   title: "Dashflow POS \u2014 Run every branch from one dashboard",
@@ -40,9 +45,11 @@ export default function MarketingHome() {
       <SiteNav />
       <Hero />
       <CityMarquee />
+      <PhotoStrip />
+      <ModulesGrid />
       <OldVsNew />
       <Showcases />
-      <Pricing />
+      <HardwareShowcase />
       <Faq />
       <FinalCta />
       <SiteFooter />
@@ -66,8 +73,8 @@ function SiteNav() {
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
+          <a href="#modules" className="transition-colors hover:text-foreground">Modules &amp; pricing</a>
           <a href="#product" className="transition-colors hover:text-foreground">Product</a>
-          <a href="#pricing" className="transition-colors hover:text-foreground">Pricing</a>
           <a href="#faq" className="transition-colors hover:text-foreground">FAQ</a>
           <Link href="/track-order" className="transition-colors hover:text-foreground">Track an order</Link>
         </nav>
@@ -134,23 +141,23 @@ function Hero() {
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
-              href="/signup"
+              href="/subscribe"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
             >
-              Start free — no card needed
+              Choose your modules
               <ArrowRight className="size-4" />
             </Link>
             <a
-              href="#pricing"
+              href="#modules"
               className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white/85 transition-colors hover:bg-white/5"
             >
-              See pricing
+              See modules &amp; pricing
             </a>
           </div>
 
           <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/45">
-            <span className="flex items-center gap-1.5"><Check className="size-3.5 text-primary" /> Free for your first branch</span>
-            <span className="flex items-center gap-1.5"><Check className="size-3.5 text-primary" /> Full accounting included</span>
+            <span className="flex items-center gap-1.5"><Check className="size-3.5 text-primary" /> Pay only for the modules you use</span>
+            <span className="flex items-center gap-1.5"><Check className="size-3.5 text-primary" /> Bluetooth, USB &amp; network receipt printers</span>
             <span className="flex items-center gap-1.5"><Check className="size-3.5 text-primary" /> Works on any phone or laptop</span>
             <span className="flex items-center gap-1.5"><Check className="size-3.5 text-primary" /> No setup fees</span>
           </div>
@@ -267,6 +274,102 @@ function CityMarquee() {
         }
       `}</style>
     </div>
+  );
+}
+
+/* -------------------------------- Photo strip -------------------------------- */
+
+const REAL_PHOTOS = [
+  {
+    src: "https://images.unsplash.com/photo-1687422808311-a776f467a468?auto=format&fit=crop&w=900&q=80",
+    alt: "A shop owner at her counter",
+    caption: "Independent shops",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=900&q=80",
+    alt: "Stocked supermarket aisle",
+    caption: "Supermarkets & wholesalers",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1759334928681-dc7ad674138e?auto=format&fit=crop&w=900&q=80",
+    alt: "A shopkeeper among his stock",
+    caption: "Growing retail chains",
+  },
+];
+
+function PhotoStrip() {
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {REAL_PHOTOS.map((p) => (
+          <figure key={p.src} className="group relative overflow-hidden rounded-2xl">
+            <img
+              src={p.src}
+              alt={p.alt}
+              loading="lazy"
+              className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:h-64"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0" />
+            <figcaption className="absolute bottom-3 left-4 text-sm font-semibold text-white">
+              {p.caption}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------- Modules grid ------------------------------- */
+
+function ModulesGrid() {
+  return (
+    <section id="modules" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-2xl text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Modules &amp; pricing</p>
+        <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
+          One platform. Pay only for what you turn on.
+        </h2>
+        <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+          Start with a Point of Sale and Inventory. Switch on Accounting, Procurement, HR,
+          Attendance and Payroll the moment your business is ready for them — every module plugs
+          straight into the ones you already run, so nothing gets entered twice. No bundles, no
+          tiers — the price you see on a module is the price you pay for it.
+        </p>
+      </div>
+
+      <div className="mt-14 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-5">
+        {MODULE_LIST.map((m) => (
+          <Link
+            key={m.key}
+            href={`/subscribe?modules=${m.key}`}
+            className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-5 text-center shadow-card transition-transform hover:-translate-y-1 hover:shadow-lift"
+          >
+            <span className={`grid size-14 place-items-center rounded-2xl ${MODULE_TILE_STYLE[m.key]}`}>
+              <m.icon className="size-6" />
+            </span>
+            <span className="text-sm font-semibold tracking-tight">{m.label}</span>
+            <span className="text-xs leading-snug text-muted-foreground">{m.description}</span>
+            <span className="num mt-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-foreground/80">
+              {formatMoney(m.monthlyPrice, "KES")}/mo
+            </span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-10 flex flex-col items-center gap-3">
+        <Link
+          href="/subscribe"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+        >
+          Build your plan
+          <ArrowRight className="size-3.5" />
+        </Link>
+        <p className="text-center text-sm text-muted-foreground">
+          Click any module above for its price, or pick several and see the total before you sign up.
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -584,99 +687,59 @@ function AlertsMock() {
   );
 }
 
-/* --------------------------------- Pricing ---------------------------------- */
+/* ------------------------------ Hardware showcase ---------------------------- */
 
-const TIERS = [
-  {
-    name: "Starter",
-    price: "KSh 0",
-    period: "/month",
-    tagline: "For a single branch finding its feet.",
-    features: ["1 branch", "Unlimited receipts", "Terminal & sales", "Basic dashboard", "Email support"],
-    cta: "Start free",
-    highlighted: false,
-  },
-  {
-    name: "Growth",
-    price: "KSh 4,500",
-    period: "/branch / month",
-    tagline: "For businesses running more than one branch.",
-    features: [
-      "Up to 10 branches",
-      "Role-based access",
-      "Inventory & low-stock alerts",
-      "Payroll & accounting",
-      "Reports & report builder",
-      "Priority support",
-    ],
-    cta: "Start free trial",
-    highlighted: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    tagline: "For chains with many branches or specific needs.",
-    features: ["Unlimited branches", "Dedicated onboarding", "Custom reporting", "SLA-backed support", "API access"],
-    cta: "Talk to us",
-    highlighted: false,
-  },
+const HARDWARE = [
+  { icon: ScanBarcode, label: "Barcode scanners", body: "USB and Bluetooth scanners — scan straight into the terminal's search box." },
+  { icon: Printer, label: "Bluetooth receipt printers", body: "Pair a thermal printer once from Settings; every receipt after that prints straight to it, no cables." },
+  { icon: Printer, label: "USB & network printers", body: "The same receipt goes to a USB or Wi-Fi/Ethernet printer just as easily — pick whatever the branch already has." },
+  { icon: Package, label: "Cash drawers", body: "Wired to the receipt printer, the drawer kicks open automatically when a cash sale completes." },
 ];
 
-function Pricing() {
+function HardwareShowcase() {
   return (
-    <section id="pricing" className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Pricing</p>
-        <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
-          Simple pricing, in your currency.
-        </h2>
-        <p className="mt-4 text-[15px] text-muted-foreground">
-          Prices shown in Kenyan Shillings. Switch your business to UGX, TZS, RWF, NGN, GHS and more any time —
-          your invoice follows.
-        </p>
-      </div>
+    <section className="border-y border-border bg-secondary/30 py-20">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Hardware</p>
+          <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
+            Real counter hardware, not just a screen.
+          </h2>
+          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+            The Terminal doesn&apos;t care which printer is plugged in. Pair a Bluetooth thermal
+            printer once and every sale from then on prints on its own — the same receipt would
+            print just as well over USB or a network printer instead.
+          </p>
 
-      <div className="mt-14 grid gap-6 lg:grid-cols-3">
-        {TIERS.map((t) => (
-          <div
-            key={t.name}
-            className={`relative flex flex-col rounded-2xl border p-7 ${
-              t.highlighted ? "border-primary bg-card shadow-lift" : "border-border bg-card"
-            }`}
-          >
-            {t.highlighted && (
-              <span className="absolute -top-3 left-7 rounded-full bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
-                Most popular
-              </span>
-            )}
-            <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold">{t.name}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{t.tagline}</p>
-            <p className="num mt-6 text-3xl font-semibold">
-              {t.price}
-              <span className="text-sm font-normal text-muted-foreground">{t.period}</span>
-            </p>
-            <ul className="mt-6 flex-1 space-y-3 text-sm">
-              {t.features.map((f) => (
-                <li key={f} className="flex items-start gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                  <span className="text-foreground/80">{f}</span>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/signup"
-              className={`mt-8 inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
-                t.highlighted
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "border border-border text-foreground hover:bg-secondary"
-              }`}
-            >
-              {t.cta}
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-        ))}
+          <dl className="mt-8 grid gap-5 sm:grid-cols-2">
+            {HARDWARE.map((h) => (
+              <div key={h.label} className="flex gap-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground">
+                  <h.icon className="size-4" />
+                </span>
+                <div>
+                  <dt className="text-sm font-semibold">{h.label}</dt>
+                  <dd className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{h.body}</dd>
+                </div>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <img
+            src="https://images.unsplash.com/photo-1647427017067-8f33ccbae493?auto=format&fit=crop&w=700&q=80"
+            alt="Cashier operating a point-of-sale machine"
+            loading="lazy"
+            className="col-span-2 h-56 w-full rounded-2xl object-cover shadow-card sm:h-72"
+          />
+          <img
+            src="https://images.unsplash.com/photo-1748362280546-c7306987088c?auto=format&fit=crop&w=700&q=80"
+            alt="Contactless card payment at checkout"
+            loading="lazy"
+            className="col-span-2 h-40 w-full rounded-2xl object-cover shadow-card sm:h-48"
+          />
+        </div>
       </div>
     </section>
   );
@@ -783,7 +846,7 @@ function SiteFooter() {
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
           <a href="#product" className="hover:text-foreground">Product</a>
-          <a href="#pricing" className="hover:text-foreground">Pricing</a>
+          <a href="#modules" className="hover:text-foreground">Modules &amp; pricing</a>
           <a href="#faq" className="hover:text-foreground">FAQ</a>
           <Link href="/login" className="hover:text-foreground">Log in</Link>
           <span className="flex items-center gap-1.5"><Wifi className="size-3.5" /> Works online &amp; off</span>

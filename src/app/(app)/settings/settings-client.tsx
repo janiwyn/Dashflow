@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition, type FormEvent } from "react";
-import { Save, Building2, Coins } from "lucide-react";
+import { Bluetooth, BluetoothConnected, Save, Building2, Coins, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import { updateBusinessSettings } from "@/app/actions/settings";
 import { AppShell } from "@/components/app-shell";
+import { usePrinter } from "@/components/printer-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -136,6 +137,108 @@ export default function SettingsPage({ settings }: Props) {
           </div>
         </div>
       </form>
+
+      <PrinterSettings />
     </AppShell>
+  );
+}
+
+function PrinterSettings() {
+  const printer = usePrinter();
+  const [testing, setTesting] = useState(false);
+
+  const onTestPrint = async () => {
+    setTesting(true);
+    try {
+      await printer.printReceipt({
+        businessName: "Dashflow POS",
+        tagline: "Test receipt",
+        reference: "TEST-0001",
+        date: new Date().toLocaleString(),
+        cashier: "Settings",
+        items: [
+          { name: "Sample item", qty: 1, unitPrice: 100, lineTotal: 100 },
+          { name: "Second item", qty: 2, unitPrice: 250, lineTotal: 500 },
+        ],
+        subtotal: 600,
+        total: 600,
+        currencySymbol: "KSh",
+        footer: "Printer connected successfully",
+      });
+      toast.success("Test receipt sent to the printer.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not print.");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="panel mt-6 min-w-0 p-6">
+      <div className="mb-5 flex items-center gap-2">
+        <Printer className="size-4 text-muted-foreground" />
+        <h2 className="text-base font-semibold">Receipt printer</h2>
+      </div>
+
+      {!printer.supported ? (
+        <p className="text-sm text-muted-foreground">
+          Bluetooth printing isn&apos;t supported in this browser. Use Chrome or Edge on desktop or
+          Android to connect a printer.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span
+              className={`grid size-10 shrink-0 place-items-center rounded-lg ${
+                printer.status === "connected" ? "bg-success/12 text-success" : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {printer.status === "connected" ? (
+                <BluetoothConnected className="size-5" />
+              ) : (
+                <Bluetooth className="size-5" />
+              )}
+            </span>
+            <div>
+              <p className="text-sm font-medium">
+                {printer.status === "connected"
+                  ? printer.deviceName
+                  : printer.status === "connecting"
+                    ? "Connecting…"
+                    : "No printer connected"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {printer.status === "connected"
+                  ? "Ready to print receipts over Bluetooth."
+                  : "Pair a Bluetooth thermal receipt printer to print straight from the till."}
+              </p>
+              {printer.error && <p className="mt-1 text-xs text-destructive">{printer.error}</p>}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 gap-2">
+            {printer.status === "connected" ? (
+              <>
+                <Button variant="outline" size="sm" className="rounded-lg" onClick={onTestPrint} disabled={testing}>
+                  {testing ? "Printing…" : "Print test receipt"}
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-lg" onClick={printer.disconnect}>
+                  Disconnect
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                className="rounded-lg"
+                onClick={printer.connect}
+                disabled={printer.status === "connecting"}
+              >
+                <Bluetooth className="size-4" /> Connect Bluetooth printer
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

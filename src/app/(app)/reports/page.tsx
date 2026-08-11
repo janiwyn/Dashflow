@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { viewReportStats, viewRevenueSeries } from "@/db/queries/views";
 import ReportsPage from "./reports-client";
 import { requireRole } from "@/lib/session";
+import { requireModule } from "@/lib/module-access";
 
 export const metadata: Metadata = {
   title: "Reports",
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   await requireRole("super", "admin", "manager");
+  await requireModule("sales");
 
   const stats = await viewReportStats();
   const revenueSeries = await viewRevenueSeries();

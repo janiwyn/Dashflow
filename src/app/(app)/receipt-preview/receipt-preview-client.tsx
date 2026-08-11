@@ -2,12 +2,15 @@
 
 import type { viewReceipt } from "@/db/queries/views";
 import { notFound } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { Printer, X } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { useCurrency } from "@/components/currency-provider";
+import { usePrinter } from "@/components/printer-provider";
 
 
 type Props = {
@@ -15,10 +18,45 @@ type Props = {
 };
 
 export default function ReceiptPreviewPage({ receiptSample }: Props) {
-  const { format: currency } = useCurrency();
+  const { format: currency, code } = useCurrency();
+  const printer = usePrinter();
+  const [printing, setPrinting] = useState(false);
   const subtotal = receiptSample.items.reduce((s, it) => s + it.qty * it.price, 0);
   const paid = subtotal;
   const balance = 0;
+
+  const onPrint = async () => {
+    if (printer.status !== "connected") {
+      window.print();
+      return;
+    }
+    setPrinting(true);
+    try {
+      await printer.printReceipt({
+        businessName: "Meridian Retail Ltd",
+        reference: receiptSample.invoiceNo,
+        date: receiptSample.date,
+        cashier: receiptSample.cashier,
+        customer: receiptSample.customerName,
+        method: receiptSample.method,
+        items: receiptSample.items.map((it) => ({
+          name: it.name,
+          qty: it.qty,
+          unitPrice: it.price,
+          lineTotal: it.qty * it.price,
+        })),
+        subtotal,
+        total: paid,
+        currencySymbol: code === "KES" ? "KSh" : code,
+      });
+      toast.success(`Sent to ${printer.deviceName}.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not print the receipt.");
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   return (
     <AppShell title="Receipt Preview" subtitle="Confirm receipt details before printing">
       <div className="mx-auto max-w-lg">
@@ -67,9 +105,18 @@ export default function ReceiptPreviewPage({ receiptSample }: Props) {
             <div className="flex justify-between font-semibold"><dt>Balance</dt><dd className="num">{currency(balance)}</dd></div>
           </dl>
 
-          <div className="mt-6 flex justify-end gap-2">
-            <Button variant="outline" className="rounded-lg"><X className="mr-2 size-4" /> Close</Button>
-            <Button className="rounded-lg"><Printer className="mr-2 size-4" /> Print receipt</Button>
+          <div className="mt-6 flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              {printer.status === "connected"
+                ? `Printing to ${printer.deviceName} over Bluetooth`
+                : "No Bluetooth printer connected — will use your browser's print dialog"}
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <Button variant="outline" className="rounded-lg"><X className="mr-2 size-4" /> Close</Button>
+              <Button className="rounded-lg" onClick={onPrint} disabled={printing}>
+                <Printer className="mr-2 size-4" /> {printing ? "Printing…" : "Print receipt"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

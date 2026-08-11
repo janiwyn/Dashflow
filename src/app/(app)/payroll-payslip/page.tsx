@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { getEmployees, getPayrollRecords } from "@/db/queries/hr";
 import { getBusinessProfile } from "@/db/queries/profile";
 import { formatMoney } from "@/lib/currency";
+import { requireModule } from "@/lib/module-access";
 
 export const metadata: Metadata = {
   title: "Printable Payslip",
@@ -18,6 +19,7 @@ export default async function PayrollPayslipPage({
 }: {
   searchParams: Promise<{ id?: string }>;
 }) {
+  await requireModule("payroll");
   const { id } = await searchParams;
   const [records, employees, business] = await Promise.all([
     getPayrollRecords(),

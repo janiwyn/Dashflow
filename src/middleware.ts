@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PREFIXES = [
   "/login",
   "/signup",
+  "/subscribe",
   "/forgot-password",
   "/new-password",
   "/customer-portal",
@@ -30,11 +31,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Signed-in visitors don't need the marketing pitch or the auth forms —
-  // send them straight into the app. /new-password stays reachable while
-  // signed in — a user resetting from an emailed link may well still have a
-  // live session in that browser.
-  if (hasSession && (pathname === "/" || pathname === "/login" || pathname === "/signup")) {
+  // Signed-in visitors don't need the marketing pitch — send them straight
+  // into the app. /login and /signup are deliberately NOT redirected here:
+  // this check only sees a cookie, not a validated session, and a stale
+  // cookie (e.g. after a db:seed wipes the session table) would bounce
+  // /login -> /dashboard -> (requireUser fails) -> /login forever. Those
+  // pages validate the session themselves and redirect only when it's real.
+  if (hasSession && pathname === "/") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

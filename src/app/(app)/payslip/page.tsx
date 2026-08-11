@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getPayrollRecords } from "@/db/queries/hr";
 import { getBusinessProfile } from "@/db/queries/profile";
 import { formatMoney } from "@/lib/currency";
+import { requireModule } from "@/lib/module-access";
 
 export const metadata: Metadata = {
   title: "Payslip",
@@ -19,6 +20,7 @@ export default async function PayslipPage({
 }: {
   searchParams: Promise<{ id?: string }>;
 }) {
+  await requireModule("payroll");
   const { id } = await searchParams;
   const [records, business] = await Promise.all([getPayrollRecords(), getBusinessProfile()]);
   const currency = (n: number) => formatMoney(n, business?.currency);

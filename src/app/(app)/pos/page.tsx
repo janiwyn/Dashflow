@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { viewCategories, viewPosProducts } from "@/db/queries/views";
 import Terminal from "./pos-client";
+import { requireModule } from "@/lib/module-access";
 
 export const metadata: Metadata = {
   title: "Sales Terminal",
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
+  await requireModule("pos");
   const [categories, products] = await Promise.all([viewCategories(), viewPosProducts()]);
   return <Terminal categories={categories} products={products} />;
 }

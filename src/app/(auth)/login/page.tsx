@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { configuredProviders } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/session";
 
 import LoginPage from "./login-client";
 
@@ -23,6 +25,12 @@ export default async function Page({
 
   // Only same-origin paths — an absolute URL here would be an open redirect.
   const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+
+  // A validated check, unlike middleware's cookie-presence check — this is
+  // what actually redirects an already-signed-in visitor away from the form,
+  // without risking a bounce loop when a stale cookie has no live session.
+  const user = await getCurrentUser();
+  if (user) redirect(target);
 
   return <LoginPage providers={configuredProviders} next={target} />;
 }
