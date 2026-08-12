@@ -68,6 +68,8 @@ type Props = {
   roster: RosterEntry[];
   ownEmployee: OwnEmployee;
   ownToday: { clockIn: Date | null; clockOut: Date | null } | null;
+  /** Staff only ever see their own attendance — never a teammate's check-in details. */
+  isStaff: boolean;
 };
 
 const timeFmt = (d: Date | null) =>
@@ -92,35 +94,37 @@ function StatusBadge({ status }: { status: BoardRow["status"] }) {
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
 }
 
-export default function AttendancePage({ board, summary, history, roster, ownEmployee, ownToday }: Props) {
+export default function AttendancePage({ board, summary, history, roster, ownEmployee, ownToday, isStaff }: Props) {
   const router = useRouter();
 
   return (
     <AppShell title="Attendance" subtitle={`${summary.present + summary.late} of ${summary.total} clocked in today`}>
       <MyAttendanceCard ownEmployee={ownEmployee} ownToday={ownToday} onDone={() => router.refresh()} />
 
-      <section className="grid gap-4 sm:grid-cols-4">
-        <StatCard label="On time" value={String(summary.present)} icon={UserCheck} hint="clocked in before 9am" />
-        <StatCard label="Late" value={String(summary.late)} icon={Clock} hint="clocked in after 9am" />
-        <StatCard label="Not yet in" value={String(summary.notYet)} icon={UserX} hint="of today's roster" />
-        <StatCard label="Active roster" value={String(summary.total)} icon={Users} hint="employees tracked" />
-      </section>
+      {!isStaff && (
+        <section className="grid gap-4 sm:grid-cols-4">
+          <StatCard label="On time" value={String(summary.present)} icon={UserCheck} hint="clocked in before 9am" />
+          <StatCard label="Late" value={String(summary.late)} icon={Clock} hint="clocked in after 9am" />
+          <StatCard label="Not yet in" value={String(summary.notYet)} icon={UserX} hint="of today's roster" />
+          <StatCard label="Active roster" value={String(summary.total)} icon={Users} hint="employees tracked" />
+        </section>
+      )}
 
       <Tabs defaultValue="board" className="w-full">
         <TabsList>
-          <TabsTrigger value="board">Today&apos;s board</TabsTrigger>
+          <TabsTrigger value="board">{isStaff ? "My record" : "Today's board"}</TabsTrigger>
           <TabsTrigger value="kiosk">Team check-in</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="history">{isStaff ? "My history" : "History"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="board">
-          <BoardTab board={board} onDone={() => router.refresh()} />
+          <BoardTab board={board} onDone={() => router.refresh()} isStaff={isStaff} />
         </TabsContent>
         <TabsContent value="kiosk">
           <KioskTab roster={roster} onDone={() => router.refresh()} />
         </TabsContent>
         <TabsContent value="history">
-          <HistoryTab history={history} />
+          <HistoryTab history={history} isStaff={isStaff} />
         </TabsContent>
       </Tabs>
     </AppShell>
@@ -220,7 +224,7 @@ function MyAttendanceCard({
 
 /* -------------------------------------------------------------- Board tab */
 
-function BoardTab({ board, onDone }: { board: BoardRow[]; onDone: () => void }) {
+function BoardTab({ board, onDone, isStaff }: { board: BoardRow[]; onDone: () => void; isStaff: boolean }) {
   const columns: Column<BoardRow>[] = [
     { key: "name", header: "Employee", render: (r) => <span className="font-medium">{r.name}</span> },
     { key: "position", header: "Position", render: (r) => <span className="text-muted-foreground">{r.position}</span> },
@@ -244,15 +248,27 @@ function BoardTab({ board, onDone }: { board: BoardRow[]; onDone: () => void }) 
         </span>
       ),
     },
-    {
-      key: "actions",
-      header: "Setup",
-      align: "right",
-      render: (r) => <ManageEmployeeDialog employee={r} onDone={onDone} />,
-    },
+    ...(isStaff
+      ? []
+      : [
+          {
+            key: "actions",
+            header: "Setup",
+            align: "right" as const,
+            render: (r: BoardRow) => <ManageEmployeeDialog employee={r} onDone={onDone} />,
+          },
+        ]),
   ];
 
-  return <DataTable title="Today's board" description={`${board.length} active employees`} columns={columns} rows={board} minWidth={860} />;
+  return (
+    <DataTable
+      title={isStaff ? "My record" : "Today's board"}
+      description={isStaff ? "Your attendance for today" : `${board.length} active employee${board.length === 1 ? "" : "s"}`}
+      columns={columns}
+      rows={board}
+      minWidth={isStaff ? 620 : 860}
+    />
+  );
 }
 
 function ManageEmployeeDialog({ employee, onDone }: { employee: BoardRow; onDone: () => void }) {
@@ -517,7 +533,7 @@ function KioskTab({ roster, onDone }: { roster: RosterEntry[]; onDone: () => voi
 
 /* ------------------------------------------------------------ History tab */
 
-function HistoryTab({ history }: { history: HistoryRow[] }) {
+function HistoryTab({ history, isStaff }: { history: HistoryRow[]; isStaff: boolean }) {
   const [employee, setEmployee] = useState("All");
   const names = useMemo(() => ["All", ...Array.from(new Set(history.map((h) => h.employeeName)))], [history]);
   const filtered = useMemo(
@@ -553,20 +569,22 @@ function HistoryTab({ history }: { history: HistoryRow[] }) {
 
   return (
     <DataTable
-      title="History"
+      title={isStaff ? "My history" : "History"}
       description={`${filtered.length} records`}
       columns={columns}
       rows={filtered}
       minWidth={900}
       toolbar={
-        <Select value={employee} onValueChange={setEmployee}>
-          <SelectTrigger className="h-9 w-44 rounded-lg text-sm"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {names.map((n) => (
-              <SelectItem key={n} value={n}>{n}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        isStaff ? undefined : (
+          <Select value={employee} onValueChange={setEmployee}>
+            <SelectTrigger className="h-9 w-44 rounded-lg text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {names.map((n) => (
+                <SelectItem key={n} value={n}>{n}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
       }
     />
   );

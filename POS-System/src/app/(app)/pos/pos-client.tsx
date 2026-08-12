@@ -14,7 +14,9 @@ import {
   PauseCircle,
   History,
   X,
+  AlertTriangle,
 } from "lucide-react";
+import Link from "next/link";
 
 import { checkoutSale, type CartLine } from "@/app/actions/sales";
 import { AppShell } from "@/components/app-shell";
@@ -28,11 +30,13 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/currency-provider";
+import type { assertClockedIn } from "@/db/queries/attendance";
 import type { viewCategories, viewPosProducts } from "@/db/queries/views";
 
 type Props = {
   categories: Awaited<ReturnType<typeof viewCategories>>;
   products: Awaited<ReturnType<typeof viewPosProducts>>;
+  clockGate: Awaited<ReturnType<typeof assertClockedIn>>;
 };
 
 type PaymentMethod = "cash" | "mpesa" | "card";
@@ -45,7 +49,7 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: typeof Bankn
 
 type HeldSale = { id: string; cart: Record<string, number>; heldAt: number };
 
-export default function Terminal({ categories, products }: Props) {
+export default function Terminal({ categories, products, clockGate }: Props) {
   const router = useRouter();
   const { format: currency } = useCurrency();
   const [category, setCategory] = useState("All");
@@ -119,6 +123,10 @@ export default function Terminal({ categories, products }: Props) {
   const discardHeld = (id: string) => setHeldSales((h) => h.filter((x) => x.id !== id));
 
   const charge = () => {
+    if (!clockGate.ok) {
+      toast.error(clockGate.message);
+      return;
+    }
     if (lines.length === 0) {
       toast.error("Add at least one item before charging.");
       return;
@@ -139,6 +147,15 @@ export default function Terminal({ categories, products }: Props) {
 
   return (
     <AppShell title="Sales terminal" subtitle="Till 02 · Cashier James K.">
+      {!clockGate.ok && (
+        <div className="flex items-center gap-3 rounded-xl border border-l-4 border-warning bg-warning/10 px-4 py-3 text-sm">
+          <AlertTriangle className="size-4 shrink-0 text-warning-foreground" />
+          <p className="min-w-0 flex-1">{clockGate.message}</p>
+          <Button asChild size="sm" variant="outline" className="shrink-0 rounded-lg">
+            <Link href="/attendance">Go to Attendance</Link>
+          </Button>
+        </div>
+      )}
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-4">
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
@@ -294,9 +311,9 @@ export default function Terminal({ categories, products }: Props) {
           <Button
             className="mt-3 h-12 w-full rounded-xl text-base"
             onClick={charge}
-            disabled={charging || lines.length === 0}
+            disabled={charging || lines.length === 0 || !clockGate.ok}
           >
-            {charging ? "Charging…" : `Charge ${currency(subtotal + tax)}`}
+            {charging ? "Charging…" : !clockGate.ok ? "Clock in to charge" : `Charge ${currency(subtotal + tax)}`}
           </Button>
         </aside>
       </div>
