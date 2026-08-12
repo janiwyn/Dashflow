@@ -115,7 +115,7 @@ const insights: NavItem[] = [
   { title: "Reports", url: "/reports", icon: LineChart, roles: MANAGER_UP, module: "sales" },
   { title: "Report builder", url: "/reports-generator", icon: FileText, roles: MANAGER_UP, module: "sales" },
   { title: "Notifications", url: "/notifications", icon: Bell, roles: ALL },
-  { title: "Order alerts", url: "/order-notifications", icon: BellRing, roles: ALL },
+  { title: "Order alerts", url: "/order-notifications", icon: BellRing, roles: ALL, module: "sales" },
   { title: "SMS centre", url: "/sms", icon: MessageSquare, roles: MANAGER_UP },
 ];
 

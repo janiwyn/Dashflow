@@ -29,9 +29,10 @@ function isBarcodeDetectorSupported() {
 
 type Props = {
   remoteOrders: Order[];
+  initialRef?: string;
 };
 
-export default function QrScannerPage({ remoteOrders }: Props) {
+export default function QrScannerPage({ remoteOrders, initialRef }: Props) {
   const router = useRouter();
   const { format: currency } = useCurrency();
   const [scanned, setScanned] = useState<Order | null>(null);
@@ -112,6 +113,14 @@ export default function QrScannerPage({ remoteOrders }: Props) {
   };
 
   useEffect(() => stopCamera, []);
+
+  // Arriving from "Complete" on Order Alerts (?ref=...) — pull the order up
+  // immediately instead of making them re-type or re-scan what was already
+  // identified on the previous screen.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (initialRef) lookUp(initialRef);
+  }, [initialRef]);
 
   const reset = () => {
     setScanned(null);
