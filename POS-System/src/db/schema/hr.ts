@@ -23,6 +23,8 @@ export const employees = pgTable("employees", {
   baseSalary: money("base_salary").notNull().default(0),
   hireDate: date("hire_date").notNull(),
   status: employeeStatus("status").notNull().default("active"),
+  /** For attendance-kiosk clock-in — a short PIN, not a login password. Null until set. */
+  pinHash: text("pin_hash"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

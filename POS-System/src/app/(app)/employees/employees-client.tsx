@@ -54,12 +54,16 @@ const columns = (currency: (n: number) => string): Column<Employee>[] => [
   },
 ];
 
+type LoginMode = "new" | "existing" | "none";
+
 export default function EmployeesPage({ branches, initialEmployees, systemUsers }: Props) {
   const { format: currency } = useCurrency();
   const employeeColumns = columns(currency);
   const employees = initialEmployees;
   const [open, setOpen] = useState(false);
+  const [loginMode, setLoginMode] = useState<LoginMode>("new");
   const [pending, startTransition] = useTransition();
+  const [notice, setNotice] = useState("");
   const active = employees.filter((e) => e.status === "Active").length;
   const totalPayroll = employees.reduce((s, e) => s + e.baseSalary, 0);
 
@@ -68,8 +72,15 @@ export default function EmployeesPage({ branches, initialEmployees, systemUsers 
     const form = e.currentTarget;
     const fd = new FormData(form);
 
+    const login: Parameters<typeof createEmployee>[0]["login"] =
+      loginMode === "new"
+        ? { mode: "new", password: String(fd.get("password") || ""), role: fd.get("role") === "manager" ? "manager" : "staff" }
+        : loginMode === "existing"
+          ? { mode: "existing", userId: String(fd.get("user_id") || "") }
+          : { mode: "none" };
+
     startTransition(async () => {
-      await createEmployee({
+      const result = await createEmployee({
         name: String(fd.get("name") || ""),
         email: String(fd.get("email") || ""),
         phone: String(fd.get("phone") || ""),
@@ -77,11 +88,15 @@ export default function EmployeesPage({ branches, initialEmployees, systemUsers 
         baseSalary: Number(fd.get("base_salary") || 0),
         hireDate: String(fd.get("hire_date") || ""),
         branchId: fd.get("branch_id") ? Number(fd.get("branch_id")) : null,
-        userId: fd.get("user_id") ? String(fd.get("user_id")) : null,
         status: fd.get("status") === "Inactive" ? "inactive" : "active",
+        login,
       });
-      setOpen(false);
-      form.reset();
+      setNotice(result.message);
+      if (result.ok) {
+        setOpen(false);
+        form.reset();
+        setLoginMode("new");
+      }
     });
   }
 
@@ -95,20 +110,11 @@ export default function EmployeesPage({ branches, initialEmployees, systemUsers 
             <Button size="sm" className="rounded-lg"><UserPlus className="size-4" /> Add Employee</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg">
-            <DialogHeader><DialogTitle>Add or Update Employee</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Add Employee</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-3">
-              <div className="grid gap-1.5">
-                <Label>System User (Optional)</Label>
-                <Select name="user_id">
-                  <SelectTrigger><SelectValue placeholder="Not a system user" /></SelectTrigger>
-                  <SelectContent>
-                    {systemUsers.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.username}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-1.5"><Label>Full Name</Label><Input name="name" required /></div>
-                <div className="grid gap-1.5"><Label>Email</Label><Input type="email" name="email" /></div>
+                <div className="grid gap-1.5"><Label>Email</Label><Input type="email" name="email" required={loginMode === "new"} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-1.5"><Label>Phone</Label><Input name="phone" /></div>
@@ -137,12 +143,61 @@ export default function EmployeesPage({ branches, initialEmployees, systemUsers 
                   </SelectContent>
                 </Select>
               </div>
-              <DialogFooter><Button type="submit">Save Employee</Button></DialogFooter>
+
+              <div className="mt-1 grid gap-1.5 rounded-lg border border-border p-3">
+                <Label>System login</Label>
+                <Select value={loginMode} onValueChange={(v) => setLoginMode(v as LoginMode)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">Create a login now (recommended)</SelectItem>
+                    <SelectItem value="existing">Link an existing login</SelectItem>
+                    <SelectItem value="none">No login — this employee won&apos;t sign in</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {loginMode === "new" && (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      They&apos;ll sign in with the email above and this password — no invite code needed.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="grid gap-1.5">
+                        <Label>Password</Label>
+                        <Input type="password" name="password" minLength={8} required placeholder="At least 8 characters" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label>Role</Label>
+                        <Select name="role" defaultValue="staff">
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="staff">Staff</SelectItem>
+                            <SelectItem value="manager">Manager</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {loginMode === "existing" && (
+                  <Select name="user_id">
+                    <SelectTrigger><SelectValue placeholder="Choose an existing login" /></SelectTrigger>
+                    <SelectContent>
+                      {systemUsers.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.username}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              <DialogFooter><Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save Employee"}</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       }
     >
+      {notice && (
+        <div className="rounded-lg bg-accent px-4 py-2.5 text-sm">{notice}</div>
+      )}
       <section className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Total employees" value={String(employees.length)} icon={Users} hint={`${active} active`} />
         <StatCard label="Combined base salary" value={currency(totalPayroll)} icon={Users} hint="per month" />

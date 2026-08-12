@@ -27,15 +27,14 @@ import { formatMoney } from "@/lib/currency";
 import { MODULE_CATALOG, modulesMonthlyTotal, type ModuleKey } from "@/lib/modules";
 
 type Props = {
-  branches: { id: number; name: string }[];
   providers: ProviderAvailability;
   initialModules: ModuleKey[];
 };
 
-export default function SignupPage({ branches, providers, initialModules }: Props) {
+export default function SignupPage({ providers, initialModules }: Props) {
   const router = useRouter();
   const hasModules = initialModules.length > 0;
-  const [role, setRole] = useState(hasModules ? "admin" : "staff");
+  const [role, setRole] = useState("admin");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const monthlyTotal = modulesMonthlyTotal(initialModules);
@@ -73,25 +72,22 @@ export default function SignupPage({ branches, providers, initialModules }: Prop
       return;
     }
 
-    // Staff join an existing branch — no business to create.
-    if (role !== "staff") {
-      const result = await finishBusinessSignup({
-        businessName: String(form.get("business_name") ?? "").trim(),
-        role: role === "manager" ? "manager" : "admin",
-        moduleKeys: initialModules,
-      });
+    const result = await finishBusinessSignup({
+      businessName: String(form.get("business_name") ?? "").trim(),
+      role: role === "manager" ? "manager" : "admin",
+      moduleKeys: initialModules,
+    });
 
-      if (!result.ok) {
-        setPending(false);
-        setMessage({ text: result.message, error: true });
-        return;
-      }
-
-      // The session cookie was cached at sign-up, before businessId/role were
-      // set — refetch it now (bypassing the cache) so the dashboard the next
-      // navigation loads sees the real business instead of falling back.
-      await getSession({ query: { disableCookieCache: true } });
+    if (!result.ok) {
+      setPending(false);
+      setMessage({ text: result.message, error: true });
+      return;
     }
+
+    // The session cookie was cached at sign-up, before businessId/role were
+    // set — refetch it now (bypassing the cache) so the dashboard the next
+    // navigation loads sees the real business instead of falling back.
+    await getSession({ query: { disableCookieCache: true } });
 
     setPending(false);
     setMessage({ text: "Account created. Redirecting…" });
@@ -103,11 +99,11 @@ export default function SignupPage({ branches, providers, initialModules }: Prop
     <div className="grid min-h-screen w-full lg:grid-cols-2">
       <AuthPanel
         headline="Set up your business in minutes."
-        blurb="Admins and managers create a business, staff join an existing branch using its branch key."
+        blurb="This creates a new business. Once you're in, add branches and staff from Employees — they'll get a login from you directly, no invite codes required."
         footnote={
           <>
             <ShieldCheck className="size-4 shrink-0" />
-            Staff accounts require branch approval via a branch key.
+            Staff and managers don&apos;t sign up here — you create their logins from the Employees page.
           </>
         }
       />
@@ -190,59 +186,28 @@ export default function SignupPage({ branches, providers, initialModules }: Prop
               <Input id="phone" name="phone" required className="rounded-lg" placeholder="0712 345 678" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Role</Label>
+              <Label>Your role at this business</Label>
               <Select value={role} onValueChange={setRole}>
                 <SelectTrigger className="rounded-lg">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin (new business)</SelectItem>
-                  <SelectItem value="manager">Manager (new business)</SelectItem>
-                  <SelectItem value="staff">Staff (join a branch)</SelectItem>
+                  <SelectItem value="admin">Admin (owner)</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {role === "staff" ? (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <Label>Branch</Label>
-                  <Select name="branch_id" defaultValue={String(branches[0]?.id ?? "")}>
-                    <SelectTrigger className="rounded-lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={String(b.id)}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="branch-key">Branch key</Label>
-                  <Input
-                    id="branch-key"
-                    name="branch_key"
-                    required
-                    className="rounded-lg"
-                    placeholder="Provided by your branch manager"
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="business-name">Business name</Label>
-                <Input
-                  id="business-name"
-                  name="business_name"
-                  required
-                  className="rounded-lg"
-                  placeholder="e.g. Meridian Traders Ltd"
-                />
-              </div>
-            )}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="business-name">Business name</Label>
+              <Input
+                id="business-name"
+                name="business_name"
+                required
+                className="rounded-lg"
+                placeholder="e.g. Meridian Traders Ltd"
+              />
+            </div>
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="password">Password</Label>

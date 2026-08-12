@@ -5,5 +5,6 @@ export * from "./catalog";
 export * from "./sales";
 export * from "./accounting";
 export * from "./hr";
+export * from "./attendance";
 export * from "./operations";
 export * from "./system";
