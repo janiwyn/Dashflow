@@ -1,11 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Minus, Plus, Search, Trash2, CreditCard, Smartphone, Banknote } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  Minus,
+  Plus,
+  Search,
+  Trash2,
+  CreditCard,
+  Smartphone,
+  Banknote,
+  PauseCircle,
+  History,
+  X,
+} from "lucide-react";
 
+import { checkoutSale, type CartLine } from "@/app/actions/sales";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/currency-provider";
 import type { viewCategories, viewPosProducts } from "@/db/queries/views";
@@ -15,41 +35,113 @@ type Props = {
   products: Awaited<ReturnType<typeof viewPosProducts>>;
 };
 
+type PaymentMethod = "cash" | "mpesa" | "card";
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
+  { value: "cash", label: "Cash", icon: Banknote },
+  { value: "mpesa", label: "Mobile Money", icon: Smartphone },
+  { value: "card", label: "Card", icon: CreditCard },
+];
+
+type HeldSale = { id: string; cart: Record<string, number>; heldAt: number };
+
 export default function Terminal({ categories, products }: Props) {
+  const router = useRouter();
   const { format: currency } = useCurrency();
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
-  const [cart, setCart] = useState<Record<string, number>>({ "P-1041": 1, "P-1042": 3 });
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [heldSales, setHeldSales] = useState<HeldSale[]>([]);
+  const [heldOpen, setHeldOpen] = useState(false);
+  const [charging, startCharging] = useTransition();
 
-  const list = useMemo(
-    () =>
-      products.filter(
-        (p) =>
-          (category === "All" || p.category === category) &&
-          p.name.toLowerCase().includes(query.toLowerCase()),
-      ),
-    [category, query],
-  );
+  const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return products.filter(
+      (p) =>
+        (category === "All" || p.category === category) &&
+        (q === "" || p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)),
+    );
+  }, [products, category, query]);
 
   const lines = Object.entries(cart)
-    .map(([id, qty]) => ({ product: products.find((p) => p.id === id)!, qty }))
-    .filter((l) => l.product);
+    .map(([id, qty]) => ({ product: byId.get(id), qty }))
+    .filter((l): l is { product: NonNullable<typeof l.product>; qty: number } => Boolean(l.product));
 
   const subtotal = lines.reduce((s, l) => s + l.product.price * l.qty, 0);
   const tax = Math.round(subtotal * 0.16);
 
   const bump = (id: string, delta: number) =>
     setCart((c) => {
-      const next = (c[id] ?? 0) + delta;
+      const stock = byId.get(id)?.stock ?? 0;
+      const next = Math.min(stock, (c[id] ?? 0) + delta);
       const { [id]: _removed, ...rest } = c;
       return next <= 0 ? rest : { ...c, [id]: next };
     });
+
+  const addToCart = (id: string) => {
+    const stock = byId.get(id)?.stock ?? 0;
+    if (stock <= 0) {
+      toast.error("Out of stock.");
+      return;
+    }
+    bump(id, 1);
+  };
+
+  const holdSale = () => {
+    if (lines.length === 0) {
+      toast.info("Nothing in the cart to hold.");
+      return;
+    }
+    setHeldSales((h) => [{ id: crypto.randomUUID(), cart, heldAt: Date.now() }, ...h]);
+    setCart({});
+    toast.success("Sale held. Resume it any time before closing out.");
+  };
+
+  const resumeSale = (id: string) => {
+    const held = heldSales.find((h) => h.id === id);
+    if (!held) return;
+    setHeldSales((h) => {
+      const rest = h.filter((x) => x.id !== id);
+      // Don't lose whatever's currently in the cart — hold it too.
+      if (lines.length > 0) {
+        return [{ id: crypto.randomUUID(), cart, heldAt: Date.now() }, ...rest];
+      }
+      return rest;
+    });
+    setCart(held.cart);
+    setHeldOpen(false);
+  };
+
+  const discardHeld = (id: string) => setHeldSales((h) => h.filter((x) => x.id !== id));
+
+  const charge = () => {
+    if (lines.length === 0) {
+      toast.error("Add at least one item before charging.");
+      return;
+    }
+    const items: CartLine[] = lines.map((l) => ({ sku: l.product.id, qty: l.qty }));
+    startCharging(async () => {
+      const result = await checkoutSale({ items, method });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      setCart({});
+      router.push("/receipt-preview");
+      router.refresh();
+    });
+  };
 
   return (
     <AppShell title="Sales terminal" subtitle="Till 02 · Cashier James K.">
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-4">
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
             <div className="relative min-w-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -59,8 +151,26 @@ export default function Terminal({ categories, products }: Props) {
                 className="h-11 rounded-xl bg-card pl-9"
               />
             </div>
-            <Button variant="outline" className="h-11 shrink-0 rounded-xl">
-              Hold sale
+            <Button
+              variant="outline"
+              className="h-11 shrink-0 rounded-xl"
+              onClick={holdSale}
+              disabled={lines.length === 0}
+            >
+              <PauseCircle className="size-4" /> Hold sale
+            </Button>
+            <Button
+              variant="outline"
+              className="relative h-11 shrink-0 rounded-xl"
+              onClick={() => setHeldOpen(true)}
+              disabled={heldSales.length === 0}
+            >
+              <History className="size-4" /> Held
+              {heldSales.length > 0 && (
+                <span className="num absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                  {heldSales.length}
+                </span>
+              )}
             </Button>
           </div>
 
@@ -82,11 +192,17 @@ export default function Terminal({ categories, products }: Props) {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {list.length === 0 && (
+              <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
+                No products match &ldquo;{query}&rdquo;.
+              </p>
+            )}
             {list.map((p) => (
               <button
                 key={p.id}
-                onClick={() => bump(p.id, 1)}
-                className="panel group min-w-0 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
+                onClick={() => addToCart(p.id)}
+                disabled={p.stock <= 0}
+                className="panel group min-w-0 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                   <p className="min-w-0 truncate text-sm font-semibold">{p.name}</p>
@@ -133,7 +249,13 @@ export default function Terminal({ categories, products }: Props) {
                     {qty === 1 ? <Trash2 className="size-3.5" /> : <Minus className="size-3.5" />}
                   </Button>
                   <span className="num w-6 text-center text-sm">{qty}</span>
-                  <Button variant="ghost" size="icon" className="size-7 rounded-md" onClick={() => bump(product.id, 1)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 rounded-md"
+                    onClick={() => bump(product.id, 1)}
+                    disabled={qty >= product.stock}
+                  >
                     <Plus className="size-3.5" />
                   </Button>
                 </div>
@@ -151,14 +273,17 @@ export default function Terminal({ categories, products }: Props) {
           </dl>
 
           <div className="mt-4 grid grid-cols-3 gap-2">
-            {[
-              { label: "Cash", icon: Banknote },
-              { label: "M-Pesa", icon: Smartphone },
-              { label: "Card", icon: CreditCard },
-            ].map(({ label, icon: Icon }) => (
+            {PAYMENT_METHODS.map(({ value, label, icon: Icon }) => (
               <button
-                key={label}
-                className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card px-2 py-3 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                key={value}
+                onClick={() => setMethod(value)}
+                aria-pressed={method === value}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-xs font-medium transition-colors",
+                  method === value
+                    ? "border-primary bg-accent text-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-primary hover:text-foreground",
+                )}
               >
                 <Icon className="size-4" />
                 {label}
@@ -166,9 +291,59 @@ export default function Terminal({ categories, products }: Props) {
             ))}
           </div>
 
-          <Button className="mt-3 h-12 w-full rounded-xl text-base">Charge {currency(subtotal + tax)}</Button>
+          <Button
+            className="mt-3 h-12 w-full rounded-xl text-base"
+            onClick={charge}
+            disabled={charging || lines.length === 0}
+          >
+            {charging ? "Charging…" : `Charge ${currency(subtotal + tax)}`}
+          </Button>
         </aside>
       </div>
+
+      <Dialog open={heldOpen} onOpenChange={setHeldOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Held sales</DialogTitle>
+          </DialogHeader>
+          {heldSales.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No sales on hold.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {heldSales.map((h) => {
+                const items = Object.entries(h.cart);
+                const count = items.reduce((s, [, qty]) => s + qty, 0);
+                const total = items.reduce((s, [id, qty]) => s + (byId.get(id)?.price ?? 0) * qty, 0);
+                return (
+                  <li key={h.id} className="flex items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">
+                        {count} item{count === 1 ? "" : "s"} · {currency(total)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Held {new Date(h.heldAt).toLocaleTimeString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button size="sm" className="rounded-lg" onClick={() => resumeSale(h.id)}>
+                        Resume
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 rounded-lg text-muted-foreground"
+                        onClick={() => discardHeld(h.id)}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
