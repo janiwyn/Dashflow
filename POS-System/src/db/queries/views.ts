@@ -27,6 +27,8 @@ export type PosProduct = {
   name: string;
   category: string;
   price: number;
+  /** Cost basis — what the "Stock value" stat card totals, so a screen showing both can agree. */
+  buyingPrice: number;
   stock: number;
 };
 
@@ -37,6 +39,7 @@ export async function viewPosProducts(): Promise<PosProduct[]> {
     name: p.name,
     category: p.category,
     price: p.sellingPrice,
+    buyingPrice: p.buyingPrice,
     stock: p.stock,
   }));
 }
