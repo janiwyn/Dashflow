@@ -4,9 +4,10 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { cashBookEntries, ledgerAccounts, transactions } from "@/db/schema";
+import { cashBookEntries, expenses, ledgerAccounts, transactions } from "@/db/schema";
 import { requireRole } from "@/lib/session";
 
+import { recordExpenseAccounting } from "./ledger-engine";
 import type { ActionResult } from "./users";
 
 export type LedgerAccountType = "asset" | "liability" | "equity" | "income" | "expense";
@@ -94,4 +95,64 @@ export async function createCashBookEntry(input: {
   revalidatePath("/add-cash-entry");
   revalidatePath("/cash-book");
   return { ok: true, message: "Cash book entry added." };
+}
+
+function nextExpenseReference() {
+  return `EXP-${Date.now().toString(36).toUpperCase()}`;
+}
+
+/**
+ * Records an expense — a single simple form (what, category, how much) is
+ * all the business owner ever fills in. Everything accounting needs from it
+ * (the ledger entry, the transaction feed row, the cash book line) is
+ * posted automatically by recordExpenseAccounting, not by asking them to
+ * understand debits and credits.
+ */
+export async function createExpense(input: {
+  label: string;
+  category: string;
+  amount: number;
+  incurredOn: string;
+}): Promise<ActionResult> {
+  const actor = await requireRole("super", "admin", "manager");
+  const businessId = actor.businessId ?? 1;
+
+  if (!input.label.trim()) return { ok: false, message: "A description is required." };
+  if (!(input.amount > 0)) return { ok: false, message: "Amount must be greater than 0." };
+
+  const category = input.category.trim() || "General";
+  const reference = nextExpenseReference();
+
+  await db.insert(expenses).values({
+    businessId,
+    branchId: actor.branchId ?? null,
+    reference,
+    label: input.label.trim(),
+    category,
+    amount: input.amount,
+    incurredOn: input.incurredOn,
+    handledById: actor.id,
+  });
+
+  await recordExpenseAccounting({
+    businessId,
+    branchId: actor.branchId ?? null,
+    category,
+    label: input.label.trim(),
+    amount: input.amount,
+    handledById: actor.id,
+    handledByName: actor.name,
+    date: input.incurredOn,
+  });
+
+  revalidatePath("/expenses");
+  revalidatePath("/income-statement");
+  revalidatePath("/ledger");
+  revalidatePath("/trial-balance");
+  revalidatePath("/balance-sheet");
+  revalidatePath("/cash-book");
+  revalidatePath("/add-transaction");
+  revalidatePath("/dashboard");
+
+  return { ok: true, message: `${reference} recorded.` };
 }

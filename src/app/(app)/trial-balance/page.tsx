@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { viewLedgerAccounts } from "@/db/queries/views";
+import { getTrialBalance } from "@/db/queries/accounting";
 import TrialBalancePage from "./trial-balance-client";
 import { requireRole } from "@/lib/session";
 import { requireModule } from "@/lib/module-access";
@@ -14,6 +14,6 @@ export default async function Page() {
   await requireRole("super", "admin", "manager");
   await requireModule("accounting");
 
-  const accounts = await viewLedgerAccounts();
-  return <TrialBalancePage accounts={accounts} />;
+  const trialBalance = await getTrialBalance();
+  return <TrialBalancePage trialBalance={trialBalance} />;
 }

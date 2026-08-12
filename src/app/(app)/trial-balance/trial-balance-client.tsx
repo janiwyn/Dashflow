@@ -1,6 +1,6 @@
 "use client";
 
-import type { viewLedgerAccounts } from "@/db/queries/views";
+import type { getTrialBalance } from "@/db/queries/accounting";
 import { CheckCircle2, XCircle } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -9,44 +9,45 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useCurrency } from "@/components/currency-provider";
 
-
-const rows = [
-  { account: "Cash in Hand", debit: 68420, credit: 0 },
-  { account: "Bank — Equity Bank", debit: 342600, credit: 0 },
-  { account: "Inventory", debit: 891200, credit: 0 },
-  { account: "Accounts Payable", debit: 0, credit: 251100 },
-  { account: "Sales Revenue", debit: 0, credit: 268400 },
-  { account: "Rent Expense", debit: 145000, credit: 0 },
-  { account: "Utilities Expense", debit: 23400, credit: 0 },
-  { account: "Owner's Equity", debit: 0, credit: 951120 },
-];
-
-type Row = (typeof rows)[number];
+type Account = Awaited<ReturnType<typeof getTrialBalance>>["accounts"][number];
 
 type Props = {
-  accounts: Awaited<ReturnType<typeof viewLedgerAccounts>>;
+  trialBalance: Awaited<ReturnType<typeof getTrialBalance>>;
 };
 
-export default function TrialBalancePage({ accounts }: Props) {
+export default function TrialBalancePage({ trialBalance }: Props) {
   const { format: currency } = useCurrency();
+  const { accounts, totalDebit, totalCredit } = trialBalance;
 
-  const columns: Column<Row>[] = [
-    { key: "account", header: "Account Name", render: (r) => r.account },
+  const columns: Column<Account>[] = [
+    { key: "account", header: "Account Name", render: (r) => `${r.name} (${r.type})` },
     { key: "debit", header: "Debit (Dr)", align: "right", render: (r) => <span className="num">{currency(r.debit)}</span> },
     { key: "credit", header: "Credit (Cr)", align: "right", render: (r) => <span className="num">{currency(r.credit)}</span> },
   ];
 
-  const grandDebit = rows.reduce((s, r) => s + r.debit, 0);
-  const grandCredit = rows.reduce((s, r) => s + r.credit, 0);
-  const balanced = grandDebit === grandCredit;
-  return (
-    <AppShell title="Trial Balance" subtitle={`Totals — Dr ${currency(grandDebit)} · Cr ${currency(grandCredit)}`}>
-      <DataTable title="Account balances" columns={columns} rows={rows} minWidth={560} />
+  const balanced = Math.abs(totalDebit - totalCredit) < 1;
 
-      <section className={`panel flex items-center justify-center gap-2 p-4 text-sm font-semibold ${balanced ? "text-primary" : "text-destructive"}`}>
-        {balanced ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
-        {balanced ? "Trial Balance is Balanced" : "Trial Balance is NOT Balanced"}
-      </section>
+  return (
+    <AppShell title="Trial Balance" subtitle={`Totals — Dr ${currency(totalDebit)} · Cr ${currency(totalCredit)}`}>
+      {accounts.length === 0 ? (
+        <div className="panel p-10 text-center text-sm text-muted-foreground">
+          No accounts yet — the chart of accounts fills in automatically the first time a sale or
+          expense is recorded, or you can add one from{" "}
+          <Link href="/add-account" className="text-primary underline">
+            Add Account
+          </Link>
+          .
+        </div>
+      ) : (
+        <>
+          <DataTable title="Account balances" columns={columns} rows={accounts} minWidth={560} />
+
+          <section className={`panel flex items-center justify-center gap-2 p-4 text-sm font-semibold ${balanced ? "text-primary" : "text-destructive"}`}>
+            {balanced ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
+            {balanced ? "Trial Balance is Balanced" : "Trial Balance is NOT Balanced"}
+          </section>
+        </>
+      )}
 
       <div className="flex justify-end">
         <Button asChild variant="outline" className="rounded-lg">

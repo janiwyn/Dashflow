@@ -6,8 +6,10 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { products, remoteOrderItems, remoteOrders, saleItems, sales } from "@/db/schema";
 import { num } from "@/db/queries/_helpers";
+import { getActiveModuleKeys } from "@/db/queries/modules";
 import { requireUser } from "@/lib/session";
 
+import { recordSaleAccounting } from "./ledger-engine";
 import type { ActionResult } from "./users";
 
 /** RCP-<base36 timestamp> — same scheme as the till, so receipts sort the same way regardless of origin. */
@@ -110,6 +112,20 @@ export async function completeRemoteOrder(input: {
 
   await db.update(remoteOrders).set({ status: "finished" }).where(eq(remoteOrders.id, order.id));
 
+  const activeModules = await getActiveModuleKeys(businessId);
+  if (activeModules.has("accounting")) {
+    await recordSaleAccounting({
+      businessId,
+      branchId: order.branchId,
+      reference: sale.reference,
+      amount: subtotal,
+      method: input.method,
+      handledById: user.id,
+      handledByName: user.name,
+      date: new Date(),
+    });
+  }
+
   revalidatePath("/qr-scanner");
   revalidatePath("/remote-orders");
   revalidatePath("/order-notifications");
@@ -118,6 +134,12 @@ export async function completeRemoteOrder(input: {
   revalidatePath("/sales");
   revalidatePath("/dashboard");
   revalidatePath("/receipt-preview");
+  revalidatePath("/ledger");
+  revalidatePath("/trial-balance");
+  revalidatePath("/balance-sheet");
+  revalidatePath("/income-statement");
+  revalidatePath("/cash-book");
+  revalidatePath("/add-transaction");
 
   return { ok: true, message: `Order completed — receipt ${sale.reference}.`, receiptReference: sale.reference };
 }
