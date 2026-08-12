@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { products, saleItems, sales } from "@/db/schema";
+import { getActiveModuleKeys } from "@/db/queries/modules";
 import { requireUser } from "@/lib/session";
 
+import { recordSaleAccounting } from "./ledger-engine";
 import type { ActionResult } from "./users";
 
 export type CartLine = { sku: string; qty: number };
@@ -99,12 +101,34 @@ export async function checkoutSale(input: {
       .where(eq(products.id, l.product.id));
   }
 
+  // Auto-post to the books, only if the business actually subscribes to
+  // Accounting — no point writing ledger data nobody can see or asked for.
+  const activeModules = await getActiveModuleKeys(businessId);
+  if (activeModules.has("accounting")) {
+    await recordSaleAccounting({
+      businessId,
+      branchId: user.branchId ?? null,
+      reference,
+      amount: total,
+      method: input.method,
+      handledById: user.id,
+      handledByName: user.name,
+      date: new Date(),
+    });
+  }
+
   revalidatePath("/pos");
   revalidatePath("/inventory");
   revalidatePath("/products");
   revalidatePath("/sales");
   revalidatePath("/dashboard");
   revalidatePath("/receipt-preview");
+  revalidatePath("/ledger");
+  revalidatePath("/trial-balance");
+  revalidatePath("/balance-sheet");
+  revalidatePath("/income-statement");
+  revalidatePath("/cash-book");
+  revalidatePath("/add-transaction");
 
   return { ok: true, message: `Sale ${reference} completed.`, reference: sale.reference };
 }
