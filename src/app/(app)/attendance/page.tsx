@@ -44,6 +44,7 @@ export default async function Page() {
           ? { clockIn: ownToday.clockIn, clockOut: ownToday.clockOut }
           : null
       }
+      isStaff={user.role === "staff"}
     />
   );
 }

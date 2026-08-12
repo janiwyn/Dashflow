@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { products, saleItems, sales } from "@/db/schema";
+import { assertClockedIn } from "@/db/queries/attendance";
 import { getActiveModuleKeys } from "@/db/queries/modules";
 import { requireUser } from "@/lib/session";
 
@@ -34,6 +35,9 @@ export async function checkoutSale(input: {
 }): Promise<ActionResult & { reference?: string }> {
   const user = await requireUser();
   const businessId = user.businessId ?? 1;
+
+  const clockGate = await assertClockedIn(user.id);
+  if (!clockGate.ok) return clockGate;
 
   if (input.items.length === 0) return { ok: false, message: "The cart is empty." };
 

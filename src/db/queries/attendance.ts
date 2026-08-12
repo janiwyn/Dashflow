@@ -4,6 +4,8 @@ import { and, desc, eq, gte, lte } from "drizzle-orm";
 
 import { db } from "@/db";
 import { attendanceRecords, branches, employeeCredentials, employees } from "@/db/schema";
+import { hasModule } from "@/lib/module-access";
+import { getCurrentUser } from "@/lib/session";
 
 import { branchScope, businessScope } from "./_helpers";
 
@@ -17,6 +19,20 @@ export type AttendanceStatus = "present" | "late" | "absent" | "not_yet";
 function statusFor(clockIn: Date | null, isToday: boolean): AttendanceStatus {
   if (!clockIn) return isToday ? "not_yet" : "absent";
   return clockIn.getUTCHours() >= LATE_CUTOFF_HOUR ? "late" : "present";
+}
+
+/**
+ * Staff must never see other employees' check-in details — only managers and
+ * above get the full team roster. Returns `undefined` when the viewer isn't
+ * staff (no restriction to apply), or the employeeId to lock the query to
+ * (possibly `null` if a staff account has no linked employee record, in
+ * which case they should see nothing).
+ */
+async function staffOwnEmployeeIdRestriction(): Promise<number | null | undefined> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "staff") return undefined;
+  const own = await getOwnEmployeeRecord(user.id);
+  return own ? own.id : null;
 }
 
 export type BoardRow = {
@@ -38,11 +54,13 @@ export type BoardRow = {
 export async function getTodayBoard(): Promise<BoardRow[]> {
   const businessId = await businessScope();
   const branchId = await branchScope();
+  const restrictToEmployeeId = await staffOwnEmployeeIdRestriction();
   const today = todayStr();
 
-  const where = branchId
-    ? and(eq(employees.businessId, businessId), eq(employees.status, "active"), eq(employees.branchId, branchId))
-    : and(eq(employees.businessId, businessId), eq(employees.status, "active"));
+  const conditions = [eq(employees.businessId, businessId), eq(employees.status, "active")];
+  if (branchId) conditions.push(eq(employees.branchId, branchId));
+  if (restrictToEmployeeId !== undefined) conditions.push(eq(employees.id, restrictToEmployeeId ?? -1));
+  const where = and(...conditions);
 
   const rows = await db
     .select({
@@ -110,9 +128,11 @@ export async function getAttendanceHistory(options?: {
 }): Promise<HistoryRow[]> {
   const businessId = await businessScope();
   const branchId = await branchScope();
+  const restrictToEmployeeId = await staffOwnEmployeeIdRestriction();
 
   const filters = [eq(attendanceRecords.businessId, businessId)];
   if (branchId) filters.push(eq(attendanceRecords.branchId, branchId));
+  if (restrictToEmployeeId !== undefined) filters.push(eq(attendanceRecords.employeeId, restrictToEmployeeId ?? -1));
   if (options?.employeeId) filters.push(eq(attendanceRecords.employeeId, options.employeeId));
   if (options?.from) filters.push(gte(attendanceRecords.date, options.from));
   if (options?.to) filters.push(lte(attendanceRecords.date, options.to));
@@ -174,6 +194,30 @@ export async function getTodayRecordFor(employeeId: number) {
     .where(and(eq(attendanceRecords.employeeId, employeeId), eq(attendanceRecords.date, today)))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Gate for anything that "makes a sale" (till checkout, remote order
+ * fulfilment): if the business tracks attendance and the acting user has a
+ * linked employee record, they must be clocked in — and not yet clocked
+ * out — today. Users with no linked employee record (e.g. an owner/admin
+ * who isn't tracked in attendance) are never blocked, and businesses that
+ * haven't subscribed to the Attendance module aren't affected at all.
+ */
+export async function assertClockedIn(userId: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!(await hasModule("attendance"))) return { ok: true };
+
+  const employee = await getOwnEmployeeRecord(userId);
+  if (!employee) return { ok: true };
+
+  const today = await getTodayRecordFor(employee.id);
+  if (!today?.clockIn) {
+    return { ok: false, message: "Clock in on the Attendance page before making a sale." };
+  }
+  if (today.clockOut) {
+    return { ok: false, message: "You're clocked out for today — clock in again on the Attendance page to keep selling." };
+  }
+  return { ok: true };
 }
 
 /** Employees eligible for kiosk check-in — active roster for the signed-in user's branch scope. */

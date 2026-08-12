@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { products, remoteOrderItems, remoteOrders, saleItems, sales } from "@/db/schema";
 import { num } from "@/db/queries/_helpers";
+import { assertClockedIn } from "@/db/queries/attendance";
 import { getActiveModuleKeys } from "@/db/queries/modules";
 import { requireUser } from "@/lib/session";
 
@@ -53,6 +54,9 @@ export async function completeRemoteOrder(input: {
 }): Promise<ActionResult & { receiptReference?: string }> {
   const user = await requireUser();
   const businessId = user.businessId ?? 1;
+
+  const clockGate = await assertClockedIn(user.id);
+  if (!clockGate.ok) return clockGate;
 
   const [order] = await db
     .select()
