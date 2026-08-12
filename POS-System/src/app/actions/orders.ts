@@ -12,6 +12,30 @@ import { requireUser } from "@/lib/session";
 import { recordSaleAccounting } from "./ledger-engine";
 import type { ActionResult } from "./users";
 
+/** Cancels a pending remote order — the other outcome besides completing it, so one doesn't just sit forever unfulfillable. */
+export async function cancelRemoteOrder(reference: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const businessId = user.businessId ?? 1;
+
+  const [order] = await db
+    .select({ id: remoteOrders.id, status: remoteOrders.status })
+    .from(remoteOrders)
+    .where(and(eq(remoteOrders.businessId, businessId), eq(remoteOrders.reference, reference.trim())))
+    .limit(1);
+
+  if (!order) return { ok: false, message: "No order found with that reference." };
+  if (order.status !== "pending") return { ok: false, message: `Order is already ${order.status}.` };
+
+  await db.update(remoteOrders).set({ status: "cancelled" }).where(eq(remoteOrders.id, order.id));
+
+  revalidatePath("/order-notifications");
+  revalidatePath("/remote-orders");
+  revalidatePath("/qr-scanner");
+  revalidatePath("/dashboard");
+
+  return { ok: true, message: `Order ${reference} cancelled.` };
+}
+
 /** RCP-<base36 timestamp> — same scheme as the till, so receipts sort the same way regardless of origin. */
 function nextReference() {
   return `RCP-${Date.now().toString(36).toUpperCase()}`;

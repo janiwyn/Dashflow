@@ -9,8 +9,12 @@ export const metadata: Metadata = {
   description: "Scan a customer's order QR code to pull up their remote order and record the sale.",
 };
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
   await requireModule("pos");
-  const remoteOrders = await viewRemoteOrders();
-  return <QrScannerPage remoteOrders={remoteOrders} />;
+  const [remoteOrders, { ref }] = await Promise.all([viewRemoteOrders(), searchParams]);
+  return <QrScannerPage remoteOrders={remoteOrders} initialRef={ref} />;
 }

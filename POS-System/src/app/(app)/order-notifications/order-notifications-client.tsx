@@ -1,112 +1,95 @@
 "use client";
 
-import { useState } from "react";
-import { AlertCircle, Bell, Check, Clock, PackageX, Users, X } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { toast } from "sonner";
+import { BellRing, Phone, ScanLine, Store, X } from "lucide-react";
 
+import { cancelRemoteOrder } from "@/app/actions/orders";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
 import { useCurrency } from "@/components/currency-provider";
-import type { CustomerDebtorNotif, LowStockNotif, ShopDebtorNotif } from "@/db/queries/views";
-import type { viewCustomerDebtorNotifs, viewLowStockNotifs, viewShopDebtorNotifs } from "@/db/queries/views";
+import type { viewPendingOrders } from "@/db/queries/views";
+
+type Order = Awaited<ReturnType<typeof viewPendingOrders>>[number];
 
 type Props = {
-  customerDebtorNotifs: Awaited<ReturnType<typeof viewCustomerDebtorNotifs>>;
-  lowStockNotifs: Awaited<ReturnType<typeof viewLowStockNotifs>>;
-  shopDebtorNotifs: Awaited<ReturnType<typeof viewShopDebtorNotifs>>;
+  pendingOrders: Order[];
 };
 
-function daysOverdue(due: string) {
-  return Math.max(0, Math.floor((Date.now() - new Date(due).getTime()) / 86400000));
-}
-
-function urgencyClass(days: number) {
-  if (days > 7) return "border-destructive/40 bg-destructive/5";
-  if (days > 3) return "border-warning/40 bg-warning/5";
-  return "border-border bg-muted/30";
-}
-
-export default function NotificationsPage({ customerDebtorNotifs, lowStockNotifs, shopDebtorNotifs }: Props) {
+export default function OrderNotificationsPage({ pendingOrders }: Props) {
+  const router = useRouter();
   const { format: currency } = useCurrency();
-  const [shop, setShop] = useState<ShopDebtorNotif[]>(shopDebtorNotifs);
-  const [customer, setCustomer] = useState<CustomerDebtorNotif[]>(customerDebtorNotifs);
-  const [lowStock, setLowStock] = useState<LowStockNotif[]>(lowStockNotifs);
+  const [orders, setOrders] = useState<Order[]>(pendingOrders);
+  const [cancelling, startCancel] = useTransition();
 
-  const total = shop.length + customer.length + lowStock.length;
+  const cancel = (reference: string) => {
+    setOrders((prev) => prev.filter((o) => o.reference !== reference));
+    startCancel(async () => {
+      const result = await cancelRemoteOrder(reference);
+      if (!result.ok) {
+        toast.error(result.message);
+        router.refresh();
+        return;
+      }
+      toast.success(result.message);
+      router.refresh();
+    });
+  };
+
+  const totalValue = orders.reduce((s, o) => s + o.amount, 0);
 
   return (
-    <AppShell title="Notifications" subtitle={`${total} items need your attention`}>
-      <section className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Overdue shop debtors" value={String(shop.length)} icon={AlertCircle} hint="pending settlement" />
-        <StatCard label="Overdue customers" value={String(customer.length)} icon={Users} hint="pending settlement" />
-        <StatCard label="Low stock items" value={String(lowStock.length)} icon={PackageX} hint="below 10 units" />
+    <AppShell title="Order Alerts" subtitle={`${orders.length} remote orders waiting on you`}>
+      <section className="grid gap-4 sm:grid-cols-2">
+        <StatCard label="Pending orders" value={String(orders.length)} icon={BellRing} hint="awaiting pickup or delivery" />
+        <StatCard label="Value pending" value={currency(totalValue)} icon={Store} hint="not yet in the till" />
       </section>
 
       <section className="panel p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold"><Bell className="size-4" /> Shop debtors (overdue)</h2>
-        {shop.length === 0 && <p className="text-sm text-muted-foreground">No overdue shop debtors.</p>}
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
+          <BellRing className="size-4" /> Remote orders
+        </h2>
+        {orders.length === 0 && (
+          <p className="text-sm text-muted-foreground">No pending remote orders — you&apos;re all caught up.</p>
+        )}
         <div className="grid gap-2">
-          {shop.map((d) => {
-            const days = daysOverdue(d.dueDate);
-            return (
-              <div key={d.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 ${urgencyClass(days)}`}>
-                <div>
-                  <p className="font-medium">{d.name} <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{d.branch}</span></p>
-                  <p className="text-sm text-muted-foreground">Due {d.dueDate} · {days} day{days !== 1 ? "s" : ""} overdue · Balance {currency(d.balance)}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Snooze 1 day">
-                    <Clock className="size-3.5" />
-                  </Button>
-                  <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Clear" onClick={() => setShop((p) => p.filter((x) => x.id !== d.id))}>
-                    <X className="size-3.5" />
-                  </Button>
-                </div>
+          {orders.map((o) => (
+            <div
+              key={o.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="font-medium">
+                  {o.customer}{" "}
+                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{o.branch}</span>
+                </p>
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+                  <span className="num">{o.reference}</span>
+                  <span className="flex items-center gap-1"><Phone className="size-3" /> {o.phone}</span>
+                  <span>{o.itemsCount} item{o.itemsCount === 1 ? "" : "s"} · {currency(o.amount)}</span>
+                  <span>{o.createdAt}</span>
+                </p>
               </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="panel p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold"><Users className="size-4" /> Customer debtors (overdue)</h2>
-        {customer.length === 0 && <p className="text-sm text-muted-foreground">No overdue customer debtors.</p>}
-        <div className="grid gap-2">
-          {customer.map((d) => {
-            const days = daysOverdue(d.dueDate);
-            return (
-              <div key={d.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 ${urgencyClass(days)}`}>
-                <div>
-                  <p className="font-medium">{d.name}</p>
-                  <p className="text-sm text-muted-foreground">Due {d.dueDate} · {days} day{days !== 1 ? "s" : ""} overdue · Balance {currency(d.balance)}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Snooze 1 day">
-                    <Clock className="size-3.5" />
-                  </Button>
-                  <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Clear" onClick={() => setCustomer((p) => p.filter((x) => x.id !== d.id))}>
-                    <X className="size-3.5" />
-                  </Button>
-                </div>
+              <div className="flex shrink-0 gap-2">
+                <Button size="sm" className="rounded-lg" asChild>
+                  <Link href={`/qr-scanner?ref=${encodeURIComponent(o.reference)}`}>
+                    <ScanLine className="size-3.5" /> Complete
+                  </Link>
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-8 rounded-lg text-destructive"
+                  title="Cancel order"
+                  disabled={cancelling}
+                  onClick={() => cancel(o.reference)}
+                >
+                  <X className="size-3.5" />
+                </Button>
               </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="panel p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold"><PackageX className="size-4" /> Low stock products</h2>
-        {lowStock.length === 0 && <p className="text-sm text-muted-foreground">No low stock alerts.</p>}
-        <div className="grid gap-2">
-          {lowStock.map((p) => (
-            <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3">
-              <div>
-                <p className="font-medium">{p.name} <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{p.branch}</span></p>
-                <p className="text-sm text-muted-foreground">{p.stock} units left · {currency(p.price)}</p>
-              </div>
-              <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Acknowledge" onClick={() => setLowStock((prev) => prev.filter((x) => x.id !== p.id))}>
-                <Check className="size-3.5" />
-              </Button>
             </div>
           ))}
         </div>

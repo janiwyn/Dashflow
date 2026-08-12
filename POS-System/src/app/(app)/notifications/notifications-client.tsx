@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { AlertCircle, Bell, Check, Clock, PackageX, Users, X } from "lucide-react";
 
+import { dismissAlert, snoozeAlert } from "@/app/actions/notifications";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
@@ -27,12 +30,34 @@ function urgencyClass(days: number) {
 }
 
 export default function NotificationsPage({ customerDebtorNotifs, lowStockNotifs, shopDebtorNotifs }: Props) {
+  const router = useRouter();
   const { format: currency } = useCurrency();
   const [shop, setShop] = useState<ShopDebtorNotif[]>(shopDebtorNotifs);
   const [customer, setCustomer] = useState<CustomerDebtorNotif[]>(customerDebtorNotifs);
   const [lowStock, setLowStock] = useState<LowStockNotif[]>(lowStockNotifs);
+  const [, startTransition] = useTransition();
 
   const total = shop.length + customer.length + lowStock.length;
+
+  const act = (
+    kind: "low_stock" | "shop_debtor" | "customer_debtor",
+    id: number,
+    title: string,
+    mode: "dismiss" | "snooze",
+    removeFrom: () => void,
+  ) => {
+    removeFrom();
+    startTransition(async () => {
+      const result = await (mode === "dismiss" ? dismissAlert : snoozeAlert)({ kind, referenceId: id, title });
+      if (!result.ok) {
+        toast.error(result.message);
+        router.refresh();
+        return;
+      }
+      toast.success(result.message);
+      router.refresh();
+    });
+  };
 
   return (
     <AppShell title="Notifications" subtitle={`${total} items need your attention`}>
@@ -55,10 +80,22 @@ export default function NotificationsPage({ customerDebtorNotifs, lowStockNotifs
                   <p className="text-sm text-muted-foreground">Due {d.dueDate} · {days} day{days !== 1 ? "s" : ""} overdue · Balance {currency(d.balance)}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Snooze 1 day">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="size-8 rounded-lg"
+                    title="Snooze 1 day"
+                    onClick={() => act("shop_debtor", d.id, `${d.name} — overdue balance`, "snooze", () => setShop((p) => p.filter((x) => x.id !== d.id)))}
+                  >
                     <Clock className="size-3.5" />
                   </Button>
-                  <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Clear" onClick={() => setShop((p) => p.filter((x) => x.id !== d.id))}>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="size-8 rounded-lg"
+                    title="Clear"
+                    onClick={() => act("shop_debtor", d.id, `${d.name} — overdue balance`, "dismiss", () => setShop((p) => p.filter((x) => x.id !== d.id)))}
+                  >
                     <X className="size-3.5" />
                   </Button>
                 </div>
@@ -81,10 +118,22 @@ export default function NotificationsPage({ customerDebtorNotifs, lowStockNotifs
                   <p className="text-sm text-muted-foreground">Due {d.dueDate} · {days} day{days !== 1 ? "s" : ""} overdue · Balance {currency(d.balance)}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Snooze 1 day">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="size-8 rounded-lg"
+                    title="Snooze 1 day"
+                    onClick={() => act("customer_debtor", d.id, `${d.name} — overdue balance`, "snooze", () => setCustomer((p) => p.filter((x) => x.id !== d.id)))}
+                  >
                     <Clock className="size-3.5" />
                   </Button>
-                  <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Clear" onClick={() => setCustomer((p) => p.filter((x) => x.id !== d.id))}>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="size-8 rounded-lg"
+                    title="Clear"
+                    onClick={() => act("customer_debtor", d.id, `${d.name} — overdue balance`, "dismiss", () => setCustomer((p) => p.filter((x) => x.id !== d.id)))}
+                  >
                     <X className="size-3.5" />
                   </Button>
                 </div>
@@ -104,9 +153,26 @@ export default function NotificationsPage({ customerDebtorNotifs, lowStockNotifs
                 <p className="font-medium">{p.name} <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{p.branch}</span></p>
                 <p className="text-sm text-muted-foreground">{p.stock} units left · {currency(p.price)}</p>
               </div>
-              <Button size="icon" variant="outline" className="size-8 rounded-lg" title="Acknowledge" onClick={() => setLowStock((prev) => prev.filter((x) => x.id !== p.id))}>
-                <Check className="size-3.5" />
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-8 rounded-lg"
+                  title="Snooze 1 day"
+                  onClick={() => act("low_stock", p.id, `${p.name} — low stock`, "snooze", () => setLowStock((prev) => prev.filter((x) => x.id !== p.id)))}
+                >
+                  <Clock className="size-3.5" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-8 rounded-lg"
+                  title="Acknowledge"
+                  onClick={() => act("low_stock", p.id, `${p.name} — low stock`, "dismiss", () => setLowStock((prev) => prev.filter((x) => x.id !== p.id)))}
+                >
+                  <Check className="size-3.5" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

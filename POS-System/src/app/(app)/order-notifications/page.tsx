@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 
-import { viewCustomerDebtorNotifs, viewLowStockNotifs, viewShopDebtorNotifs } from "@/db/queries/views";
-import NotificationsPage from "./order-notifications-client";
+import { viewPendingOrders } from "@/db/queries/views";
+import OrderNotificationsPage from "./order-notifications-client";
+import { requireModule } from "@/lib/module-access";
 
 export const metadata: Metadata = {
-  title: "Notifications",
-  description: "Overdue debtors and low stock alerts requiring action.",
+  title: "Order Alerts",
+  description: "Remote orders waiting to be picked up or fulfilled.",
 };
 
 export default async function Page() {
-  const [customerDebtorNotifs, lowStockNotifs, shopDebtorNotifs] = await Promise.all([viewCustomerDebtorNotifs(), viewLowStockNotifs(), viewShopDebtorNotifs()]);
-  return <NotificationsPage customerDebtorNotifs={customerDebtorNotifs} lowStockNotifs={lowStockNotifs} shopDebtorNotifs={shopDebtorNotifs} />;
+  await requireModule("sales");
+  const pendingOrders = await viewPendingOrders();
+  return <OrderNotificationsPage pendingOrders={pendingOrders} />;
 }
