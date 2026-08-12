@@ -4,6 +4,7 @@ import { and, count, desc, eq, gte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { branches, businesses, customers, saleItems, sales } from "@/db/schema";
+import { label } from "@/lib/format";
 
 import { businessScope, enforcedBranchId, num, startOfDay } from "./_helpers";
 
@@ -290,17 +291,11 @@ export async function getPaymentMix(branchId?: number) {
 
   return rows
     .map((r) => ({
-      name: MIX_COLORS[r.method] ? labelFor(r.method) : r.method,
+      name: MIX_COLORS[r.method] ? label(r.method) : r.method,
       value: Math.round((num(r.total) / grand) * 100),
       color: MIX_COLORS[r.method] ?? "var(--color-chart-5)",
     }))
     .sort((a, b) => b.value - a.value);
-}
-
-function labelFor(method: string) {
-  return method === "mpesa"
-    ? "M-Pesa"
-    : method.charAt(0).toUpperCase() + method.slice(1);
 }
 
 /** Refund totals for a window, for the sales screen's refund tile. */

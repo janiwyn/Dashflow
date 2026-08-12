@@ -36,9 +36,9 @@ export const delta = (current: number, previous: number) => {
   return Number((((current - previous) / previous) * 100).toFixed(1));
 };
 
-/** Title-cases the lowercase enum values stored in Postgres, e.g. "mpesa" -> "M-Pesa". */
+/** Title-cases the lowercase enum values stored in Postgres, e.g. "mpesa" -> "Mobile Money". */
 const LABELS: Record<string, string> = {
-  mpesa: "M-Pesa",
+  mpesa: "Mobile Money",
   cash: "Cash",
   card: "Card",
   invoice: "Invoice",
