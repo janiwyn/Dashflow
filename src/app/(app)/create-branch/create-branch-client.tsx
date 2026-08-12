@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
+import { createBranch } from "@/app/actions/branches";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,33 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 
 export default function CreateBranchPage() {
+  const router = useRouter();
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setMessage(null);
+
+    startTransition(async () => {
+      const result = await createBranch({
+        name: String(form.get("name") ?? ""),
+        location: String(form.get("location") ?? ""),
+        contact: String(form.get("contact") ?? ""),
+        managerName: String(form.get("manager") ?? ""),
+      });
+
+      if (!result.ok) {
+        setMessage({ text: result.message, error: true });
+        return;
+      }
+
+      setMessage({ text: result.message });
+      router.push("/list-branches");
+      router.refresh();
+    });
+  };
 
   return (
     <AppShell
@@ -34,13 +62,7 @@ export default function CreateBranchPage() {
             {message.text}
           </div>
         )}
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setMessage({ text: "Branch created successfully!" });
-          }}
-        >
+        <form className="flex flex-col gap-4" onSubmit={onSubmit}>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="name">Branch name</Label>
             <Input id="name" name="name" required placeholder="e.g. Eldoret — Town Centre" />
@@ -54,11 +76,11 @@ export default function CreateBranchPage() {
             <Input id="contact" name="contact" required placeholder="0712 345 678" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="branch-key">Branch key</Label>
-            <Input id="branch-key" name="branch-key" required placeholder="Used by staff to sign up to this branch" />
+            <Label htmlFor="manager">Manager (optional)</Label>
+            <Input id="manager" name="manager" placeholder="Assigned later if left blank" />
           </div>
-          <Button type="submit" className="mt-2 rounded-lg">
-            Create branch
+          <Button type="submit" disabled={pending} className="mt-2 rounded-lg">
+            {pending ? "Creating…" : "Create branch"}
           </Button>
         </form>
       </div>

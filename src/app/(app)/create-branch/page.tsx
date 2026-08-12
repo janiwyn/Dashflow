@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  await requireRole("super", "admin", "manager");
+  // Matches createBranch()'s own check — a manager could otherwise fill out
+  // this whole form and only find out it's not allowed when the action
+  // silently redirects them away on submit.
+  await requireRole("super", "admin");
 
-  return <CreateBranchPage  />;
+  return <CreateBranchPage />;
 }
