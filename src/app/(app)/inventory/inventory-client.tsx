@@ -41,9 +41,12 @@ export default function InventoryPage({ stats, products }: Props) {
     { key: "price", header: "Price", align: "right", render: (p) => <span className="num">{currency(p.price)}</span> },
     {
       key: "value",
-      header: "Stock value",
+      header: "Stock value (cost)",
       align: "right",
-      render: (p) => <span className="num font-semibold">{currency(p.price * p.stock)}</span>,
+      // Same basis as the "Stock value" stat card above (buying price × stock)
+      // — using the selling price here instead would make the two numbers
+      // disagree even though they're both labelled "stock value".
+      render: (p) => <span className="num font-semibold">{currency(p.buyingPrice * p.stock)}</span>,
     },
   ];
 
