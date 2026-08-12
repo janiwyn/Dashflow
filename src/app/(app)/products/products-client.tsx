@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Boxes, PackageX, Plus, Trash2, Pencil, Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
+import { createProduct, deleteProduct as deleteProductAction } from "@/app/actions/catalog";
 import { AppShell } from "@/components/app-shell";
 import { DataTable, type Column } from "@/components/data-table";
 import { StatCard } from "@/components/stat-card";
@@ -34,11 +37,21 @@ type Props = {
 };
 
 export default function ProductsPage({ branches, stockProducts }: Props) {
+  const router = useRouter();
   const { format: currency } = useCurrency();
   const [rows, setRows] = useState<StockProduct[]>(stockProducts);
   const [branch, setBranch] = useState("All branches");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", category: "", price: "", cost: "", stock: "", branch: "Westlands" });
+  // branches[0] is the "All branches" filter sentinel, not a real branch —
+  // default to the first actual one instead of a hardcoded name that may
+  // not exist for this business.
+  const [form, setForm] = useState({ name: "", category: "", price: "", cost: "", stock: "", branch: branches[1] ?? "" });
+  const [saving, startSaving] = useTransition();
+
+  // stockProducts only changes when the server component re-fetches (e.g.
+  // after router.refresh() below) — sync it in rather than letting the
+  // initial useState value go stale forever.
+  useEffect(() => setRows(stockProducts), [stockProducts]);
 
   const filtered = useMemo(
     () => (branch === "All branches" ? rows : rows.filter((p) => p.branch === branch)),
@@ -50,24 +63,38 @@ export default function ProductsPage({ branches, stockProducts }: Props) {
 
   function addProduct() {
     if (!form.name || !form.price) return;
-    setRows((prev) => [
-      {
-        id: Math.max(...prev.map((p) => p.id)) + 1,
+    startSaving(async () => {
+      const result = await createProduct({
         name: form.name,
-        category: form.category || "Uncategorised",
+        category: form.category,
         sellingPrice: Number(form.price) || 0,
         buyingPrice: Number(form.cost) || 0,
         stock: Number(form.stock) || 0,
         branch: form.branch,
-      },
-      ...prev,
-    ]);
-    setForm({ name: "", category: "", price: "", cost: "", stock: "", branch: "Westlands" });
-    setOpen(false);
+      });
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success(result.message);
+      setForm({ name: "", category: "", price: "", cost: "", stock: "", branch: branches[1] ?? "" });
+      setOpen(false);
+      router.refresh();
+    });
   }
 
   function deleteProduct(id: number) {
-    setRows((prev) => prev.filter((p) => p.id !== id));
+    startSaving(async () => {
+      const result = await deleteProductAction(id);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      router.refresh();
+    });
   }
 
   const columns: Column<StockProduct>[] = [
@@ -98,7 +125,13 @@ export default function ProductsPage({ branches, stockProducts }: Props) {
           <Button variant="outline" size="icon" className="size-8 rounded-lg">
             <Pencil className="size-3.5" />
           </Button>
-          <Button variant="outline" size="icon" className="size-8 rounded-lg text-destructive" onClick={() => deleteProduct(p.id)}>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8 rounded-lg text-destructive"
+            disabled={saving}
+            onClick={() => deleteProduct(p.id)}
+          >
             <Trash2 className="size-3.5" />
           </Button>
         </div>
@@ -159,7 +192,9 @@ export default function ProductsPage({ branches, stockProducts }: Props) {
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={addProduct} className="rounded-lg">Save product</Button>
+              <Button onClick={addProduct} disabled={saving} className="rounded-lg">
+                {saving ? "Saving…" : "Save product"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

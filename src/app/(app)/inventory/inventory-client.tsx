@@ -2,6 +2,7 @@
 
 import type { viewInventoryStats, viewPosProducts } from "@/db/queries/views";
 import { Boxes, PackageX, TrendingUp } from "lucide-react";
+import Link from "next/link";
 
 import { AppShell } from "@/components/app-shell";
 import { DataTable, type Column } from "@/components/data-table";
@@ -51,8 +52,8 @@ export default function InventoryPage({ stats, products }: Props) {
       title="Inventory"
       subtitle={`${products.length} active SKUs · Main Branch`}
       actions={
-        <Button size="sm" className="rounded-lg">
-          Add product
+        <Button size="sm" className="rounded-lg" asChild>
+          <Link href="/products">Add product</Link>
         </Button>
       }
     >
