@@ -15,6 +15,7 @@ import {
 import { Banknote, Receipt, Boxes, Users, AlertTriangle } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { LiveClock } from "@/components/live-clock";
 import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,9 +67,12 @@ export default function Dashboard({ stats, products, revenueSeries, sales }: Pro
       title={title}
       subtitle={subtitle}
       actions={
-        <Button variant="outline" size="sm" className="rounded-lg">
-          Export day sheet
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <LiveClock />
+          <Button variant="outline" size="sm" className="rounded-lg">
+            Export day sheet
+          </Button>
+        </div>
       }
     >
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

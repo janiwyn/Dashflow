@@ -51,6 +51,8 @@ export async function viewCategories(): Promise<string[]> {
 export type PosSale = {
   id: string;
   customer: string;
+  branch: string | null;
+  cashier: string | null;
   items: number;
   amount: number;
   method: string;
@@ -63,6 +65,8 @@ export async function viewSales(limit = 50): Promise<PosSale[]> {
   return rows.map((s) => ({
     id: s.reference,
     customer: s.customer,
+    branch: s.branch,
+    cashier: s.cashier,
     items: s.items,
     amount: s.amount,
     method: label(s.method),
