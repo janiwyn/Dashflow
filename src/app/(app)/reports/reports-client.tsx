@@ -14,23 +14,24 @@ import { useCurrency } from "@/components/currency-provider";
 type Props = {
   stats: Awaited<ReturnType<typeof viewReportStats>>;
   revenueSeries: Awaited<ReturnType<typeof viewRevenueSeries>>;
+  subtitle: string;
 };
 
-export default function ReportsPage({ stats, revenueSeries }: Props) {
+export default function ReportsPage({ stats, revenueSeries, subtitle }: Props) {
   const { format: currency } = useCurrency();
   return (
     <AppShell
       title="Reports"
-      subtitle="Week of 30 July – 5 August 2026"
+      subtitle={subtitle}
       actions={
-        <Button variant="outline" size="sm" className="rounded-lg">
+        <Button variant="outline" size="sm" className="rounded-lg" onClick={() => window.print()}>
           Download PDF
         </Button>
       }
     >
       <section className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Weekly revenue" value={currency(stats.weekRevenue)} icon={Banknote} hint="last 7 days" />
-        <StatCard label="Gross margin" value="31.4%" delta={1.8} icon={Percent} hint="after cost of sales" />
+        <StatCard label="Gross margin" value={`${stats.marginPct}%`} delta={stats.marginDeltaPct} icon={Percent} hint="after cost of sales" />
         <StatCard label="Orders" value={String(stats.orders)} icon={ShoppingBag} hint={`avg ${stats.averagePerDay} / day`} />
       </section>
 

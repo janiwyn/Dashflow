@@ -1,12 +1,12 @@
 import "server-only";
 
-import { and, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { branches, businesses, customers, saleItems, sales } from "@/db/schema";
+import { branches, businesses, customers, products, saleItems, sales } from "@/db/schema";
 import { label } from "@/lib/format";
 
-import { businessScope, enforcedBranchId, num, startOfDay } from "./_helpers";
+import { businessScope, daysAgo, enforcedBranchId, num, startOfDay } from "./_helpers";
 
 export type SaleRow = {
   id: number;
@@ -42,12 +42,14 @@ export async function getSales(options?: {
   limit?: number;
   branchId?: number;
   since?: Date;
+  until?: Date;
 }): Promise<SaleRow[]> {
   const businessId = await businessScope();
   const branchId = await enforcedBranchId(options?.branchId);
   const filters = [eq(sales.businessId, businessId)];
   if (branchId) filters.push(eq(sales.branchId, branchId));
   if (options?.since) filters.push(gte(sales.soldAt, options.since));
+  if (options?.until) filters.push(lte(sales.soldAt, options.until));
 
   const rows = await db
     .select(saleSelect)
@@ -208,9 +210,55 @@ export async function getMonthlyRevenue(months = 12) {
   return rows.map((r) => ({ ...r, revenue: num(r.revenue), orders: num(r.orders) }));
 }
 
-/** Best sellers by revenue, for the reports screens. */
-export async function getTopProducts(limit = 5) {
+/**
+ * Gross margin for the trailing `days` window vs the window before it, using
+ * each product's *current* buying price as the cost basis — sales don't
+ * snapshot historical cost, so this is an approximation like most POS
+ * systems make without a full cost-layer/FIFO ledger.
+ */
+export async function getGrossMarginTrend(days = 7) {
   const businessId = await businessScope();
+
+  async function marginFor(since: Date, until?: Date) {
+    const filters = [eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`, gte(sales.soldAt, since)];
+    if (until) filters.push(lte(sales.soldAt, until));
+
+    const [row] = await db
+      .select({
+        revenue: sql<number>`coalesce(sum(${saleItems.quantity} * ${saleItems.unitPrice}), 0)`,
+        cost: sql<number>`coalesce(sum(${saleItems.quantity} * ${products.buyingPrice}), 0)`,
+      })
+      .from(saleItems)
+      .innerJoin(sales, eq(saleItems.saleId, sales.id))
+      .leftJoin(products, eq(saleItems.productId, products.id))
+      .where(and(...filters));
+
+    const revenue = num(row?.revenue);
+    const cost = num(row?.cost);
+    return revenue > 0 ? ((revenue - cost) / revenue) * 100 : 0;
+  }
+
+  const currentSince = daysAgo(days - 1);
+  const previousSince = daysAgo(days * 2 - 1);
+  const previousUntil = new Date(currentSince.getTime() - 1);
+
+  const [current, previous] = await Promise.all([marginFor(currentSince), marginFor(previousSince, previousUntil)]);
+
+  return {
+    marginPct: Math.round(current * 10) / 10,
+    deltaPct: Math.round((current - previous) * 10) / 10,
+  };
+}
+
+/** Best sellers by revenue, for the reports screens. */
+export async function getTopProducts(options?: { limit?: number; branchId?: number; since?: Date; until?: Date }) {
+  const businessId = await businessScope();
+  const branchId = await enforcedBranchId(options?.branchId);
+  const filters = [eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`];
+  if (branchId) filters.push(eq(sales.branchId, branchId));
+  if (options?.since) filters.push(gte(sales.soldAt, options.since));
+  if (options?.until) filters.push(lte(sales.soldAt, options.until));
+
   const rows = await db
     .select({
       name: saleItems.name,
@@ -220,12 +268,35 @@ export async function getTopProducts(limit = 5) {
     })
     .from(saleItems)
     .innerJoin(sales, eq(saleItems.saleId, sales.id))
-    .where(and(eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`))
+    .where(and(...filters))
     .groupBy(saleItems.name, saleItems.sku)
     .orderBy(desc(sql`sum(${saleItems.quantity} * ${saleItems.unitPrice})`))
-    .limit(limit);
+    .limit(options?.limit ?? 5);
 
   return rows.map((r) => ({ ...r, units: num(r.units), revenue: num(r.revenue) }));
+}
+
+/** Raw payment-method totals for a window — unlike `getPaymentMix` (percentages, for the dashboard pie chart), this is for the report builder: real amounts, real date range, and correctly branch-enforced. */
+export async function getPaymentBreakdown(options?: { branchId?: number; since?: Date; until?: Date }) {
+  const businessId = await businessScope();
+  const branchId = await enforcedBranchId(options?.branchId);
+  const filters = [eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`];
+  if (branchId) filters.push(eq(sales.branchId, branchId));
+  if (options?.since) filters.push(gte(sales.soldAt, options.since));
+  if (options?.until) filters.push(lte(sales.soldAt, options.until));
+
+  const rows = await db
+    .select({
+      method: sales.method,
+      count: count(sales.id),
+      total: sql<number>`coalesce(sum(${sales.total}), 0)`,
+    })
+    .from(sales)
+    .where(and(...filters))
+    .groupBy(sales.method)
+    .orderBy(desc(sql`sum(${sales.total})`));
+
+  return rows.map((r) => ({ ...r, count: num(r.count), total: num(r.total) }));
 }
 
 /** Headline figures for a day, plus the previous day for the delta chips. */

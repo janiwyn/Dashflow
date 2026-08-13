@@ -8,12 +8,13 @@ import "server-only";
  * Neon, so page components consume real data without restructuring their JSX.
  * Anything new should prefer the domain query modules directly.
  */
-import { clockTime, delta, label, longDate, shortDate } from "@/lib/format";
+import { clockTime, dateTime, delta, label, longDate, shortDate } from "@/lib/format";
 
 import * as accounting from "./accounting";
 import * as branchQueries from "./branches";
 import * as catalog from "./catalog";
 import * as customerQueries from "./customers";
+import { dateInputEnd } from "./_helpers";
 import * as hr from "./hr";
 import * as notifications from "./notifications";
 import * as operations from "./operations";
@@ -163,6 +164,67 @@ export async function viewExpenses() {
     amount: e.amount,
     date: shortDate(e.date),
     branch: e.branch,
+  }));
+}
+
+/** Expenses report — like `viewExpenses()` but filterable by branch/date, and with who spent it. */
+export async function viewExpenseReport(options?: { branchId?: number; from?: string; to?: string }) {
+  const rows = await accounting.getExpenses({ ...options, limit: 500 });
+  return rows.map((e) => ({
+    id: e.ref,
+    date: shortDate(e.date),
+    branch: e.branch ?? "—",
+    category: e.category,
+    label: e.label,
+    amount: e.amount,
+    spentBy: e.spentBy ?? "—",
+  }));
+}
+
+/** Sales report — one row per transaction, for the report builder. */
+export async function viewSalesReport(options?: { branchId?: number; from?: string; to?: string }) {
+  const since = options?.from ? new Date(`${options.from}T00:00:00`) : undefined;
+  const until = options?.to ? dateInputEnd(options.to) : undefined;
+  const rows = await salesQueries.getSales({ branchId: options?.branchId, since, until, limit: 500 });
+  return rows.map((s) => ({
+    reference: s.reference,
+    date: dateTime(s.soldAt),
+    branch: s.branch ?? "—",
+    customer: s.customer,
+    items: s.items,
+    amount: s.amount,
+    method: label(s.method),
+    soldBy: s.cashier ?? "—",
+  }));
+}
+
+/** Units and revenue per product — for the report builder's "Product summary" report. */
+export async function viewProductSummaryReport(options?: { branchId?: number; from?: string; to?: string }) {
+  const since = options?.from ? new Date(`${options.from}T00:00:00`) : undefined;
+  const until = options?.to ? dateInputEnd(options.to) : undefined;
+  const rows = await salesQueries.getTopProducts({ branchId: options?.branchId, since, until, limit: 200 });
+  return rows.map((p) => ({ product: p.name, sku: p.sku, unitsSold: p.units, revenue: p.revenue }));
+}
+
+/** Real payment-method totals for a window — the report builder's "Payment method analysis" report. */
+export async function viewPaymentBreakdownReport(options?: { branchId?: number; from?: string; to?: string }) {
+  const since = options?.from ? new Date(`${options.from}T00:00:00`) : undefined;
+  const until = options?.to ? dateInputEnd(options.to) : undefined;
+  const rows = await salesQueries.getPaymentBreakdown({ branchId: options?.branchId, since, until });
+  return rows.map((r) => ({ method: label(r.method), count: r.count, amount: r.total }));
+}
+
+/** Outstanding debtors — the report builder's "Debtors" report. */
+export async function viewDebtorReport(options?: { branchId?: number; from?: string; to?: string }) {
+  const from = options?.from ? new Date(`${options.from}T00:00:00`) : undefined;
+  const to = options?.to ? dateInputEnd(options.to) : undefined;
+  const rows = await operations.getDebtors({ branchId: options?.branchId, from, to, outstandingOnly: true });
+  return rows.map((d) => ({
+    date: shortDate(d.date),
+    name: d.name,
+    itemTaken: d.itemTaken ?? "—",
+    balance: d.balance,
+    status: "Outstanding",
   }));
 }
 
@@ -917,9 +979,10 @@ export async function viewSalesStats() {
 }
 
 export async function viewReportStats() {
-  const [totals, series] = await Promise.all([
+  const [totals, series, margin] = await Promise.all([
     salesQueries.getSalesTotals(),
     salesQueries.getRevenueSeries(7),
+    salesQueries.getGrossMarginTrend(7),
   ]);
   const orders = series.reduce((s, d) => s + d.orders, 0);
 
@@ -927,6 +990,8 @@ export async function viewReportStats() {
     weekRevenue: totals.weekRevenue,
     orders,
     averagePerDay: series.length ? Math.round(orders / series.length) : 0,
+    marginPct: margin.marginPct,
+    marginDeltaPct: margin.deltaPct,
     bestDay: series.reduce(
       (best, d) => (d.revenue > best.revenue ? d : best),
       series[0] ?? { day: "—", revenue: 0, orders: 0, date: "" },

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -14,9 +14,10 @@ import {
   products,
   sales,
   transactions,
+  users,
 } from "@/db/schema";
 
-import { businessScope, num } from "./_helpers";
+import { businessScope, enforcedBranchId, num } from "./_helpers";
 
 export async function getLedgerAccounts() {
   const businessId = await businessScope();
@@ -98,8 +99,15 @@ export async function getTransactions(limit = 50) {
   }));
 }
 
-export async function getExpenses(limit = 50) {
+export async function getExpenses(options?: { limit?: number; branchId?: number; from?: string; to?: string }) {
   const businessId = await businessScope();
+  const branchId = await enforcedBranchId(options?.branchId);
+
+  const filters = [eq(expenses.businessId, businessId)];
+  if (branchId) filters.push(eq(expenses.branchId, branchId));
+  if (options?.from) filters.push(gte(expenses.incurredOn, options.from));
+  if (options?.to) filters.push(lte(expenses.incurredOn, options.to));
+
   const rows = await db
     .select({
       id: expenses.id,
@@ -109,12 +117,14 @@ export async function getExpenses(limit = 50) {
       amount: expenses.amount,
       date: expenses.incurredOn,
       branch: branches.name,
+      spentBy: users.name,
     })
     .from(expenses)
     .leftJoin(branches, eq(expenses.branchId, branches.id))
-    .where(eq(expenses.businessId, businessId))
+    .leftJoin(users, eq(expenses.handledById, users.id))
+    .where(and(...filters))
     .orderBy(desc(expenses.incurredOn), desc(expenses.id))
-    .limit(limit);
+    .limit(options?.limit ?? 50);
 
   return rows.map((r) => ({ ...r, amount: num(r.amount) }));
 }

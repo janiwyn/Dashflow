@@ -26,17 +26,19 @@ export function AppShell({
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar
-          user={{
-            name: user.name,
-            role: user.role,
-            roleLabel: user.roleLabel,
-            branch: user.branch,
-            initials: user.initials,
-          }}
-        />
+        <div className="print:hidden">
+          <AppSidebar
+            user={{
+              name: user.name,
+              role: user.role,
+              roleLabel: user.roleLabel,
+              branch: user.branch,
+              initials: user.initials,
+            }}
+          />
+        </div>
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur">
+          <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur print:hidden">
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
               <SidebarTrigger className="shrink-0" />
               <div className="relative min-w-0 max-w-md">
@@ -71,7 +73,7 @@ export function AppShell({
                     <p className="mt-1 truncate text-sm text-muted-foreground">{subtitle}</p>
                   )}
                 </div>
-                {actions}
+                {actions && <div className="print:hidden">{actions}</div>}
               </div>
               {children}
             </div>
