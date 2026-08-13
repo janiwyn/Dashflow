@@ -7,4 +7,5 @@ export * from "./accounting";
 export * from "./hr";
 export * from "./attendance";
 export * from "./operations";
+export * from "./procurement";
 export * from "./system";

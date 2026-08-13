@@ -17,6 +17,7 @@ import * as customerQueries from "./customers";
 import * as hr from "./hr";
 import * as notifications from "./notifications";
 import * as operations from "./operations";
+import * as procurement from "./procurement";
 import * as salesQueries from "./sales";
 import * as superAdmin from "./super-admin";
 
@@ -97,10 +98,59 @@ export async function viewSuppliers() {
   return rows.map((s) => ({
     id: s.id,
     name: s.name,
+    categoryId: s.categoryId,
     category: s.category,
+    contact: s.contact,
+    contactPerson: s.contactPerson,
+    email: s.email,
+    address: s.address,
+    paymentTerms: s.paymentTerms,
     lastDelivery: s.lastDelivery ? shortDate(s.lastDelivery) : "—",
     payable: s.payable,
   }));
+}
+
+/** Products at or below their own reorder threshold — what "Create purchase order" starts from. */
+export async function viewLowStockProducts() {
+  const rows = await catalog.getLowStockProducts();
+  return rows.map((p) => ({
+    id: p.id,
+    sku: p.sku,
+    name: p.name,
+    category: p.category,
+    stock: p.stock,
+    lowStockThreshold: p.lowStockThreshold,
+    buyingPrice: p.buyingPrice,
+  }));
+}
+
+export async function viewPurchaseOrders() {
+  const rows = await procurement.getPurchaseOrders();
+  return rows.map((po) => ({
+    id: po.id,
+    reference: po.reference,
+    supplierId: po.supplierId,
+    supplier: po.supplierName ?? "No supplier",
+    status: label(po.status),
+    itemCount: po.itemCount,
+    totalCost: po.totalCost,
+    notes: po.notes,
+    orderedAt: longDate(po.orderedAt),
+    receivedAt: po.receivedAt ? longDate(po.receivedAt) : null,
+  }));
+}
+
+export async function viewPurchaseOrderItems(purchaseOrderId: number) {
+  return procurement.getPurchaseOrderItems(purchaseOrderId);
+}
+
+export async function viewSupplierSuppliedProducts(supplierId: number) {
+  return procurement.getSupplierSuppliedProducts(supplierId);
+}
+
+/** Category id/name pairs for a select — `viewCategories()` only returns names. */
+export async function viewCategoryOptions() {
+  return catalog.getCategories();
 }
 
 export async function viewExpenses() {
