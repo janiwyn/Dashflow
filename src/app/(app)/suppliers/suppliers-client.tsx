@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Eye, PackageCheck, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Banknote, Eye, PackageCheck, Pencil, Plus, Trash2, X } from "lucide-react";
 
-import { cancelPurchaseOrder, fetchPurchaseOrderItems, receivePurchaseOrder } from "@/app/actions/procurement";
+import { cancelPurchaseOrder, fetchPurchaseOrderItems, paySupplier, receivePurchaseOrder } from "@/app/actions/procurement";
 import { deleteSupplier } from "@/app/actions/suppliers";
 import type { PurchaseOrderItemRow } from "@/db/queries/procurement";
 import type { viewPurchaseOrders, viewStockProducts, viewSuppliers } from "@/db/queries/views";
@@ -13,7 +13,17 @@ import { AppShell } from "@/components/app-shell";
 import { CreatePurchaseOrderDialog } from "@/components/procurement/create-purchase-order-dialog";
 import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useCurrency } from "@/components/currency-provider";
 import { SupplierDetailDialog } from "./supplier-detail-dialog";
 import { SupplierFormDialog } from "./supplier-form-dialog";
@@ -96,6 +106,7 @@ export default function SuppliersPage({ suppliers, products, purchaseOrders, cat
             supplier={s}
             onSaved={() => router.refresh()}
           />
+          <PaySupplierDialog supplier={s} onPaid={() => router.refresh()} />
           <Button variant="ghost" size="icon" className="size-8 rounded-lg text-destructive" onClick={() => removeSupplier(s)} disabled={pending}>
             <Trash2 className="size-3.5" />
           </Button>
@@ -110,18 +121,6 @@ export default function SuppliersPage({ suppliers, products, purchaseOrders, cat
     fetchPurchaseOrderItems(po.id)
       .then(setItems)
       .finally(() => setLoadingItems(false));
-  };
-
-  const receive = (po: PurchaseOrder) => {
-    startTransition(async () => {
-      const result = await receivePurchaseOrder(po.id);
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
-      }
-      toast.success(result.message);
-      router.refresh();
-    });
   };
 
   const cancel = (po: PurchaseOrder) => {
@@ -162,9 +161,7 @@ export default function SuppliersPage({ suppliers, products, purchaseOrders, cat
           </Button>
           {po.status === "Pending" && (
             <>
-              <Button variant="ghost" size="icon" className="size-8 rounded-lg text-success" onClick={() => receive(po)} disabled={pending}>
-                <PackageCheck className="size-3.5" />
-              </Button>
+              <ReceiveDialog po={po} onReceived={() => router.refresh()} />
               <Button variant="ghost" size="icon" className="size-8 rounded-lg text-destructive" onClick={() => cancel(po)} disabled={pending}>
                 <X className="size-3.5" />
               </Button>
@@ -241,5 +238,126 @@ export default function SuppliersPage({ suppliers, products, purchaseOrders, cat
         </DialogContent>
       </Dialog>
     </AppShell>
+  );
+}
+
+/* ------------------------------------------------------------- Receive */
+
+function ReceiveDialog({ po, onReceived }: { po: PurchaseOrder; onReceived: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [method, setMethod] = useState<"cash" | "bank" | "credit">("credit");
+  const [pending, startTransition] = useTransition();
+
+  const confirm = () => {
+    startTransition(async () => {
+      const result = await receivePurchaseOrder(po.id, method);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      setOpen(false);
+      onReceived();
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="size-8 rounded-lg text-success">
+          <PackageCheck className="size-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Receive {po.reference}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <p className="text-sm text-muted-foreground">Confirm the goods arrived and how this was settled with {po.supplier}.</p>
+          <div className="grid gap-1.5">
+            <Label>Payment</Label>
+            <Select value={method} onValueChange={(v) => setMethod(v as typeof method)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="credit">On credit — add to balance owed</SelectItem>
+                <SelectItem value="cash">Paid cash now</SelectItem>
+                <SelectItem value="bank">Paid by bank/transfer now</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={confirm} disabled={pending} className="rounded-lg">
+            {pending ? "Receiving…" : "Confirm receipt"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* --------------------------------------------------------- Pay supplier */
+
+function PaySupplierDialog({ supplier, onPaid }: { supplier: Supplier; onPaid: () => void }) {
+  const { format: currency } = useCurrency();
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState<"cash" | "bank">("cash");
+  const [pending, startTransition] = useTransition();
+
+  const submit = () => {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) {
+      toast.error("Enter a valid amount.");
+      return;
+    }
+    startTransition(async () => {
+      const result = await paySupplier({ supplierId: supplier.id, amount: amt, method });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      setOpen(false);
+      setAmount("");
+      onPaid();
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="size-8 rounded-lg" disabled={supplier.payable <= 0}>
+          <Banknote className="size-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Pay {supplier.name}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <p className="text-sm">Outstanding: <span className="num font-semibold">{currency(supplier.payable)}</span></p>
+          <div className="grid gap-1.5">
+            <Label>Amount</Label>
+            <Input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} className="num" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Method</Label>
+            <Select value={method} onValueChange={(v) => setMethod(v as typeof method)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="bank">Bank/transfer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={pending} className="rounded-lg">
+            {pending ? "Recording…" : "Record payment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

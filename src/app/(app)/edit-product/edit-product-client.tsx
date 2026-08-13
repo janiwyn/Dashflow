@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCurrency } from "@/components/currency-provider";
 import type { viewStockProducts } from "@/db/queries/views";
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export default function EditProductPage({ stockProducts }: Props) {
+  const { code } = useCurrency();
   const [selectedId, setSelectedId] = useState<string>("");
   const [form, setForm] = useState({ name: "", buyingPrice: "", sellingPrice: "", stock: "" });
   const [saved, setSaved] = useState(false);
@@ -64,11 +66,11 @@ export default function EditProductPage({ stockProducts }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label>Buying price (KES)</Label>
+                <Label>Buying price ({code})</Label>
                 <Input type="number" value={form.buyingPrice} onChange={(e) => setForm({ ...form, buyingPrice: e.target.value })} />
               </div>
               <div className="grid gap-1.5">
-                <Label>Selling price (KES)</Label>
+                <Label>Selling price ({code})</Label>
                 <Input type="number" value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })} />
               </div>
             </div>

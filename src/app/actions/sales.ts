@@ -4,7 +4,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { products, saleItems, sales } from "@/db/schema";
+import { customers, products, saleItems, sales } from "@/db/schema";
 import { assertClockedIn } from "@/db/queries/attendance";
 import { getActiveModuleKeys } from "@/db/queries/modules";
 import { requireUser } from "@/lib/session";
@@ -32,6 +32,7 @@ export async function checkoutSale(input: {
   items: CartLine[];
   method: "cash" | "mpesa" | "card";
   customerName?: string;
+  customerId?: number;
 }): Promise<ActionResult & { reference?: string }> {
   const user = await requireUser();
   const businessId = user.businessId ?? 1;
@@ -40,6 +41,20 @@ export async function checkoutSale(input: {
   if (!clockGate.ok) return clockGate;
 
   if (input.items.length === 0) return { ok: false, message: "The cart is empty." };
+
+  let customerId: number | null = null;
+  let customerName = input.customerName?.trim() || "Walk-in";
+
+  if (input.customerId) {
+    const [customer] = await db
+      .select({ id: customers.id, name: customers.name })
+      .from(customers)
+      .where(and(eq(customers.id, input.customerId), eq(customers.businessId, businessId)))
+      .limit(1);
+    if (!customer) return { ok: false, message: "Selected customer not found." };
+    customerId = customer.id;
+    customerName = customer.name;
+  }
 
   const skus = input.items.map((i) => i.sku);
   const rows = await db
@@ -73,7 +88,8 @@ export async function checkoutSale(input: {
       businessId,
       branchId: user.branchId ?? null,
       reference,
-      customerName: input.customerName?.trim() || "Walk-in",
+      customerId,
+      customerName,
       cashierId: user.id,
       cashierName: user.name,
       method: input.method,
@@ -133,6 +149,8 @@ export async function checkoutSale(input: {
   revalidatePath("/income-statement");
   revalidatePath("/cash-book");
   revalidatePath("/add-transaction");
+  revalidatePath("/customers");
+  revalidatePath("/customer-file");
 
   return { ok: true, message: `Sale ${reference} completed.`, reference: sale.reference };
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { viewDebtors } from "@/db/queries/views";
+import { viewDebtors, viewHrBranches } from "@/db/queries/views";
 import DebtorPaymentPage from "./debtor-payment-client";
 import { requireModule } from "@/lib/module-access";
 
@@ -11,6 +11,6 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   await requireModule("customers");
-  const debtorsSeed = await viewDebtors();
-  return <DebtorPaymentPage debtorsSeed={debtorsSeed} />;
+  const [debtors, branches] = await Promise.all([viewDebtors(), viewHrBranches()]);
+  return <DebtorPaymentPage debtors={debtors} branches={branches} />;
 }

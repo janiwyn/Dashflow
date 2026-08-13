@@ -88,6 +88,10 @@ export async function viewCustomers() {
     id: c.id,
     name: c.name,
     type: label(c.type),
+    rawType: c.type,
+    contact: c.contact,
+    email: c.email,
+    preferredPaymentMethod: c.preferredPaymentMethod,
     orders: c.orders,
     spend: c.spend,
     balance: c.balance,
@@ -694,11 +698,13 @@ export type PaymentProof = {
   id: number;
   ref: string;
   branch: string;
+  branchId: number | null;
   customer: string;
   phone: string;
   location: string;
   method: "MTN Merchant" | "Airtel Merchant";
   status: "Pending" | "Verified" | "Rejected";
+  imagePath: string | null;
   date: string;
 };
 
@@ -708,11 +714,13 @@ export async function viewPaymentProofs(): Promise<PaymentProof[]> {
     id: p.id,
     ref: p.ref,
     branch: p.branch ?? "Unassigned",
+    branchId: p.branchId,
     customer: p.customer,
     phone: p.phone ?? "—",
     location: p.location ?? "—",
     method: label(p.method) as "MTN Merchant" | "Airtel Merchant",
     status: label(p.status) as "Pending" | "Verified" | "Rejected",
+    imagePath: p.imagePath,
     date: `${longDate(p.date)}, ${clockTime(p.date)}`,
   }));
 }
@@ -813,12 +821,14 @@ export async function viewStorefrontProducts() {
     price: p.price,
     stock: p.stock,
     branch: p.branch ?? "Unassigned",
+    branchId: p.branchId,
   }));
 }
 
 export async function viewTrackableOrder(reference?: string) {
+  if (!reference) return null;
   const orders = await operations.getRemoteOrders();
-  const order = reference ? orders.find((o) => o.reference === reference) : orders[0];
+  const order = orders.find((o) => o.reference === reference.trim().toUpperCase());
   if (!order) return null;
   return {
     ref: order.reference,

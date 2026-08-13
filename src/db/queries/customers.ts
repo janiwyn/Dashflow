@@ -13,6 +13,7 @@ export type CustomerRow = {
   type: string;
   contact: string | null;
   email: string | null;
+  preferredPaymentMethod: string | null;
   orders: number;
   spend: number;
   balance: number;
@@ -27,6 +28,7 @@ export async function getCustomers(): Promise<CustomerRow[]> {
       type: customers.type,
       contact: customers.contact,
       email: customers.email,
+      preferredPaymentMethod: customers.preferredPaymentMethod,
       orders: sql<number>`(select count(*) from ${sales} where ${sales}.customer_id = ${customers}.id)`,
       spend: sql<number>`(select coalesce(sum(${sales}.total), 0) from ${sales} where ${sales}.customer_id = ${customers}.id and ${sales}.status <> 'refunded')`,
       balance: customers.accountBalance,

@@ -6,7 +6,9 @@ import { toast } from "sonner";
 
 import { updateBusinessSettings } from "@/app/actions/settings";
 import { AppShell } from "@/components/app-shell";
+import { useCurrency } from "@/components/currency-provider";
 import { usePrinter } from "@/components/printer-provider";
+import { currencyMeta } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -145,6 +147,7 @@ export default function SettingsPage({ settings }: Props) {
 
 function PrinterSettings() {
   const printer = usePrinter();
+  const { code } = useCurrency();
   const [testing, setTesting] = useState(false);
 
   const onTestPrint = async () => {
@@ -162,7 +165,7 @@ function PrinterSettings() {
         ],
         subtotal: 600,
         total: 600,
-        currencySymbol: "KSh",
+        currencySymbol: currencyMeta(code).symbol,
         footer: "Printer connected successfully",
       });
       toast.success("Test receipt sent to the printer.");

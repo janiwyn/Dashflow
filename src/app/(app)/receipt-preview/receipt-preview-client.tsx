@@ -1,7 +1,6 @@
 "use client";
 
 import type { viewReceipt } from "@/db/queries/views";
-import { notFound } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -10,14 +9,16 @@ import { Printer, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { useCurrency } from "@/components/currency-provider";
+import { currencyMeta } from "@/lib/currency";
 import { usePrinter } from "@/components/printer-provider";
 
 
 type Props = {
   receiptSample: NonNullable<Awaited<ReturnType<typeof viewReceipt>>>;
+  businessName: string;
 };
 
-export default function ReceiptPreviewPage({ receiptSample }: Props) {
+export default function ReceiptPreviewPage({ receiptSample, businessName }: Props) {
   const { format: currency, code } = useCurrency();
   const printer = usePrinter();
   const [printing, setPrinting] = useState(false);
@@ -33,7 +34,7 @@ export default function ReceiptPreviewPage({ receiptSample }: Props) {
     setPrinting(true);
     try {
       await printer.printReceipt({
-        businessName: "Meridian Retail Ltd",
+        businessName,
         reference: receiptSample.invoiceNo,
         date: receiptSample.date,
         cashier: receiptSample.cashier,
@@ -47,7 +48,7 @@ export default function ReceiptPreviewPage({ receiptSample }: Props) {
         })),
         subtotal,
         total: paid,
-        currencySymbol: code === "KES" ? "KSh" : code,
+        currencySymbol: currencyMeta(code).symbol,
       });
       toast.success(`Sent to ${printer.deviceName}.`);
     } catch (err) {

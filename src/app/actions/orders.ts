@@ -5,13 +5,92 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { products, remoteOrderItems, remoteOrders, saleItems, sales } from "@/db/schema";
-import { num } from "@/db/queries/_helpers";
+import { businessScope, num } from "@/db/queries/_helpers";
 import { assertClockedIn } from "@/db/queries/attendance";
 import { getActiveModuleKeys } from "@/db/queries/modules";
 import { requireUser } from "@/lib/session";
 
 import { recordSaleAccounting } from "./ledger-engine";
 import type { ActionResult } from "./users";
+
+/** RO-<base36 timestamp> — the storefront's own reference scheme, separate from till receipts. */
+function nextOrderReference() {
+  return `RO-${Date.now().toString(36).toUpperCase()}`;
+}
+
+/**
+ * Places a real order from the public storefront — deliberately unauthenticated,
+ * same as the rest of the customer-portal/track-order pages. Prices and stock are
+ * always re-read from the database, never trusted from the browser.
+ */
+export async function createRemoteOrder(input: {
+  branchId: number | null;
+  customerName: string;
+  phone: string;
+  deliveryLocation?: string;
+  paymentMethod: "cash" | "mtn_merchant" | "airtel_merchant";
+  items: { productId: number; quantity: number }[];
+}): Promise<ActionResult & { reference?: string }> {
+  const businessId = await businessScope();
+
+  if (!input.customerName.trim()) return { ok: false, message: "Enter your name." };
+  if (!input.phone.trim()) return { ok: false, message: "Enter your phone number." };
+
+  const items = input.items.filter((i) => i.quantity > 0);
+  if (items.length === 0) return { ok: false, message: "Your cart is empty." };
+
+  const productIds = items.map((i) => i.productId);
+  const rows = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.businessId, businessId), inArray(products.id, productIds)));
+  const byId = new Map(rows.map((p) => [p.id, p]));
+
+  for (const item of items) {
+    const product = byId.get(item.productId);
+    if (!product) return { ok: false, message: "One of the items in your cart is no longer available." };
+    if (product.stock < item.quantity) {
+      return { ok: false, message: `Only ${product.stock} of ${product.name} left — adjust your cart.` };
+    }
+  }
+
+  const amount = items.reduce((sum, i) => sum + byId.get(i.productId)!.sellingPrice * i.quantity, 0);
+  const reference = nextOrderReference();
+
+  const [order] = await db
+    .insert(remoteOrders)
+    .values({
+      businessId,
+      branchId: input.branchId,
+      reference,
+      customerName: input.customerName.trim(),
+      phone: input.phone.trim(),
+      deliveryLocation: input.deliveryLocation?.trim() || null,
+      paymentMethod: input.paymentMethod,
+      amount,
+      status: "pending",
+    })
+    .returning({ id: remoteOrders.id });
+
+  await db.insert(remoteOrderItems).values(
+    items.map((i) => {
+      const product = byId.get(i.productId)!;
+      return {
+        orderId: order.id,
+        productId: product.id,
+        name: product.name,
+        quantity: i.quantity,
+        unitPrice: product.sellingPrice,
+      };
+    }),
+  );
+
+  revalidatePath("/remote-orders");
+  revalidatePath("/order-notifications");
+  revalidatePath("/qr-scanner");
+
+  return { ok: true, message: "Order placed!", reference };
+}
 
 /** Cancels a pending remote order — the other outcome besides completing it, so one doesn't just sit forever unfulfillable. */
 export async function cancelRemoteOrder(reference: string): Promise<ActionResult> {

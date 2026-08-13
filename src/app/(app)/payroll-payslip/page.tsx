@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Printer } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
-import { Button } from "@/components/ui/button";
+import { PrintButton } from "@/components/print-button";
 import { getEmployees, getPayrollRecords } from "@/db/queries/hr";
 import { getBusinessProfile } from "@/db/queries/profile";
 import { formatMoney } from "@/lib/currency";
@@ -38,11 +37,7 @@ export default async function PayrollPayslipPage({
     <AppShell
       title="Printable Payslip"
       subtitle={`${record.employee} · ${record.month}`}
-      actions={
-        <Button size="sm" className="rounded-lg">
-          <Printer className="size-4" /> Print Payslip
-        </Button>
-      }
+      actions={<PrintButton label="Print Payslip" />}
     >
       <div className="panel mx-auto max-w-3xl p-6">
         <div className="mb-6 border-b border-border pb-4 text-center">
