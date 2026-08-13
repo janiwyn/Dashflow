@@ -902,3 +902,11 @@ export async function viewStaffStats() {
   if (!user) return { revenue: 0, receipts: 0, items: 0 };
   return salesQueries.getCashierTotals(user.id);
 }
+
+/** The signed-in cashier's own sales today — real receipts, not a sample. */
+export async function viewMySalesToday() {
+  const { getCurrentUser } = await import("@/lib/session");
+  const user = await getCurrentUser();
+  if (!user) return [];
+  return salesQueries.getMySalesToday(user.id);
+}
