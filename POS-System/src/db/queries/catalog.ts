@@ -117,23 +117,40 @@ export async function getCategoryNames(): Promise<string[]> {
   return ["All", ...rows.map((c) => c.name)];
 }
 
+const supplierSelect = {
+  id: suppliers.id,
+  name: suppliers.name,
+  categoryId: suppliers.categoryId,
+  category: sql<string>`coalesce(${categories.name}, 'General')`.as("category"),
+  contact: suppliers.contact,
+  contactPerson: suppliers.contactPerson,
+  email: suppliers.email,
+  address: suppliers.address,
+  paymentTerms: suppliers.paymentTerms,
+  lastDelivery: suppliers.lastDelivery,
+  payable: suppliers.payable,
+};
+
 export async function getSuppliers() {
   const businessId = await businessScope();
   const rows = await db
-    .select({
-      id: suppliers.id,
-      name: suppliers.name,
-      category: sql<string>`coalesce(${categories.name}, 'General')`.as("category"),
-      contact: suppliers.contact,
-      email: suppliers.email,
-      lastDelivery: suppliers.lastDelivery,
-      payable: suppliers.payable,
-    })
+    .select(supplierSelect)
     .from(suppliers)
     .leftJoin(categories, eq(suppliers.categoryId, categories.id))
     .where(eq(suppliers.businessId, businessId))
     .orderBy(desc(suppliers.payable));
   return rows;
+}
+
+export async function getSupplierById(id: number) {
+  const businessId = await businessScope();
+  const [row] = await db
+    .select(supplierSelect)
+    .from(suppliers)
+    .leftJoin(categories, eq(suppliers.categoryId, categories.id))
+    .where(and(eq(suppliers.id, id), eq(suppliers.businessId, businessId)))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function getInventorySummary() {

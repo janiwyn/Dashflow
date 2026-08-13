@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { viewDashboardStats, viewPosProducts, viewRevenueSeries, viewSales } from "@/db/queries/views";
+import {
+  viewDashboardStats,
+  viewLowStockProducts,
+  viewRevenueSeries,
+  viewSales,
+  viewSuppliers,
+} from "@/db/queries/views";
+import { hasModule } from "@/lib/module-access";
 import { requireUser } from "@/lib/session";
 import Dashboard from "./overview-client";
 
@@ -23,6 +30,21 @@ export default async function Page() {
   if (role === "staff") redirect("/staff-dashboard");
 
   const stats = await viewDashboardStats();
-  const [products, revenueSeries, sales] = await Promise.all([viewPosProducts(), viewRevenueSeries(), viewSales()]);
-  return <Dashboard stats={stats} products={products} revenueSeries={revenueSeries} sales={sales} />;
+  const procurementEnabled = await hasModule("procurement");
+  const [lowStockProducts, revenueSeries, sales] = await Promise.all([
+    viewLowStockProducts(),
+    viewRevenueSeries(),
+    viewSales(),
+  ]);
+  const suppliers = procurementEnabled ? await viewSuppliers() : [];
+  return (
+    <Dashboard
+      stats={stats}
+      lowStockProducts={lowStockProducts}
+      revenueSeries={revenueSeries}
+      sales={sales}
+      suppliers={suppliers}
+      procurementEnabled={procurementEnabled}
+    />
+  );
 }

@@ -48,8 +48,12 @@ export const suppliers = pgTable("suppliers", {
     .references(() => businesses.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   categoryId: integer("category_id").references(() => categories.id, { onDelete: "set null" }),
+  /** Phone number — shown as "Contact" throughout the UI. */
   contact: text("contact"),
+  contactPerson: text("contact_person"),
   email: text("email"),
+  address: text("address"),
+  paymentTerms: text("payment_terms"),
   lastDelivery: date("last_delivery"),
   payable: money("payable").notNull().default(0),
   createdAt: createdAt(),

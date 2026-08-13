@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { viewDashboardStats, viewPosProducts, viewRevenueSeries, viewSales } from "@/db/queries/views";
+import { useRouter } from "next/navigation";
+import type { viewDashboardStats, viewLowStockProducts, viewRevenueSeries, viewSales, viewSuppliers } from "@/db/queries/views";
 
 import {
   Area,
@@ -16,6 +17,7 @@ import { Banknote, Receipt, Boxes, Users, AlertTriangle } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { LiveClock } from "@/components/live-clock";
+import { CreatePurchaseOrderDialog } from "@/components/procurement/create-purchase-order-dialog";
 import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,9 +28,11 @@ import { useCurrency } from "@/components/currency-provider";
 
 type Props = {
   stats: Awaited<ReturnType<typeof viewDashboardStats>>;
-  products: Awaited<ReturnType<typeof viewPosProducts>>;
+  lowStockProducts: Awaited<ReturnType<typeof viewLowStockProducts>>;
   revenueSeries: Awaited<ReturnType<typeof viewRevenueSeries>>;
   sales: Awaited<ReturnType<typeof viewSales>>;
+  suppliers: Awaited<ReturnType<typeof viewSuppliers>>;
+  procurementEnabled: boolean;
 };
 
 function greetingFor(hour: number) {
@@ -37,10 +41,10 @@ function greetingFor(hour: number) {
   return "Good evening";
 }
 
-export default function Dashboard({ stats, products, revenueSeries, sales }: Props) {
+export default function Dashboard({ stats, lowStockProducts, revenueSeries, sales, suppliers, procurementEnabled }: Props) {
   const user = useSessionUser();
+  const router = useRouter();
   const { format: currency } = useCurrency();
-  const lowStock = products.filter((p) => p.stock <= 12);
 
   // Computed on mount (not during server render) so the greeting/date always
   // reflects the visitor's own clock and never mismatches between server and client.
@@ -141,22 +145,42 @@ export default function Dashboard({ stats, products, revenueSeries, sales }: Pro
             <AlertTriangle className="size-4 shrink-0 text-warning" />
             <h2 className="truncate text-base font-semibold">Low stock alerts</h2>
           </div>
-          <ul className="mt-4 divide-y divide-border">
-            {lowStock.map((p) => (
-              <li key={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{p.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{p.category} · {p.id}</p>
-                </div>
-                <Badge variant="outline" className="num shrink-0 border-warning/40 bg-warning/10 text-warning-foreground">
-                  {p.stock} left
-                </Badge>
-              </li>
-            ))}
-          </ul>
-          <Button variant="secondary" size="sm" className="mt-4 w-full rounded-lg">
-            Create purchase order
-          </Button>
+          {lowStockProducts.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">Nothing is low on stock right now.</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-border">
+              {lowStockProducts.map((p) => (
+                <li key={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{p.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{p.category} · {p.sku}</p>
+                  </div>
+                  <Badge variant="outline" className="num shrink-0 border-warning/40 bg-warning/10 text-warning-foreground">
+                    {p.stock} left
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+          {procurementEnabled && lowStockProducts.length > 0 && (
+            <CreatePurchaseOrderDialog
+              trigger={
+                <Button variant="secondary" size="sm" className="mt-4 w-full rounded-lg">
+                  Create purchase order
+                </Button>
+              }
+              suppliers={suppliers}
+              products={lowStockProducts.map((p) => ({
+                id: p.id,
+                name: p.name,
+                stock: p.stock,
+                buyingPrice: p.buyingPrice,
+                suggestedQty: p.lowStockThreshold,
+              }))}
+              initialProductIds={lowStockProducts.map((p) => p.id)}
+              onCreated={() => router.refresh()}
+            />
+          )}
         </div>
       </section>
 
