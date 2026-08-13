@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { date, integer, pgEnum, pgTable, serial, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { date, integer, pgEnum, pgTable, serial, text, time, timestamp, unique } from "drizzle-orm/pg-core";
 
 import { createdAt } from "./_shared";
 import { employees } from "./hr";
@@ -68,6 +68,65 @@ export const webauthnChallenges = pgTable("webauthn_challenges", {
   createdAt: createdAt(),
 });
 
+/**
+ * A reusable shift template for one branch — "Morning", "Night", etc. Not
+ * itself a schedule; `shiftAssignments` is what actually puts an employee on
+ * a shift for a given date.
+ */
+export const shifts = pgTable("shifts", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id")
+    .notNull()
+    .references(() => businesses.id, { onDelete: "cascade" }),
+  branchId: integer("branch_id")
+    .notNull()
+    .references(() => branches.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  startTime: time("start_time").notNull(),
+  endTime: time("end_time").notNull(),
+  createdAt: createdAt(),
+});
+
+/**
+ * One employee, one shift, one date — the actual roster. Unique per
+ * employee/date so assigning a new shift on a day that already has one
+ * replaces it rather than double-booking them.
+ */
+export const shiftAssignments = pgTable(
+  "shift_assignments",
+  {
+    id: serial("id").primaryKey(),
+    businessId: integer("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    branchId: integer("branch_id")
+      .notNull()
+      .references(() => branches.id, { onDelete: "cascade" }),
+    employeeId: integer("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    shiftId: integer("shift_id")
+      .notNull()
+      .references(() => shifts.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("shift_assignment_employee_date_unique").on(t.employeeId, t.date)],
+);
+
+export const shiftsRelations = relations(shifts, ({ one, many }) => ({
+  business: one(businesses, { fields: [shifts.businessId], references: [businesses.id] }),
+  branch: one(branches, { fields: [shifts.branchId], references: [branches.id] }),
+  assignments: many(shiftAssignments),
+}));
+
+export const shiftAssignmentsRelations = relations(shiftAssignments, ({ one }) => ({
+  business: one(businesses, { fields: [shiftAssignments.businessId], references: [businesses.id] }),
+  branch: one(branches, { fields: [shiftAssignments.branchId], references: [branches.id] }),
+  employee: one(employees, { fields: [shiftAssignments.employeeId], references: [employees.id] }),
+  shift: one(shifts, { fields: [shiftAssignments.shiftId], references: [shifts.id] }),
+}));
+
 export const attendanceRecordsRelations = relations(attendanceRecords, ({ one }) => ({
   business: one(businesses, { fields: [attendanceRecords.businessId], references: [businesses.id] }),
   branch: one(branches, { fields: [attendanceRecords.branchId], references: [branches.id] }),
@@ -80,3 +139,5 @@ export const employeeCredentialsRelations = relations(employeeCredentials, ({ on
 
 export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
 export type EmployeeCredential = typeof employeeCredentials.$inferSelect;
+export type Shift = typeof shifts.$inferSelect;
+export type ShiftAssignment = typeof shiftAssignments.$inferSelect;
