@@ -39,8 +39,17 @@ export const startOfDay = (d: Date) => {
   return x;
 };
 
+export const endOfDay = (d: Date) => {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+};
+
 export const daysAgo = (n: number) => {
   const x = startOfDay(new Date());
   x.setDate(x.getDate() - n);
   return x;
 };
+
+/** Parses a "YYYY-MM-DD" date-picker value as the last instant of that local day, for inclusive `to` filters on a timestamp column. */
+export const dateInputEnd = (value: string) => endOfDay(new Date(`${value}T00:00:00`));

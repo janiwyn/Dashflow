@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -15,7 +15,7 @@ import {
   tills,
 } from "@/db/schema";
 
-import { businessScope, num } from "./_helpers";
+import { businessScope, enforcedBranchId, num } from "./_helpers";
 
 export type RemoteOrderRow = {
   id: number;
@@ -171,8 +171,21 @@ export type DebtorRow = {
   date: Date;
 };
 
-export async function getDebtors(): Promise<DebtorRow[]> {
+export async function getDebtors(options?: {
+  branchId?: number;
+  from?: Date;
+  to?: Date;
+  outstandingOnly?: boolean;
+}): Promise<DebtorRow[]> {
   const businessId = await businessScope();
+  const branchId = await enforcedBranchId(options?.branchId);
+
+  const filters = [eq(debtors.businessId, businessId)];
+  if (branchId) filters.push(eq(debtors.branchId, branchId));
+  if (options?.from) filters.push(gte(debtors.recordedAt, options.from));
+  if (options?.to) filters.push(lte(debtors.recordedAt, options.to));
+  if (options?.outstandingOnly) filters.push(gt(debtors.balance, 0));
+
   const rows = await db
     .select({
       id: debtors.id,
@@ -189,7 +202,7 @@ export async function getDebtors(): Promise<DebtorRow[]> {
     })
     .from(debtors)
     .leftJoin(branches, eq(debtors.branchId, branches.id))
-    .where(eq(debtors.businessId, businessId))
+    .where(and(...filters))
     .orderBy(desc(debtors.balance));
 
   return rows.map((r) => ({
