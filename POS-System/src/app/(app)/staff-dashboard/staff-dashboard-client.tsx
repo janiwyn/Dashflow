@@ -1,131 +1,83 @@
 "use client";
 
-import { useState } from "react";
-import { Banknote, Package, Receipt } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Banknote, Package, Receipt, ScanBarcode } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { MyAttendanceCard } from "@/components/attendance/my-attendance-card";
 import { StatCard } from "@/components/stat-card";
-import { DataTable } from "@/components/data-table";
+import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useSessionUser } from "@/components/session-provider";
 import { useCurrency } from "@/components/currency-provider";
-import type { viewPosProducts, viewStaffStats } from "@/db/queries/views";
+import { label } from "@/lib/format";
+import type { getOwnEmployeeRecord } from "@/db/queries/attendance";
+import type { MySaleRow } from "@/db/queries/sales";
+import type { viewStaffStats } from "@/db/queries/views";
 
 type Props = {
   stats: Awaited<ReturnType<typeof viewStaffStats>>;
-  products: Awaited<ReturnType<typeof viewPosProducts>>;
+  mySales: MySaleRow[];
+  attendanceEnabled: boolean;
+  ownEmployee: Awaited<ReturnType<typeof getOwnEmployeeRecord>>;
+  ownToday: { clockIn: Date | null; clockOut: Date | null } | null;
 };
 
-// TODO: sample rows until a real "my sales today" line-item query is wired up —
-// the stat cards above already use live data, this table still does not.
-const mySales = [
-  { time: "14:12", product: "Arabica Beans 1kg", quantity: 3, amount: 5550 },
-  { time: "13:20", product: "Fresh Milk 500ml", quantity: 6, amount: 390 },
-  { time: "11:47", product: "Bar Soap 6pk", quantity: 2, amount: 900 },
-  { time: "10:32", product: "Wheat Flour 2kg", quantity: 4, amount: 840 },
+const timeFmt = (d: Date) =>
+  new Date(d).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+const columns = (currency: (n: number) => string): Column<MySaleRow>[] => [
+  { key: "time", header: "Time", render: (r) => <span className="text-muted-foreground">{timeFmt(r.time)}</span> },
+  { key: "reference", header: "Receipt", render: (r) => <span className="num text-muted-foreground">{r.reference}</span> },
+  { key: "method", header: "Method", render: (r) => label(r.method) },
+  { key: "items", header: "Items", align: "right", render: (r) => <span className="num">{r.itemCount}</span> },
+  { key: "total", header: "Total", align: "right", render: (r) => <span className="num font-semibold">{currency(r.total)}</span> },
 ];
 
-export default function StaffDashboardPage({ stats, products }: Props) {
+export default function StaffDashboardPage({ stats, mySales, attendanceEnabled, ownEmployee, ownToday }: Props) {
+  const router = useRouter();
   const user = useSessionUser();
   const { format: currency } = useCurrency();
-  const [productId, setProductId] = useState<string>("");
-  const [quantity, setQuantity] = useState("1");
-  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const product = products.find((p) => p.id === productId);
-    if (!product) {
-      setMessage({ text: "Select a product first.", error: true });
-      return;
-    }
-    const qty = Number(quantity);
-    if (qty > product.stock) {
-      setMessage({ text: "Not enough stock available!", error: true });
-      return;
-    }
-    setMessage({ text: `Recorded sale of ${qty} × ${product.name}.` });
-  };
-
   const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
+  const saleColumns = columns(currency);
 
   return (
     <AppShell
       title={`Welcome, ${firstName}`}
       subtitle={`Staff dashboard${user.branch ? ` · ${user.branch}` : ""}`}
+      actions={
+        <Button asChild className="rounded-lg">
+          <Link href="/pos"><ScanBarcode className="size-4" /> Open sales terminal</Link>
+        </Button>
+      }
     >
+      {attendanceEnabled && (
+        <MyAttendanceCard ownEmployee={ownEmployee} ownToday={ownToday} onDone={() => router.refresh()} />
+      )}
+
       <section className="grid gap-4 sm:grid-cols-3">
         <StatCard label="My sales today" value={currency(stats.revenue)} icon={Banknote} hint={`${stats.receipts} receipts`} />
         <StatCard label="Items sold today" value={String(stats.items)} icon={Package} hint="Across all products" />
         <StatCard label="Receipts issued" value={String(stats.receipts)} icon={Receipt} hint="Today" />
       </section>
 
-      <div className="panel min-w-0 p-5">
-        <h2 className="text-base font-semibold">Record a sale</h2>
-        {message && (
-          <div
-            className={`mt-3 rounded-lg px-4 py-2.5 text-sm ${
-              message.error ? "bg-destructive/12 text-destructive" : "bg-success/12 text-success"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
-        <form onSubmit={handleSubmit} className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
-          <div className="flex flex-col gap-1.5">
-            <Label>Product</Label>
-            <Select value={productId} onValueChange={setProductId}>
-              <SelectTrigger className="rounded-lg">
-                <SelectValue placeholder="Select product" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} — {p.stock} in stock
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="quantity">Quantity</Label>
-            <Input
-              id="quantity"
-              type="number"
-              min={1}
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              className="rounded-lg"
-            />
-          </div>
-          <div className="flex items-end">
-            <Button type="submit" className="w-full rounded-lg sm:w-auto">
-              Record sale
-            </Button>
-          </div>
-        </form>
-      </div>
-
       <DataTable
-        title="My recent sales"
-        description="Sales you recorded today"
-        columns={[
-          { key: "time", header: "Time", render: (r) => <span className="text-muted-foreground">{r.time}</span> },
-          { key: "product", header: "Product", render: (r) => r.product },
-          { key: "quantity", header: "Qty", align: "right", render: (r) => <span className="num">{r.quantity}</span> },
-          { key: "amount", header: "Amount", align: "right", render: (r) => <span className="num font-medium">{currency(r.amount)}</span> },
-        ]}
+        title="My sales today"
+        description="Every receipt you've rung up today, most recent first"
+        columns={saleColumns}
         rows={mySales}
+        minWidth={640}
       />
+      {mySales.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Nothing yet — head to the{" "}
+          <Link href="/pos" className="font-medium text-primary hover:underline">
+            sales terminal
+          </Link>{" "}
+          to ring up your first sale today.
+        </p>
+      )}
     </AppShell>
   );
 }

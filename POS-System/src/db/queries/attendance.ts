@@ -176,7 +176,9 @@ export async function getTodaySummary() {
 }
 
 /** Resolves the signed-in user's own employee record, for the self-service widget. */
-export async function getOwnEmployeeRecord(userId: string) {
+export async function getOwnEmployeeRecord(
+  userId: string,
+): Promise<{ id: number; name: string; branchId: number | null } | null> {
   const businessId = await businessScope();
   const [row] = await db
     .select({ id: employees.id, name: employees.name, branchId: employees.branchId })

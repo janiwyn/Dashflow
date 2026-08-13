@@ -337,6 +337,46 @@ export async function getPendingReceiptCount() {
   return num(row?.pending);
 }
 
+export type MySaleRow = {
+  id: number;
+  time: Date;
+  reference: string;
+  method: string;
+  itemCount: number;
+  total: number;
+};
+
+/** The signed-in cashier's own completed sales today, most recent first — what the staff dashboard shows instead of a fake recorder. */
+export async function getMySalesToday(cashierId: string): Promise<MySaleRow[]> {
+  const businessId = await businessScope();
+  const todayStart = startOfDay(new Date());
+
+  const rows = await db
+    .select({
+      id: sales.id,
+      time: sales.soldAt,
+      reference: sales.reference,
+      method: sales.method,
+      total: sales.total,
+      itemCount: sql<number>`coalesce((
+        select sum(${saleItems.quantity}) from ${saleItems} where ${saleItems.saleId} = ${sales.id}
+      ), 0)`,
+    })
+    .from(sales)
+    .where(
+      and(
+        eq(sales.businessId, businessId),
+        eq(sales.cashierId, cashierId),
+        gte(sales.soldAt, todayStart),
+        sql`${sales.status} <> 'refunded'`,
+      ),
+    )
+    .orderBy(desc(sales.soldAt))
+    .limit(50);
+
+  return rows.map((r) => ({ ...r, itemCount: num(r.itemCount), total: num(r.total) }));
+}
+
 /** Takings attributed to one cashier today. */
 export async function getCashierTotals(cashierId: string) {
   const businessId = await businessScope();
