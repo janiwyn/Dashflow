@@ -6,9 +6,20 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { products, purchaseOrderItems, purchaseOrders, suppliers } from "@/db/schema";
 import { getPurchaseOrderItems, getSupplierSuppliedProducts } from "@/db/queries/procurement";
+import { getActiveModuleKeys } from "@/db/queries/modules";
 import { requireRole, requireUser } from "@/lib/session";
 
+import { recordPurchaseAccounting, recordSupplierPaymentAccounting } from "./ledger-engine";
 import type { ActionResult } from "./users";
+
+function revalidateAccountingPaths() {
+  revalidatePath("/ledger");
+  revalidatePath("/trial-balance");
+  revalidatePath("/balance-sheet");
+  revalidatePath("/income-statement");
+  revalidatePath("/cash-book");
+  revalidatePath("/add-transaction");
+}
 
 /** Read-only wrapper so the client can fetch one order's items on demand (e.g. to review before receiving). */
 export async function fetchPurchaseOrderItems(purchaseOrderId: number) {
@@ -106,10 +117,15 @@ export async function createPurchaseOrder(input: {
 
 /**
  * Marks an order received: bumps real product stock by each line's
- * quantity and adds the order's total to the supplier's payable balance —
- * the two things that are actually supposed to happen when goods arrive.
+ * quantity, and either pays the supplier on the spot or adds the total to
+ * what's owed them — then, if Accounting is active, posts the real
+ * double-entry side of whichever one happened so it shows up in the
+ * ledger, trial balance and (for cash/bank) the cash book immediately.
  */
-export async function receivePurchaseOrder(id: number): Promise<ActionResult> {
+export async function receivePurchaseOrder(
+  id: number,
+  paymentMethod: "cash" | "bank" | "credit" = "credit",
+): Promise<ActionResult> {
   const actor = await requireRole("super", "admin", "manager");
   const businessId = actor.businessId ?? 1;
 
@@ -132,11 +148,21 @@ export async function receivePurchaseOrder(id: number): Promise<ActionResult> {
     }
   }
 
+  let supplierName = "Unknown supplier";
   if (po.supplierId) {
+    const [supplier] = await db
+      .select({ name: suppliers.name })
+      .from(suppliers)
+      .where(eq(suppliers.id, po.supplierId))
+      .limit(1);
+    supplierName = supplier?.name ?? supplierName;
+
     await db
       .update(suppliers)
       .set({
-        payable: sql`${suppliers.payable} + ${po.totalCost}`,
+        // Paid on the spot never touches what's owed — only a credit
+        // purchase adds to the running payable balance.
+        ...(paymentMethod === "credit" ? { payable: sql`${suppliers.payable} + ${po.totalCost}` } : {}),
         lastDelivery: new Date().toISOString().slice(0, 10),
       })
       .where(eq(suppliers.id, po.supplierId));
@@ -144,10 +170,77 @@ export async function receivePurchaseOrder(id: number): Promise<ActionResult> {
 
   await db.update(purchaseOrders).set({ status: "received", receivedAt: new Date() }).where(eq(purchaseOrders.id, id));
 
+  const activeModules = await getActiveModuleKeys(businessId);
+  if (activeModules.has("accounting")) {
+    await recordPurchaseAccounting({
+      businessId,
+      reference: po.reference,
+      supplierName,
+      amount: po.totalCost,
+      method: paymentMethod,
+      handledById: actor.id,
+      handledByName: actor.name,
+      date: new Date(),
+    });
+  }
+
   revalidateProcurement();
   revalidatePath("/inventory");
   revalidatePath("/products");
-  return { ok: true, message: `Purchase order ${po.reference} received — stock updated.` };
+  revalidateAccountingPaths();
+  return {
+    ok: true,
+    message:
+      paymentMethod === "credit"
+        ? `Purchase order ${po.reference} received — stock updated, added to ${supplierName}'s balance.`
+        : `Purchase order ${po.reference} received and paid — stock updated.`,
+  };
+}
+
+/** Records a real payment against what's owed a supplier — the other half of a credit purchase. */
+export async function paySupplier(input: {
+  supplierId: number;
+  amount: number;
+  method: "cash" | "bank";
+}): Promise<ActionResult> {
+  const actor = await requireRole("super", "admin", "manager");
+  const businessId = actor.businessId ?? 1;
+
+  if (!input.amount || input.amount <= 0) return { ok: false, message: "Enter a valid amount." };
+
+  const [supplier] = await db
+    .select()
+    .from(suppliers)
+    .where(and(eq(suppliers.id, input.supplierId), eq(suppliers.businessId, businessId)))
+    .limit(1);
+  if (!supplier) return { ok: false, message: "Supplier not found." };
+
+  const payable = Number(supplier.payable);
+  if (input.amount > payable) {
+    return { ok: false, message: "That's more than what's owed to this supplier." };
+  }
+
+  await db
+    .update(suppliers)
+    .set({ payable: payable - input.amount })
+    .where(eq(suppliers.id, supplier.id));
+
+  const activeModules = await getActiveModuleKeys(businessId);
+  if (activeModules.has("accounting")) {
+    await recordSupplierPaymentAccounting({
+      businessId,
+      supplierName: supplier.name,
+      amount: input.amount,
+      method: input.method,
+      handledById: actor.id,
+      handledByName: actor.name,
+      date: new Date(),
+    });
+  }
+
+  revalidateProcurement();
+  revalidateAccountingPaths();
+  return { ok: true, message: `Payment recorded for ${supplier.name}.` };
 }
 
 /** Cancels a purchase order that hasn't been received yet — a decision, not a delete, so the record stays. */

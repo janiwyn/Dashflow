@@ -1,7 +1,7 @@
 "use server";
 
 import { hashPassword } from "better-auth/crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
@@ -157,12 +157,24 @@ export async function setPayrollStatus(
   id: number,
   status: "pending" | "paid",
 ): Promise<ActionResult> {
-  await requireRole("super", "admin", "manager");
+  const actor = await requireRole("super", "admin", "manager");
+  const businessId = actor.businessId ?? 1;
 
-  await db.update(payrollRecords).set({ status }).where(eq(payrollRecords.id, id));
+  const [updated] = await db
+    .update(payrollRecords)
+    .set({ status })
+    .where(
+      and(
+        eq(payrollRecords.id, id),
+        sql`${payrollRecords.employeeId} in (select ${employees.id} from ${employees} where ${employees.businessId} = ${businessId})`,
+      ),
+    )
+    .returning({ id: payrollRecords.id });
+  if (!updated) return { ok: false, message: "Payroll record not found." };
 
   revalidatePath("/payroll");
   revalidatePath("/payslip");
+  revalidatePath("/payroll-payslip");
   return { ok: true, message: `Payroll marked ${status}.` };
 }
 
@@ -179,7 +191,17 @@ export async function upsertPayrollRecord(input: {
   loan: number;
   otherDeductions: number;
 }): Promise<ActionResult> {
-  await requireRole("super", "admin", "manager");
+  const actor = await requireRole("super", "admin", "manager");
+  const businessId = actor.businessId ?? 1;
+
+  const [employee] = await db
+    .select({ id: employees.id })
+    .from(employees)
+    .where(and(eq(employees.id, input.employeeId), eq(employees.businessId, businessId)))
+    .limit(1);
+  if (!employee) return { ok: false, message: "Employee not found." };
+
+  if (!/^\d{4}-\d{2}$/.test(input.month)) return { ok: false, message: "Invalid pay period." };
 
   const gross =
     input.baseSalary + input.transport + input.housing + input.medical + input.overtime;
@@ -195,4 +217,55 @@ export async function upsertPayrollRecord(input: {
 
   revalidatePath("/payroll");
   return { ok: true, message: "Payroll saved." };
+}
+
+/** Creates a pending record (base salary only — allowances/deductions added afterward) for every active employee who doesn't already have one for the month. */
+export async function generateMonthlyPayroll(month: string): Promise<ActionResult & { created?: number }> {
+  const actor = await requireRole("super", "admin", "manager");
+  const businessId = actor.businessId ?? 1;
+
+  if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, message: "Invalid pay period." };
+
+  const activeEmployees = await db
+    .select({ id: employees.id, baseSalary: employees.baseSalary })
+    .from(employees)
+    .where(and(eq(employees.businessId, businessId), eq(employees.status, "active")));
+  if (activeEmployees.length === 0) return { ok: false, message: "No active employees to run payroll for." };
+
+  const existing = await db
+    .select({ employeeId: payrollRecords.employeeId })
+    .from(payrollRecords)
+    .innerJoin(employees, eq(payrollRecords.employeeId, employees.id))
+    .where(and(eq(employees.businessId, businessId), eq(payrollRecords.month, month)));
+  const existingIds = new Set(existing.map((e) => e.employeeId));
+
+  const toCreate = activeEmployees.filter((e) => !existingIds.has(e.id));
+  if (toCreate.length === 0) {
+    return { ok: true, message: `Every active employee already has a payroll record for ${month}.`, created: 0 };
+  }
+
+  await db.insert(payrollRecords).values(
+    toCreate.map((e) => {
+      const baseSalary = Number(e.baseSalary);
+      return {
+        employeeId: e.id,
+        month,
+        baseSalary,
+        transport: 0,
+        housing: 0,
+        medical: 0,
+        overtime: 0,
+        nssf: 0,
+        tax: 0,
+        loan: 0,
+        otherDeductions: 0,
+        gross: baseSalary,
+        net: baseSalary,
+        status: "pending" as const,
+      };
+    }),
+  );
+
+  revalidatePath("/payroll");
+  return { ok: true, message: `Generated ${toCreate.length} payroll record${toCreate.length === 1 ? "" : "s"} for ${month}.`, created: toCreate.length };
 }

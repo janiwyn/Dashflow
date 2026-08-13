@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, Printer } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
-import { Button } from "@/components/ui/button";
+import { PrintButton } from "@/components/print-button";
 import { getPayrollRecords } from "@/db/queries/hr";
 import { getBusinessProfile } from "@/db/queries/profile";
 import { formatMoney } from "@/lib/currency";
@@ -48,22 +47,13 @@ export default async function PayslipPage({
     <AppShell
       title="Employee Payslip"
       subtitle={`${record.employee} · ${record.month}`}
-      actions={
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="rounded-lg">
-            <Printer className="size-4" /> Print
-          </Button>
-          <Button size="sm" className="rounded-lg">
-            <Download className="size-4" /> Download PDF
-          </Button>
-        </div>
-      }
+      actions={<PrintButton />}
     >
       <div className="panel mx-auto max-w-2xl p-6">
         <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
           <div>
             <h2 className="text-lg font-semibold">Payslip</h2>
-            <p className="text-sm text-muted-foreground">Meridian POS · {record.month}</p>
+            <p className="text-sm text-muted-foreground">{business?.name ?? "—"} · {record.month}</p>
           </div>
           <span
             className={`rounded-full px-3 py-1 text-xs font-medium ${

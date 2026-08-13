@@ -38,7 +38,7 @@ type Props = {
 
 export default function ProductsPage({ branches, stockProducts }: Props) {
   const router = useRouter();
-  const { format: currency } = useCurrency();
+  const { format: currency, code } = useCurrency();
   const [rows, setRows] = useState<StockProduct[]>(stockProducts);
   const [branch, setBranch] = useState("All branches");
   const [open, setOpen] = useState(false);
@@ -165,11 +165,11 @@ export default function ProductsPage({ branches, stockProducts }: Props) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-1.5">
-                  <Label>Selling price (KES)</Label>
+                  <Label>Selling price ({code})</Label>
                   <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label>Buying price (KES)</Label>
+                  <Label>Buying price ({code})</Label>
                   <Input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
                 </div>
               </div>

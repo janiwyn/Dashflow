@@ -28,16 +28,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/currency-provider";
 import type { assertClockedIn } from "@/db/queries/attendance";
-import type { viewCategories, viewPosProducts } from "@/db/queries/views";
+import type { viewCategories, viewCustomers, viewPosProducts } from "@/db/queries/views";
 
 type Props = {
   categories: Awaited<ReturnType<typeof viewCategories>>;
   products: Awaited<ReturnType<typeof viewPosProducts>>;
   clockGate: Awaited<ReturnType<typeof assertClockedIn>>;
+  customers: Awaited<ReturnType<typeof viewCustomers>>;
 };
+
+const WALK_IN = "walkin";
 
 type PaymentMethod = "cash" | "mpesa" | "card";
 
@@ -49,13 +53,14 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: typeof Bankn
 
 type HeldSale = { id: string; cart: Record<string, number>; heldAt: number };
 
-export default function Terminal({ categories, products, clockGate }: Props) {
+export default function Terminal({ categories, products, clockGate, customers }: Props) {
   const router = useRouter();
   const { format: currency } = useCurrency();
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [customerId, setCustomerId] = useState<string>(WALK_IN);
   const [heldSales, setHeldSales] = useState<HeldSale[]>([]);
   const [heldOpen, setHeldOpen] = useState(false);
   const [charging, startCharging] = useTransition();
@@ -133,13 +138,18 @@ export default function Terminal({ categories, products, clockGate }: Props) {
     }
     const items: CartLine[] = lines.map((l) => ({ sku: l.product.id, qty: l.qty }));
     startCharging(async () => {
-      const result = await checkoutSale({ items, method });
+      const result = await checkoutSale({
+        items,
+        method,
+        customerId: customerId !== WALK_IN ? Number(customerId) : undefined,
+      });
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
       toast.success(result.message);
       setCart({});
+      setCustomerId(WALK_IN);
       router.push("/receipt-preview");
       router.refresh();
     });
@@ -246,6 +256,18 @@ export default function Terminal({ categories, products, clockGate }: Props) {
               {lines.length} items
             </span>
           </div>
+
+          <Select value={customerId} onValueChange={setCustomerId}>
+            <SelectTrigger className="mt-3 h-10 rounded-lg text-sm">
+              <SelectValue placeholder="Walk-in (no account)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={WALK_IN}>Walk-in (no account)</SelectItem>
+              {customers.map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <ul className="mt-4 min-h-[120px] divide-y divide-border">
             {lines.length === 0 && (

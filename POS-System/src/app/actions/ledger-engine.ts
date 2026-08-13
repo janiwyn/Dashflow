@@ -89,6 +89,121 @@ export async function recordSaleAccounting(params: {
   });
 }
 
+/**
+ * Records a purchase order being received — goods coming in always debit
+ * Inventory. What it credits depends on whether the business paid on the
+ * spot (cash/bank leaves immediately) or took it on credit (Accounts
+ * Payable grows instead, and nothing hits the cash book until it's
+ * actually paid down later).
+ */
+export async function recordPurchaseAccounting(params: {
+  businessId: number;
+  reference: string;
+  supplierName: string;
+  amount: number;
+  method: "cash" | "bank" | "credit";
+  handledById: string;
+  handledByName: string;
+  date: Date;
+}) {
+  if (params.amount <= 0) return;
+  const entryDate = toDateString(params.date);
+  const description = `Purchase ${params.reference} — ${params.supplierName}`;
+
+  const inventoryAccountId = await resolveAccount(params.businessId, "Inventory", "asset");
+
+  if (params.method === "credit") {
+    const payableAccountId = await resolveAccount(params.businessId, "Accounts Payable", "liability");
+    await db.insert(ledgerEntries).values([
+      { accountId: inventoryAccountId, entryDate, description, debit: params.amount, credit: 0 },
+      { accountId: payableAccountId, entryDate, description, debit: 0, credit: params.amount },
+    ]);
+  } else {
+    const cashAccountId = await resolveAccount(params.businessId, "Cash in Hand", "asset");
+    await db.insert(ledgerEntries).values([
+      { accountId: inventoryAccountId, entryDate, description, debit: params.amount, credit: 0 },
+      { accountId: cashAccountId, entryDate, description, debit: 0, credit: params.amount },
+    ]);
+  }
+
+  await db.insert(transactions).values({
+    businessId: params.businessId,
+    branchId: null,
+    entryDate,
+    type: "expense",
+    description: params.method === "credit" ? `${description} (on credit)` : `${description} (paid)`,
+    amount: params.amount,
+    handledById: params.handledById,
+    handledByName: params.handledByName,
+  });
+
+  // Credit purchases don't move cash until the supplier is actually paid.
+  if (params.method !== "credit") {
+    const isCash = params.method === "cash";
+    await db.insert(cashBookEntries).values({
+      businessId: params.businessId,
+      entryDate,
+      particulars: description,
+      cashIn: 0,
+      bankIn: 0,
+      cashOut: isCash ? params.amount : 0,
+      bankOut: isCash ? 0 : params.amount,
+      source: "Purchases",
+    });
+  }
+}
+
+/**
+ * Records money actually paid to a supplier against what's owed them — the
+ * other half of a credit purchase, whenever that eventually happens.
+ */
+export async function recordSupplierPaymentAccounting(params: {
+  businessId: number;
+  supplierName: string;
+  amount: number;
+  method: "cash" | "bank";
+  handledById: string;
+  handledByName: string;
+  date: Date;
+}) {
+  if (params.amount <= 0) return;
+  const entryDate = toDateString(params.date);
+  const description = `Payment to ${params.supplierName}`;
+
+  const [payableAccountId, cashAccountId] = await Promise.all([
+    resolveAccount(params.businessId, "Accounts Payable", "liability"),
+    resolveAccount(params.businessId, "Cash in Hand", "asset"),
+  ]);
+
+  await db.insert(ledgerEntries).values([
+    { accountId: payableAccountId, entryDate, description, debit: params.amount, credit: 0 },
+    { accountId: cashAccountId, entryDate, description, debit: 0, credit: params.amount },
+  ]);
+
+  await db.insert(transactions).values({
+    businessId: params.businessId,
+    branchId: null,
+    entryDate,
+    type: "expense",
+    description,
+    amount: params.amount,
+    handledById: params.handledById,
+    handledByName: params.handledByName,
+  });
+
+  const isCash = params.method === "cash";
+  await db.insert(cashBookEntries).values({
+    businessId: params.businessId,
+    entryDate,
+    particulars: description,
+    cashIn: 0,
+    bankIn: 0,
+    cashOut: isCash ? params.amount : 0,
+    bankOut: isCash ? 0 : params.amount,
+    source: "Supplier payment",
+  });
+}
+
 /** Records a logged expense. */
 export async function recordExpenseAccounting(params: {
   businessId: number;

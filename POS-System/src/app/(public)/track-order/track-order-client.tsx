@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, CheckCircle2, Clock, Package } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,21 +12,20 @@ import { useCurrency } from "@/components/currency-provider";
 import type { viewTrackableOrder } from "@/db/queries/views";
 
 type Props = {
-  trackableOrder: NonNullable<Awaited<ReturnType<typeof viewTrackableOrder>>>;
+  initialRef: string;
+  trackableOrder: Awaited<ReturnType<typeof viewTrackableOrder>>;
+  notFound: boolean;
 };
 
-export default function TrackOrderPage({ trackableOrder }: Props) {
+export default function TrackOrderPage({ initialRef, trackableOrder, notFound }: Props) {
   const { format: currency } = useCurrency();
-  const [ref, setRef] = useState("");
-  const [result, setResult] = useState<typeof trackableOrder | null | "not-found">(null);
+  const router = useRouter();
+  const [ref, setRef] = useState(initialRef);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (ref.trim().toUpperCase() === trackableOrder.ref) {
-      setResult(trackableOrder);
-    } else if (ref.trim()) {
-      setResult("not-found");
-    }
+    if (!ref.trim()) return;
+    router.push(`/track-order?ref=${encodeURIComponent(ref.trim().toUpperCase())}`);
   };
 
   const steps = [
@@ -35,10 +35,10 @@ export default function TrackOrderPage({ trackableOrder }: Props) {
   ];
 
   const stepDone = (key: string) => {
-    if (!result || result === "not-found") return false;
-    if (key === "placed") return result.status !== "cancelled";
-    if (key === "processing") return result.status === "pending" || result.status === "finished";
-    if (key === "completed") return result.status === "finished";
+    if (!trackableOrder) return false;
+    if (key === "placed") return trackableOrder.status !== "cancelled";
+    if (key === "processing") return trackableOrder.status === "pending" || trackableOrder.status === "finished";
+    if (key === "completed") return trackableOrder.status === "finished";
     return false;
   };
 
@@ -58,32 +58,32 @@ export default function TrackOrderPage({ trackableOrder }: Props) {
             <Input
               value={ref}
               onChange={(e) => setRef(e.target.value)}
-              placeholder="e.g. ORD-2026-10841"
+              placeholder="e.g. RO-LK3J9F2"
               className="rounded-lg"
             />
             <Button type="submit" className="w-full rounded-lg">Track order</Button>
           </form>
 
-          {result === "not-found" && (
+          {notFound && (
             <p className="mt-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
               We couldn't find an order with that reference.
             </p>
           )}
 
-          {result && result !== "not-found" && (
+          {trackableOrder && (
             <div className="mt-6 space-y-5">
               <div className="rounded-lg bg-muted/50 p-4 text-sm">
-                <p className="font-semibold">Order: <span className="num">{result.ref}</span></p>
-                <p className="mt-1"><span className="text-muted-foreground">Customer:</span> {result.customer}</p>
-                <p><span className="text-muted-foreground">Amount:</span> <span className="num">{currency(result.amount)}</span></p>
+                <p className="font-semibold">Order: <span className="num">{trackableOrder.ref}</span></p>
+                <p className="mt-1"><span className="text-muted-foreground">Customer:</span> {trackableOrder.customer}</p>
+                <p><span className="text-muted-foreground">Amount:</span> <span className="num">{currency(trackableOrder.amount)}</span></p>
                 <p className="mt-1">
                   <span
                     className={cn(
                       "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      result.status === "pending" ? "bg-warning/15 text-warning-foreground" : result.status === "finished" ? "bg-success/12 text-success" : "bg-destructive/12 text-destructive",
+                      trackableOrder.status === "pending" ? "bg-warning/15 text-warning-foreground" : trackableOrder.status === "finished" ? "bg-success/12 text-success" : "bg-destructive/12 text-destructive",
                     )}
                   >
-                    {result.status.toUpperCase()}
+                    {trackableOrder.status.toUpperCase()}
                   </span>
                 </p>
               </div>
@@ -108,7 +108,7 @@ export default function TrackOrderPage({ trackableOrder }: Props) {
               <div>
                 <h3 className="mb-2 text-sm font-semibold">Items</h3>
                 <ul className="divide-y divide-border rounded-lg border border-border">
-                  {result.items.map((it) => (
+                  {trackableOrder.items.map((it) => (
                     <li key={it.name} className="flex items-center justify-between px-3 py-2 text-sm">
                       <span>{it.name} × {it.qty}</span>
                       <span className="num font-medium">{currency(it.subtotal)}</span>

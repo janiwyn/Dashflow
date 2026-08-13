@@ -1,28 +1,44 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ShoppingCart, Plus, Minus, MapPin, Search } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { ShoppingCart, Plus, Minus, MapPin, Search, CheckCircle2 } from "lucide-react";
 
+import { createRemoteOrder } from "@/app/actions/orders";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
+import { toast } from "sonner";
 import { useCurrency } from "@/components/currency-provider";
-import type { viewBranchOptions, viewStorefrontProducts } from "@/db/queries/views";
+import type { viewHrBranches, viewStorefrontProducts } from "@/db/queries/views";
 
 type Props = {
-  branches: Awaited<ReturnType<typeof viewBranchOptions>>;
+  branches: Awaited<ReturnType<typeof viewHrBranches>>;
   storefrontProducts: Awaited<ReturnType<typeof viewStorefrontProducts>>;
 };
 
 export default function CustomerPortalPage({ branches, storefrontProducts }: Props) {
   const { format: currency } = useCurrency();
-  const [branch, setBranch] = useState<string | null>(null);
+  const [branchId, setBranchId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Record<number, number>>({});
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [placedRef, setPlacedRef] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const branchName = branches.find((b) => b.id === branchId)?.name ?? "";
 
   const products = useMemo(
-    () => storefrontProducts.filter((p) => (!branch || p.branch === branch) && p.name.toLowerCase().includes(query.toLowerCase())),
-    [branch, query],
+    () => storefrontProducts.filter((p) => (!branchId || p.branchId === branchId) && p.name.toLowerCase().includes(query.toLowerCase())),
+    [branchId, query, storefrontProducts],
   );
 
   const bump = (id: number, d: number) =>
@@ -34,6 +50,56 @@ export default function CustomerPortalPage({ branches, storefrontProducts }: Pro
 
   const lines = Object.entries(cart).map(([id, qty]) => ({ product: storefrontProducts.find((p) => p.id === Number(id))!, qty }));
   const total = lines.reduce((s, l) => s + l.product.price * l.qty, 0);
+
+  const submitOrder = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const input = {
+      branchId,
+      customerName: String(fd.get("name") || ""),
+      phone: String(fd.get("phone") || ""),
+      deliveryLocation: String(fd.get("location") || ""),
+      paymentMethod: String(fd.get("payment_method") || "cash") as "cash" | "mtn_merchant" | "airtel_merchant",
+      items: lines.map((l) => ({ productId: l.product.id, quantity: l.qty })),
+    };
+
+    startTransition(async () => {
+      const result = await createRemoteOrder(input);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setCheckoutOpen(false);
+      setPlacedRef(result.reference ?? null);
+      setCart({});
+    });
+  };
+
+  if (placedRef) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 px-6">
+        <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+          <CheckCircle2 className="mx-auto mb-3 size-10 text-success" />
+          <h1 className="text-lg font-semibold">Order placed!</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your order reference is
+          </p>
+          <p className="num mt-2 text-2xl font-bold text-primary">{placedRef}</p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Save this reference to track your order or show it at pickup.
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Link href={`/track-order?ref=${placedRef}`}>
+              <Button className="w-full rounded-lg">Track this order</Button>
+            </Link>
+            <Button variant="outline" className="w-full rounded-lg" onClick={() => setPlacedRef(null)}>
+              Place another order
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -50,15 +116,15 @@ export default function CustomerPortalPage({ branches, storefrontProducts }: Pro
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8">
-        {!branch ? (
+        {!branchId ? (
           <div className="mx-auto max-w-lg rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
             <MapPin className="mx-auto mb-3 size-8 text-primary" />
             <h1 className="text-lg font-semibold">Select your branch</h1>
             <p className="mt-1 text-sm text-muted-foreground">Choose the branch you'd like to pick up your order from.</p>
             <div className="mt-6 grid grid-cols-2 gap-3">
               {branches.map((b) => (
-                <button key={b} onClick={() => setBranch(b)} className="rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium transition-colors hover:border-primary hover:text-primary">
-                  {b}
+                <button key={b.id} onClick={() => setBranchId(b.id)} className="rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium transition-colors hover:border-primary hover:text-primary">
+                  {b.name}
                 </button>
               ))}
             </div>
@@ -67,8 +133,8 @@ export default function CustomerPortalPage({ branches, storefrontProducts }: Pro
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="min-w-0 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold">Available products — {branch}</h2>
-                <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setBranch(null)}>Change branch</Button>
+                <h2 className="text-lg font-semibold">Available products — {branchName}</h2>
+                <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setBranchId(null)}>Change branch</Button>
               </div>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -120,11 +186,55 @@ export default function CustomerPortalPage({ branches, storefrontProducts }: Pro
                 <span>Total</span>
                 <span className="num">{currency(total)}</span>
               </div>
-              <Button className="mt-4 w-full rounded-lg" disabled={lines.length === 0}>Proceed to checkout</Button>
+              <Button className="mt-4 w-full rounded-lg" disabled={lines.length === 0} onClick={() => setCheckoutOpen(true)}>
+                Proceed to checkout
+              </Button>
             </aside>
           </div>
         )}
       </main>
+
+      <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete your order</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submitOrder} className="grid gap-3">
+            <div className="grid gap-1.5">
+              <Label>Your name</Label>
+              <Input name="name" required />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Phone number</Label>
+              <Input name="phone" placeholder="0772 345 678" required />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Delivery / pickup location</Label>
+              <Input name="location" placeholder="e.g. Nakasero, Kampala" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>How will you pay?</Label>
+              <Select name="payment_method" defaultValue="cash">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash on pickup/delivery</SelectItem>
+                  <SelectItem value="mtn_merchant">MTN Mobile Money</SelectItem>
+                  <SelectItem value="airtel_merchant">Airtel Money</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm font-semibold">
+              <span>Order total</span>
+              <span className="num">{currency(total)}</span>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={pending} className="w-full rounded-lg">
+                {pending ? "Placing order…" : "Place order"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

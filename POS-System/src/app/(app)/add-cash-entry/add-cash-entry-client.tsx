@@ -18,7 +18,7 @@ type Props = {
 type Entry = { date: string; particulars: string; cashIn: number; bankIn: number; cashOut: number; bankOut: number; source: string };
 
 export default function AddCashEntryPage({ seedEntries }: Props) {
-  const { format: currency } = useCurrency();
+  const { format: currency, code } = useCurrency();
   const [entries, setEntries] = useState<Entry[]>(seedEntries);
   const [date, setDate] = useState("");
   const [type, setType] = useState("receipt");
@@ -77,11 +77,11 @@ export default function AddCashEntryPage({ seedEntries }: Props) {
             <Input value={particulars} onChange={(e) => setParticulars(e.target.value)} placeholder="Description" />
           </div>
           <div className="space-y-1.5">
-            <Label>Cash Amount (KES)</Label>
+            <Label>Cash Amount ({code})</Label>
             <Input type="number" value={cash} onChange={(e) => setCash(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Bank Amount (KES)</Label>
+            <Label>Bank Amount ({code})</Label>
             <Input type="number" value={bank} onChange={(e) => setBank(e.target.value)} />
           </div>
         </div>

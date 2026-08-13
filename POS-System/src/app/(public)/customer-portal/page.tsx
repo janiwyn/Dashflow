@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { CurrencyProvider } from "@/components/currency-provider";
-import { viewBranchOptions, viewStorefrontProducts } from "@/db/queries/views";
+import { viewHrBranches, viewStorefrontProducts } from "@/db/queries/views";
 import { getBusinessProfile } from "@/db/queries/profile";
 import type { CurrencyCode } from "@/lib/currency";
 import CustomerPortalPage from "./customer-portal-client";
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   const [branches, storefrontProducts, business] = await Promise.all([
-    viewBranchOptions(),
+    viewHrBranches(),
     viewStorefrontProducts(),
     getBusinessProfile(),
   ]);

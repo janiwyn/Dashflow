@@ -1,26 +1,28 @@
 "use client";
 
-import type { viewCustomerFile } from "@/db/queries/views";
-import { notFound } from "next/navigation";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Mail, Pencil, Phone, Wallet, CreditCard } from "lucide-react";
 
-import { ArrowLeft, Mail, Phone, Wallet, CreditCard } from "lucide-react";
-
+import type { viewCustomerFile, viewCustomers } from "@/db/queries/views";
 import { AppShell } from "@/components/app-shell";
+import { CustomerFormDialog } from "@/components/customers/customer-form-dialog";
 import { DataTable, type Column } from "@/components/data-table";
 import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrency } from "@/components/currency-provider";
-
 
 type Tx = NonNullable<Awaited<ReturnType<typeof viewCustomerFile>>>["transactions"][number];
 
 type Props = {
   customerFile: NonNullable<Awaited<ReturnType<typeof viewCustomerFile>>>;
+  allCustomers: Awaited<ReturnType<typeof viewCustomers>>;
 };
 
-export default function CustomerFilePage({ customerFile }: Props) {
+export default function CustomerFilePage({ customerFile, allCustomers }: Props) {
   const { format: currency } = useCurrency();
+  const router = useRouter();
 
   const columns: Column<Tx>[] = [
     { key: "date", header: "Date & Time", render: (t) => <span className="num text-muted-foreground">{t.date}</span> },
@@ -41,14 +43,37 @@ export default function CustomerFilePage({ customerFile }: Props) {
   ];
 
   const { customer, transactions: customerTransactions } = customerFile;
+  const currentInList = allCustomers.find((c) => c.id === customer.id);
+
   return (
     <AppShell
       title={customer.name}
       subtitle="Customer file"
       actions={
-        <Link href="/customers">
-          <Button variant="outline" size="sm" className="rounded-lg"><ArrowLeft className="mr-2 size-4" /> Back</Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={String(customer.id)} onValueChange={(v) => router.push(`/customer-file?id=${v}`)}>
+            <SelectTrigger className="h-9 w-48 rounded-lg text-sm"><SelectValue placeholder="Switch customer" /></SelectTrigger>
+            <SelectContent>
+              {allCustomers.map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {currentInList && (
+            <CustomerFormDialog
+              trigger={
+                <Button variant="outline" size="sm" className="rounded-lg">
+                  <Pencil className="size-4" /> Edit
+                </Button>
+              }
+              customer={currentInList}
+              onSaved={() => router.refresh()}
+            />
+          )}
+          <Link href="/customers">
+            <Button variant="outline" size="sm" className="rounded-lg"><ArrowLeft className="size-4" /> Back</Button>
+          </Link>
+        </div>
       }
     >
       <section className="panel grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -59,11 +84,16 @@ export default function CustomerFilePage({ customerFile }: Props) {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
-        <StatCard label="Account balance" value={currency(customer.accountBalance)} icon={Wallet} hint="available credit" />
-        <StatCard label="Amount credited" value={currency(customer.amountCredited)} icon={CreditCard} hint="outstanding debt" />
+        <StatCard label="Account balance" value={currency(customer.accountBalance)} icon={Wallet} hint="outstanding — what they owe" />
+        <StatCard label="Amount credited" value={currency(customer.amountCredited)} icon={CreditCard} hint="lifetime credit extended" />
       </section>
 
-      <DataTable title="Recent transactions" columns={columns} rows={customerTransactions} />
+      <DataTable
+        title="Recent transactions"
+        description={customerTransactions.length === 0 ? "No sales linked to this customer yet" : undefined}
+        columns={columns}
+        rows={customerTransactions}
+      />
     </AppShell>
   );
 }

@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Clock, CheckCircle2, ShoppingBag, Eye, X } from "lucide-react";
 
+import { cancelRemoteOrder } from "@/app/actions/orders";
 import { AppShell } from "@/components/app-shell";
 import { DataTable, type Column } from "@/components/data-table";
 import { StatCard } from "@/components/stat-card";
@@ -27,28 +30,38 @@ function StatusBadge({ status }: { status: RemoteOrder["status"] }) {
 
 export default function RemoteOrdersPage({ branches, remoteOrders }: Props) {
   const { format: currency } = useCurrency();
+  const router = useRouter();
   const [branch, setBranch] = useState("all");
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
-  const [orders, setOrders] = useState(remoteOrders);
   const [viewing, setViewing] = useState<RemoteOrder | null>(null);
+  const [pending, startTransition] = useTransition();
 
   const filtered = useMemo(
     () =>
-      orders.filter(
+      remoteOrders.filter(
         (o) =>
           (branch === "all" || o.branch === branch) &&
           (status === "all" || o.status === status) &&
           o.customer.toLowerCase().includes(search.toLowerCase()),
       ),
-    [orders, branch, status, search],
+    [remoteOrders, branch, status, search],
   );
 
-  const pending = orders.filter((o) => o.status === "Pending").length;
-  const finished = orders.filter((o) => o.status === "Finished").length;
+  const pendingCount = remoteOrders.filter((o) => o.status === "Pending").length;
+  const finished = remoteOrders.filter((o) => o.status === "Finished").length;
 
-  const setOrderStatus = (ref: string, s: RemoteOrder["status"]) =>
-    setOrders((prev) => prev.map((o) => (o.ref === ref ? { ...o, status: s } : o)));
+  const cancel = (ref: string) => {
+    startTransition(async () => {
+      const result = await cancelRemoteOrder(ref);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      router.refresh();
+    });
+  };
 
   const columns: Column<RemoteOrder>[] = [
     { key: "ref", header: "Order Ref", render: (r) => <span className="num font-medium">{r.ref}</span> },
@@ -72,7 +85,7 @@ export default function RemoteOrdersPage({ branches, remoteOrders }: Props) {
       header: "Actions",
       render: (r) =>
         r.status === "Pending" ? (
-          <Button variant="destructive" size="sm" className="h-7 rounded-lg text-xs" onClick={() => setOrderStatus(r.ref, "Cancelled")}>
+          <Button variant="destructive" size="sm" className="h-7 rounded-lg text-xs" onClick={() => cancel(r.ref)} disabled={pending}>
             <X className="mr-1 size-3.5" /> Cancel
           </Button>
         ) : (
@@ -84,7 +97,7 @@ export default function RemoteOrdersPage({ branches, remoteOrders }: Props) {
   return (
     <AppShell title="Remote Orders" subtitle="Orders placed through the online storefront">
       <section className="grid gap-4 sm:grid-cols-2">
-        <StatCard label="Pending orders" value={String(pending)} icon={Clock} hint="awaiting fulfilment" />
+        <StatCard label="Pending orders" value={String(pendingCount)} icon={Clock} hint="awaiting fulfilment" />
         <StatCard label="Finished orders" value={String(finished)} icon={CheckCircle2} hint="completed" />
       </section>
 

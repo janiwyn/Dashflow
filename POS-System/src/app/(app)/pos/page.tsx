@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { viewCategories, viewPosProducts } from "@/db/queries/views";
+import { viewCategories, viewCustomers, viewPosProducts } from "@/db/queries/views";
 import { assertClockedIn } from "@/db/queries/attendance";
 import Terminal from "./pos-client";
 import { requireModule } from "@/lib/module-access";
@@ -14,10 +14,11 @@ export const metadata: Metadata = {
 export default async function Page() {
   await requireModule("pos");
   const user = await requireUser();
-  const [categories, products, clockGate] = await Promise.all([
+  const [categories, products, clockGate, customers] = await Promise.all([
     viewCategories(),
     viewPosProducts(),
     assertClockedIn(user.id),
+    viewCustomers(),
   ]);
-  return <Terminal categories={categories} products={products} clockGate={clockGate} />;
+  return <Terminal categories={categories} products={products} clockGate={clockGate} customers={customers} />;
 }
