@@ -3,22 +3,34 @@ import "server-only";
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 
 import { db } from "@/db";
-import { attendanceRecords, branches, employeeCredentials, employees } from "@/db/schema";
+import { attendanceRecords, branches, employeeCredentials, employees, shiftAssignments, shifts } from "@/db/schema";
 import { hasModule } from "@/lib/module-access";
 import { getCurrentUser } from "@/lib/session";
 
 import { branchScope, businessScope } from "./_helpers";
 
-/** Clock-ins after this local time count as late — a simple, business-wide default rather than per-shift scheduling. */
+/** Clock-ins after this local time count as late when the employee has no shift scheduled for the day. */
 export const LATE_CUTOFF_HOUR = 9;
+
+/** Minutes of grace after a shift's scheduled start before a clock-in counts as late. */
+const LATE_GRACE_MINUTES = 10;
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export type AttendanceStatus = "present" | "late" | "absent" | "not_yet";
 
-function statusFor(clockIn: Date | null, isToday: boolean): AttendanceStatus {
+/** `scheduledStart` is a "HH:MM[:SS]" time-of-day string from a shift, when the employee has one assigned for the day. */
+function statusFor(clockIn: Date | null, isToday: boolean, scheduledStart?: string | null): AttendanceStatus {
   if (!clockIn) return isToday ? "not_yet" : "absent";
-  return clockIn.getUTCHours() >= LATE_CUTOFF_HOUR ? "late" : "present";
+
+  const actualMinutes = clockIn.getUTCHours() * 60 + clockIn.getUTCMinutes();
+
+  if (scheduledStart) {
+    const [h, m] = scheduledStart.split(":").map(Number);
+    return actualMinutes > h * 60 + m + LATE_GRACE_MINUTES ? "late" : "present";
+  }
+
+  return actualMinutes >= LATE_CUTOFF_HOUR * 60 ? "late" : "present";
 }
 
 /**
@@ -28,7 +40,7 @@ function statusFor(clockIn: Date | null, isToday: boolean): AttendanceStatus {
  * (possibly `null` if a staff account has no linked employee record, in
  * which case they should see nothing).
  */
-async function staffOwnEmployeeIdRestriction(): Promise<number | null | undefined> {
+export async function staffOwnEmployeeIdRestriction(): Promise<number | null | undefined> {
   const user = await getCurrentUser();
   if (!user || user.role !== "staff") return undefined;
   const own = await getOwnEmployeeRecord(user.id);
@@ -48,6 +60,7 @@ export type BoardRow = {
   hasBiometric: boolean;
   hasPin: boolean;
   hasLogin: boolean;
+  scheduledShift: { name: string; startTime: string; endTime: string } | null;
 };
 
 /** Every active employee's attendance state for today — the main board. */
@@ -74,6 +87,9 @@ export async function getTodayBoard(): Promise<BoardRow[]> {
       clockOut: attendanceRecords.clockOut,
       clockInMethod: attendanceRecords.clockInMethod,
       clockOutMethod: attendanceRecords.clockOutMethod,
+      shiftName: shifts.name,
+      shiftStart: shifts.startTime,
+      shiftEnd: shifts.endTime,
     })
     .from(employees)
     .leftJoin(branches, eq(employees.branchId, branches.id))
@@ -81,6 +97,11 @@ export async function getTodayBoard(): Promise<BoardRow[]> {
       attendanceRecords,
       and(eq(attendanceRecords.employeeId, employees.id), eq(attendanceRecords.date, today)),
     )
+    .leftJoin(
+      shiftAssignments,
+      and(eq(shiftAssignments.employeeId, employees.id), eq(shiftAssignments.date, today)),
+    )
+    .leftJoin(shifts, eq(shiftAssignments.shiftId, shifts.id))
     .where(where)
     .orderBy(employees.name);
 
@@ -98,10 +119,11 @@ export async function getTodayBoard(): Promise<BoardRow[]> {
     clockOut: r.clockOut,
     clockInMethod: r.clockInMethod,
     clockOutMethod: r.clockOutMethod,
-    status: statusFor(r.clockIn, true),
+    status: statusFor(r.clockIn, true, r.shiftStart),
     hasBiometric: withBiometric.has(r.employeeId),
     hasPin: Boolean(r.pinHash),
     hasLogin: Boolean(r.userId),
+    scheduledShift: r.shiftName && r.shiftStart && r.shiftEnd ? { name: r.shiftName, startTime: r.shiftStart, endTime: r.shiftEnd } : null,
   }));
 }
 

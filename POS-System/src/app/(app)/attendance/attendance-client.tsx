@@ -52,6 +52,9 @@ import type {
   getOwnEmployeeRecord,
   getTodayBoard,
 } from "@/db/queries/attendance";
+import type { getShifts, getWeekSchedule } from "@/db/queries/schedule";
+
+import ScheduleTab from "./schedule-tab";
 
 type BoardRow = Awaited<ReturnType<typeof getTodayBoard>>[number];
 type HistoryRow = Awaited<ReturnType<typeof getAttendanceHistory>>[number];
@@ -67,6 +70,12 @@ type Props = {
   ownToday: { clockIn: Date | null; clockOut: Date | null } | null;
   /** Staff only ever see their own attendance — never a teammate's check-in details. */
   isStaff: boolean;
+  weekSchedule: Awaited<ReturnType<typeof getWeekSchedule>>;
+  shifts: Awaited<ReturnType<typeof getShifts>>;
+  branches: { id: number; name: string }[];
+  showBranchPicker: boolean;
+  defaultBranchId: number | null;
+  canManageSchedule: boolean;
 };
 
 const timeFmt = (d: Date | null) =>
@@ -91,7 +100,21 @@ function StatusBadge({ status }: { status: BoardRow["status"] }) {
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
 }
 
-export default function AttendancePage({ board, summary, history, roster, ownEmployee, ownToday, isStaff }: Props) {
+export default function AttendancePage({
+  board,
+  summary,
+  history,
+  roster,
+  ownEmployee,
+  ownToday,
+  isStaff,
+  weekSchedule,
+  shifts,
+  branches,
+  showBranchPicker,
+  defaultBranchId,
+  canManageSchedule,
+}: Props) {
   const router = useRouter();
 
   return (
@@ -100,8 +123,8 @@ export default function AttendancePage({ board, summary, history, roster, ownEmp
 
       {!isStaff && (
         <section className="grid gap-4 sm:grid-cols-4">
-          <StatCard label="On time" value={String(summary.present)} icon={UserCheck} hint="clocked in before 9am" />
-          <StatCard label="Late" value={String(summary.late)} icon={Clock} hint="clocked in after 9am" />
+          <StatCard label="On time" value={String(summary.present)} icon={UserCheck} hint="on time for their shift" />
+          <StatCard label="Late" value={String(summary.late)} icon={Clock} hint="past their shift start" />
           <StatCard label="Not yet in" value={String(summary.notYet)} icon={UserX} hint="of today's roster" />
           <StatCard label="Active roster" value={String(summary.total)} icon={Users} hint="employees tracked" />
         </section>
@@ -110,12 +133,23 @@ export default function AttendancePage({ board, summary, history, roster, ownEmp
       <Tabs defaultValue="board" className="w-full">
         <TabsList>
           <TabsTrigger value="board">{isStaff ? "My record" : "Today's board"}</TabsTrigger>
+          <TabsTrigger value="schedule">{isStaff ? "My schedule" : "Schedule"}</TabsTrigger>
           <TabsTrigger value="kiosk">Team check-in</TabsTrigger>
           <TabsTrigger value="history">{isStaff ? "My history" : "History"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="board">
           <BoardTab board={board} onDone={() => router.refresh()} isStaff={isStaff} />
+        </TabsContent>
+        <TabsContent value="schedule">
+          <ScheduleTab
+            initial={weekSchedule}
+            initialShifts={shifts}
+            branches={branches}
+            showBranchPicker={showBranchPicker}
+            defaultBranchId={defaultBranchId}
+            canManage={canManageSchedule}
+          />
         </TabsContent>
         <TabsContent value="kiosk">
           <KioskTab roster={roster} onDone={() => router.refresh()} />
@@ -135,6 +169,21 @@ function BoardTab({ board, onDone, isStaff }: { board: BoardRow[]; onDone: () =>
     { key: "name", header: "Employee", render: (r) => <span className="font-medium">{r.name}</span> },
     { key: "position", header: "Position", render: (r) => <span className="text-muted-foreground">{r.position}</span> },
     { key: "branch", header: "Branch", render: (r) => <span className="text-muted-foreground">{r.branch ?? "—"}</span> },
+    {
+      key: "shift",
+      header: "Shift",
+      render: (r) =>
+        r.scheduledShift ? (
+          <span className="text-xs">
+            {r.scheduledShift.name}{" "}
+            <span className="num text-muted-foreground">
+              ({r.scheduledShift.startTime.slice(0, 5)}–{r.scheduledShift.endTime.slice(0, 5)})
+            </span>
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">Unscheduled</span>
+        ),
+    },
     { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
     {
       key: "in",
