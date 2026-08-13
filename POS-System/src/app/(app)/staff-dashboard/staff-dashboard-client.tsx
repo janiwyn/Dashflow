@@ -6,6 +6,7 @@ import { Banknote, Package, Receipt, ScanBarcode } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { MyAttendanceCard } from "@/components/attendance/my-attendance-card";
+import { LiveClock } from "@/components/live-clock";
 import { StatCard } from "@/components/stat-card";
 import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -47,9 +48,12 @@ export default function StaffDashboardPage({ stats, mySales, attendanceEnabled, 
       title={`Welcome, ${firstName}`}
       subtitle={`Staff dashboard${user.branch ? ` · ${user.branch}` : ""}`}
       actions={
-        <Button asChild className="rounded-lg">
-          <Link href="/pos"><ScanBarcode className="size-4" /> Open sales terminal</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <LiveClock />
+          <Button asChild className="rounded-lg">
+            <Link href="/pos"><ScanBarcode className="size-4" /> Open sales terminal</Link>
+          </Button>
+        </div>
       }
     >
       {attendanceEnabled && (
