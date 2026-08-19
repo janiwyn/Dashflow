@@ -113,8 +113,14 @@ export async function getPaymentProofs() {
     .orderBy(desc(paymentProofs.submittedAt));
 }
 
-export async function getTills() {
+export async function getTills(options?: { branchId?: number }) {
   const businessId = await businessScope();
+  // A branch-locked manager must only see their own branch's tills — this was
+  // missing entirely (unlike getDebtors' identical pattern below), so a
+  // manager could see and, once removal/creation were wired up, manipulate
+  // every till across the whole business.
+  const branchId = await enforcedBranchId(options?.branchId);
+
   const rows = await db
     .select({
       id: tills.id,
@@ -128,14 +134,16 @@ export async function getTills() {
     })
     .from(tills)
     .leftJoin(branches, eq(tills.branchId, branches.id))
-    .where(eq(tills.businessId, businessId))
+    .where(branchId ? and(eq(tills.businessId, businessId), eq(tills.branchId, branchId)) : eq(tills.businessId, businessId))
     .orderBy(asc(tills.name));
 
   return rows.map((r) => ({ ...r, balance: num(r.balance) }));
 }
 
-export async function getTillRemovals() {
+export async function getTillRemovals(options?: { branchId?: number }) {
   const businessId = await businessScope();
+  const branchId = await enforcedBranchId(options?.branchId);
+
   const rows = await db
     .select({
       id: tillRemovals.id,
@@ -147,7 +155,7 @@ export async function getTillRemovals() {
     })
     .from(tillRemovals)
     .innerJoin(tills, eq(tillRemovals.tillId, tills.id))
-    .where(eq(tills.businessId, businessId))
+    .where(branchId ? and(eq(tills.businessId, businessId), eq(tills.branchId, branchId)) : eq(tills.businessId, businessId))
     .orderBy(desc(tillRemovals.removedAt));
 
   return rows.map((r) => ({
@@ -155,6 +163,25 @@ export async function getTillRemovals() {
     amount: num(r.amount),
     balanceAfter: num(r.balanceAfter),
   }));
+}
+
+/** Backs the "Removals this week" stat — the card previously showed tillRemovals.length (all-time), not actually scoped to a week despite its own label. */
+export async function getTillRemovalsCountSince(since: Date, options?: { branchId?: number }): Promise<number> {
+  const businessId = await businessScope();
+  const branchId = await enforcedBranchId(options?.branchId);
+
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(tillRemovals)
+    .innerJoin(tills, eq(tillRemovals.tillId, tills.id))
+    .where(
+      and(
+        branchId ? and(eq(tills.businessId, businessId), eq(tills.branchId, branchId)) : eq(tills.businessId, businessId),
+        gte(tillRemovals.removedAt, since),
+      ),
+    );
+
+  return Number(row?.count ?? 0);
 }
 
 export type DebtorRow = {
