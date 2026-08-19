@@ -14,7 +14,7 @@ import * as accounting from "./accounting";
 import * as branchQueries from "./branches";
 import * as catalog from "./catalog";
 import * as customerQueries from "./customers";
-import { dateInputEnd } from "./_helpers";
+import { dateInputEnd, daysAgo } from "./_helpers";
 import * as hr from "./hr";
 import * as notifications from "./notifications";
 import * as operations from "./operations";
@@ -760,6 +760,11 @@ export async function viewTillRemovals() {
   }));
 }
 
+/** The "Removals this week" stat card was really just tillRemovals.length (all-time) with no date filter behind its own label — this actually scopes to the last 7 days. */
+export async function viewTillRemovalsThisWeekCount(): Promise<number> {
+  return operations.getTillRemovalsCountSince(daysAgo(7));
+}
+
 export type Debtor = {
   id: number;
   name: string;
@@ -920,6 +925,8 @@ export async function viewProfile() {
     phone: p.phone ?? "—",
     role: p.position ?? label(p.role),
     branch: p.branch ?? "All branches",
+    // getProfile() already joins this in — it was just never surfaced to the page before.
+    hireDate: p.hireDate ? longDate(p.hireDate) : null,
   };
 }
 

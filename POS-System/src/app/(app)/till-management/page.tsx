@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
-import { viewBranchOptions, viewTillRemovals, viewTills } from "@/db/queries/views";
+import { viewBranchOptions, viewEmployees, viewTillRemovals, viewTillRemovalsThisWeekCount, viewTills } from "@/db/queries/views";
 import TillManagementPage from "./till-management-client";
 import { requireModule } from "@/lib/module-access";
+import { requireRole } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Till Management",
@@ -10,7 +11,25 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
+  // requireModule alone let any signed-in staff account reach this page and
+  // see every till's balance — the sidebar's MANAGER_UP restriction was
+  // UI-only. Enforced here too now, same as the actions in actions/tills.ts.
+  await requireRole("super", "admin", "manager");
   await requireModule("pos");
-  const [branches, tillRemovals, tills] = await Promise.all([viewBranchOptions(), viewTillRemovals(), viewTills()]);
-  return <TillManagementPage branches={branches} tillRemovals={tillRemovals} tills={tills} />;
+  const [branches, employees, tillRemovals, removalsThisWeek, tills] = await Promise.all([
+    viewBranchOptions(),
+    viewEmployees(),
+    viewTillRemovals(),
+    viewTillRemovalsThisWeekCount(),
+    viewTills(),
+  ]);
+  return (
+    <TillManagementPage
+      branches={branches}
+      employees={employees}
+      tillRemovals={tillRemovals}
+      removalsThisWeek={removalsThisWeek}
+      tills={tills}
+    />
+  );
 }

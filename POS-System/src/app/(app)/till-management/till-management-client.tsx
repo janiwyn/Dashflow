@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Landmark, PlusCircle, Wallet, Undo2 } from "lucide-react";
 
+import { createTill, recordTillRemoval } from "@/app/actions/tills";
 import { AppShell } from "@/components/app-shell";
 import { DataTable, type Column } from "@/components/data-table";
 import { StatCard } from "@/components/stat-card";
@@ -13,16 +16,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrency } from "@/components/currency-provider";
 import type { Till } from "@/db/queries/views";
-import type { viewBranchOptions, viewTillRemovals, viewTills } from "@/db/queries/views";
+import type { viewBranchOptions, viewEmployees, viewTillRemovals, viewTills } from "@/db/queries/views";
 
 type Props = {
   branches: Awaited<ReturnType<typeof viewBranchOptions>>;
+  employees: Awaited<ReturnType<typeof viewEmployees>>;
   tillRemovals: Awaited<ReturnType<typeof viewTillRemovals>>;
+  removalsThisWeek: number;
   tills: Awaited<ReturnType<typeof viewTills>>;
 };
 
-export default function TillManagementPage({ branches, tillRemovals, tills }: Props) {
+export default function TillManagementPage({ branches, employees, tillRemovals, removalsThisWeek, tills }: Props) {
   const { format: currency } = useCurrency();
+  const router = useRouter();
 
   const tillColumns: Column<Till>[] = [
     { key: "created", header: "Date created", render: (t) => <span className="num text-muted-foreground">{t.created}</span> },
@@ -33,18 +39,61 @@ export default function TillManagementPage({ branches, tillRemovals, tills }: Pr
     { key: "balance", header: "Balance", align: "right", render: (t) => <span className="num font-semibold">{currency(t.balance)}</span> },
   ];
 
-  const [safeTill, setSafeTill] = useState("");
-  const [safeAmount, setSafeAmount] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  // --- Create & Assign Till: previously had no state, no handler, and no server action at all. ---
+  const [newName, setNewName] = useState("");
+  const [newBranch, setNewBranch] = useState("");
+  const [newStaff, setNewStaff] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [creating, startCreating] = useTransition();
 
-  const submitRemoval = () => {
-    if (!safeTill || !safeAmount) {
-      setMessage("Please select a till and enter a valid amount.");
+  const submitCreate = () => {
+    if (!newName.trim()) {
+      toast.error("Till name is required.");
       return;
     }
-    setMessage("Till removal recorded successfully.");
-    setSafeTill("");
-    setSafeAmount("");
+    startCreating(async () => {
+      const result = await createTill({
+        name: newName,
+        branchName: newBranch || undefined,
+        staffName: newStaff || undefined,
+        phone: newPhone || undefined,
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      setNewName("");
+      setNewBranch("");
+      setNewStaff("");
+      setNewPhone("");
+      router.refresh();
+    });
+  };
+
+  // --- Remove cash to safe: previously only set local React state, no persistence at all. ---
+  const [safeTillId, setSafeTillId] = useState("");
+  const [safeAmount, setSafeAmount] = useState("");
+  const [removing, startRemoving] = useTransition();
+
+  const submitRemoval = () => {
+    const till = tills.find((t) => String(t.id) === safeTillId);
+    const amount = Number(safeAmount);
+    if (!till || !amount || amount <= 0) {
+      toast.error("Please select a till and enter a valid amount.");
+      return;
+    }
+    startRemoving(async () => {
+      const result = await recordTillRemoval({ tillId: till.id, amount });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      setSafeTillId("");
+      setSafeAmount("");
+      router.refresh();
+    });
   };
 
   return (
@@ -52,7 +101,7 @@ export default function TillManagementPage({ branches, tillRemovals, tills }: Pr
       <section className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Active tills" value={String(tills.length)} icon={Landmark} hint="across branches" />
         <StatCard label="Total balance held" value={currency(tills.reduce((s, t) => s + t.balance, 0))} icon={Wallet} hint="current tills" />
-        <StatCard label="Removals this week" value={String(tillRemovals.length)} icon={Undo2} hint="approved" />
+        <StatCard label="Removals this week" value={String(removalsThisWeek)} icon={Undo2} hint="last 7 days" />
       </section>
 
       <Tabs defaultValue="create" className="panel p-5">
@@ -65,33 +114,41 @@ export default function TillManagementPage({ branches, tillRemovals, tills }: Pr
         <TabsContent value="create" className="mt-5 max-w-2xl space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Date of creation</Label>
-              <Input type="date" className="rounded-lg" />
-            </div>
-            <div className="space-y-1.5">
               <Label>Till name</Label>
-              <Input placeholder="e.g. Till 05" className="rounded-lg" />
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Till 05"
+                className="rounded-lg"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Branch</Label>
-              <Select>
+              <Select value={newBranch} onValueChange={setNewBranch}>
                 <SelectTrigger className="rounded-lg"><SelectValue placeholder="Select branch" /></SelectTrigger>
                 <SelectContent>{branches.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Staff member</Label>
-              <Select>
+              <Select value={newStaff} onValueChange={setNewStaff}>
                 <SelectTrigger className="rounded-lg"><SelectValue placeholder="Select staff" /></SelectTrigger>
-                <SelectContent>{tills.map((t) => <SelectItem key={t.id} value={t.staff}>{t.staff}</SelectItem>)}</SelectContent>
+                <SelectContent>{employees.map((e) => <SelectItem key={e.id} value={e.name}>{e.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="space-y-1.5">
               <Label>Phone number</Label>
-              <Input placeholder="07XX XXX XXX" className="rounded-lg" />
+              <Input
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="07XX XXX XXX"
+                className="rounded-lg"
+              />
             </div>
           </div>
-          <Button className="rounded-lg"><PlusCircle className="mr-2 size-4" /> Create till</Button>
+          <Button onClick={submitCreate} disabled={creating} className="rounded-lg">
+            <PlusCircle className="mr-2 size-4" /> {creating ? "Creating…" : "Create till"}
+          </Button>
         </TabsContent>
 
         <TabsContent value="manage" className="mt-5">
@@ -104,9 +161,15 @@ export default function TillManagementPage({ branches, tillRemovals, tills }: Pr
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Till</Label>
-                <Select value={safeTill} onValueChange={setSafeTill}>
+                <Select value={safeTillId} onValueChange={setSafeTillId}>
                   <SelectTrigger className="rounded-lg"><SelectValue placeholder="Select till" /></SelectTrigger>
-                  <SelectContent>{tills.map((t) => <SelectItem key={t.id} value={t.name}>{t.name} · {t.branch} (bal. {currency(t.balance)})</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {tills.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.name} · {t.branch} (bal. {currency(t.balance)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
@@ -114,8 +177,9 @@ export default function TillManagementPage({ branches, tillRemovals, tills }: Pr
                 <Input type="number" value={safeAmount} onChange={(e) => setSafeAmount(e.target.value)} placeholder="0.00" className="rounded-lg num" />
               </div>
             </div>
-            {message && <p className="text-sm text-success">{message}</p>}
-            <Button onClick={submitRemoval} className="rounded-lg">Record removal</Button>
+            <Button onClick={submitRemoval} disabled={removing} className="rounded-lg">
+              {removing ? "Recording…" : "Record removal"}
+            </Button>
           </div>
 
           <DataTable

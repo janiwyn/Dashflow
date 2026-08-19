@@ -20,14 +20,18 @@ import type { ActionResult } from "./users";
  * live session) and does the rest: creates the business, attaches it to the
  * caller, and activates whatever modules they picked at checkout.
  */
-export async function finishBusinessSignup(input: {
-  businessName: string;
-  role: "admin" | "manager";
-  moduleKeys: ModuleKey[];
-}): Promise<ActionResult & { businessId?: number }> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, message: "Your session expired — please sign up again." };
-  if (user.businessId) return { ok: false, message: "This account already belongs to a business." };
+/**
+ * The actual work, factored out so it can run from two different callers with
+ * two different ways of identifying "who's signing up": the web app's server
+ * action (cookie session via getCurrentUser()) and the mobile API route
+ * (bearer token resolved to a user id before this is called).
+ */
+export async function completeBusinessSignup(
+  userId: string,
+  currentBusinessId: number | null,
+  input: { businessName: string; role: "admin" | "manager"; moduleKeys: ModuleKey[] },
+): Promise<ActionResult & { businessId?: number }> {
+  if (currentBusinessId) return { ok: false, message: "This account already belongs to a business." };
 
   const name = input.businessName.trim();
   if (!name) return { ok: false, message: "Business name is required." };
@@ -45,11 +49,22 @@ export async function finishBusinessSignup(input: {
     })
     .returning({ id: businesses.id });
 
-  await db.update(users).set({ businessId: business.id, role }).where(eq(users.id, user.id));
+  await db.update(users).set({ businessId: business.id, role }).where(eq(users.id, userId));
 
   if (moduleKeys.length > 0) {
     await setBusinessModuleKeys(business.id, moduleKeys);
   }
 
   return { ok: true, message: "Business created.", businessId: business.id };
+}
+
+export async function finishBusinessSignup(input: {
+  businessName: string;
+  role: "admin" | "manager";
+  moduleKeys: ModuleKey[];
+}): Promise<ActionResult & { businessId?: number }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, message: "Your session expired — please sign up again." };
+
+  return completeBusinessSignup(user.id, user.businessId ?? null, input);
 }
