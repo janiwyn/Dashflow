@@ -106,45 +106,54 @@
   --sidebar-ring: oklch(0.62 0.14 168);
 }
 
+/*
+ * Dark theme — deliberately NOT a darkened version of the graphite/emerald
+ * palette above. It matches the PWA's own dark theme exactly (near-black
+ * surfaces, one vivid lime accent used everywhere) so a business owner
+ * switching between the desktop app and the phone app in dark mode sees the
+ * same product, the same way the light theme already matches between them.
+ * Same custom-property names as :root, so every component that already
+ * reads var(--color-*) re-themes for free — zero per-component changes.
+ */
 .dark {
-  --background: oklch(0.17 0.02 255);
-  --foreground: oklch(0.96 0.005 255);
-  --surface: oklch(0.21 0.022 255);
-  --surface-foreground: oklch(0.96 0.005 255);
-  --card: oklch(0.22 0.022 255);
-  --card-foreground: oklch(0.96 0.005 255);
-  --popover: oklch(0.22 0.022 255);
-  --popover-foreground: oklch(0.96 0.005 255);
-  --primary: oklch(0.68 0.14 168);
-  --primary-foreground: oklch(0.17 0.03 168);
-  --secondary: oklch(0.27 0.025 255);
-  --secondary-foreground: oklch(0.96 0.005 255);
-  --muted: oklch(0.27 0.025 255);
-  --muted-foreground: oklch(0.7 0.02 255);
-  --accent: oklch(0.3 0.05 168);
-  --accent-foreground: oklch(0.93 0.03 168);
-  --destructive: oklch(0.68 0.19 22);
-  --destructive-foreground: oklch(0.98 0.005 22);
-  --success: oklch(0.7 0.14 155);
-  --success-foreground: oklch(0.17 0.03 155);
-  --warning: oklch(0.8 0.14 75);
-  --warning-foreground: oklch(0.2 0.04 75);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.68 0.14 168);
-  --chart-1: oklch(0.68 0.14 168);
-  --chart-2: oklch(0.7 0.11 230);
-  --chart-3: oklch(0.78 0.13 75);
-  --chart-4: oklch(0.62 0.11 285);
-  --chart-5: oklch(0.7 0.14 25);
-  --sidebar: oklch(0.14 0.02 255);
-  --sidebar-foreground: oklch(0.88 0.01 255);
-  --sidebar-primary: oklch(0.68 0.14 168);
-  --sidebar-primary-foreground: oklch(0.14 0.02 255);
-  --sidebar-accent: oklch(0.24 0.025 255);
-  --sidebar-accent-foreground: oklch(0.97 0.005 255);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.68 0.14 168);
+  --background: #07080a;
+  --foreground: #f4f7f0;
+  --surface: #101310;
+  --surface-foreground: #f4f7f0;
+  --card: #101310;
+  --card-foreground: #f4f7f0;
+  --popover: #101310;
+  --popover-foreground: #f4f7f0;
+  --primary: #a6e22e;
+  --primary-foreground: #091306;
+  --secondary: #1a1f18;
+  --secondary-foreground: #f4f7f0;
+  --muted: #1a1f18;
+  --muted-foreground: #93a08d;
+  --accent: rgba(166, 226, 46, 0.16);
+  --accent-foreground: #c6f166;
+  --destructive: #f87171;
+  --destructive-foreground: #2a0a0a;
+  --success: #a6e22e;
+  --success-foreground: #091306;
+  --warning: #fbbf24;
+  --warning-foreground: #2a1c02;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #a6e22e;
+  --chart-1: #a6e22e;
+  --chart-2: #5b9df9;
+  --chart-3: #fbbf24;
+  --chart-4: #b794f6;
+  --chart-5: #f87171;
+  --sidebar: #060806;
+  --sidebar-foreground: #d9e4d2;
+  --sidebar-primary: #a6e22e;
+  --sidebar-primary-foreground: #091306;
+  --sidebar-accent: #141a12;
+  --sidebar-accent-foreground: #f4f7f0;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #a6e22e;
 }
 
 @layer base {

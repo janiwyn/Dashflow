@@ -80,7 +80,6 @@ type NavItem = {
   minPlan?: PlanKey;
 };
 
-const ALL: Role[] = ["super", "admin", "manager", "staff"];
 const SUPER_ONLY: Role[] = ["super"];
 
 // A super account runs the platform, not a business — it never operates a
@@ -88,7 +87,6 @@ const SUPER_ONLY: Role[] = ["super"];
 // exclude "super" so those sections don't show up for it at all.
 const TENANT_ALL: Role[] = ["admin", "manager", "staff"];
 const TENANT_MANAGER_UP: Role[] = ["admin", "manager"];
-const TENANT_ADMIN_UP: Role[] = ["admin"];
 
 const operate: NavItem[] = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard, roles: ["admin"] },
@@ -152,14 +150,13 @@ const network: NavItem[] = [
 ];
 
 const platform: NavItem[] = [
-  { title: "Settings", url: "/settings", icon: Settings, roles: TENANT_ADMIN_UP },
+  { title: "Settings", url: "/settings", icon: Settings, roles: TENANT_ALL },
   { title: "Super admin", url: "/super", icon: ShieldCheck, roles: SUPER_ONLY },
   { title: "Businesses", url: "/manage-business", icon: Briefcase, roles: SUPER_ONLY },
   { title: "Admins", url: "/manage-admin", icon: UserCog, roles: SUPER_ONLY },
   { title: "Subscriptions", url: "/subscription", icon: CreditCard, roles: SUPER_ONLY },
   { title: "Platform reports", url: "/super-report", icon: LineChart, roles: SUPER_ONLY },
   { title: "System updates", url: "/system-updates", icon: RefreshCw, roles: SUPER_ONLY },
-  { title: "Profile", url: "/profile", icon: UserRound, roles: ALL },
 ];
 
 export type SidebarUser = {

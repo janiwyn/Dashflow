@@ -6,6 +6,7 @@ import { branches, businesses } from "./tenancy";
 
 export const userRole = pgEnum("user_role", ["super", "admin", "manager", "staff", "customer"]);
 export const userStatus = pgEnum("user_status", ["active", "suspended"]);
+export const userTheme = pgEnum("user_theme", ["light", "dark"]);
 
 /**
  * better-auth core tables. `user`, `session`, `account` and `verification` keep
@@ -24,6 +25,7 @@ export const users = pgTable("user", {
   phone: text("phone"),
   role: userRole("role").notNull().default("staff"),
   status: userStatus("status").notNull().default("active"),
+  theme: userTheme("theme").notNull().default("light"),
   businessId: integer("business_id").references(() => businesses.id, { onDelete: "set null" }),
   branchId: integer("branch_id").references(() => branches.id, { onDelete: "set null" }),
 

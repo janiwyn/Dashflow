@@ -84,6 +84,7 @@ export const auth = betterAuth({
       // a client cannot promote itself to admin by posting role:"admin".
       role: { type: "string", required: false, defaultValue: "staff", input: false },
       status: { type: "string", required: false, defaultValue: "active", input: false },
+      theme: { type: "string", required: false, defaultValue: "light" },
       businessId: { type: "number", required: false, input: false },
       branchId: { type: "number", required: false, input: false },
     },
