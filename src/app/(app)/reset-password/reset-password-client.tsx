@@ -7,16 +7,18 @@ import { resetUserPassword } from "@/app/actions/users";
 import { AppShell } from "@/components/app-shell";
 import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_PASSWORD } from "@/lib/auth-constants";
 
 type Account = {
   id: string;
   username: string;
   role: string;
   branch: string | null;
+  business: string | null;
   status: string;
 };
 
-export default function ResetPasswordPage({ accounts }: { accounts: Account[] }) {
+export default function ResetPasswordPage({ accounts, showBusiness }: { accounts: Account[]; showBusiness: boolean }) {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [resetIds, setResetIds] = useState<string[]>([]);
@@ -43,6 +45,7 @@ export default function ResetPasswordPage({ accounts }: { accounts: Account[] })
       render: (u) => <span className="font-medium">{u.username}</span>,
     },
     { key: "role", header: "Role", render: (u) => <span className="capitalize">{u.role}</span> },
+    ...(showBusiness ? [{ key: "business", header: "Business", render: (u: Account) => u.business ?? "—" } as Column<Account>] : []),
     { key: "branch", header: "Branch", render: (u) => u.branch ?? "—" },
     {
       key: "status",
@@ -81,7 +84,7 @@ export default function ResetPasswordPage({ accounts }: { accounts: Account[] })
       )}
       <DataTable
         title="System users"
-        description="Reset a user's password back to the default (123456)"
+        description={`Reset a user's password back to the default (${DEFAULT_PASSWORD})`}
         columns={columns}
         rows={accounts}
       />

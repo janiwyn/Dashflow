@@ -3,7 +3,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { businessModules, businesses } from "@/db/schema";
+import { branches, businessModules, businesses, users } from "@/db/schema";
 import type { ModuleKey } from "@/lib/modules";
 
 /** The modules a single business currently has active. */
@@ -59,4 +59,19 @@ export async function addBusinessModuleKeys(businessId: number, keys: ModuleKey[
 export async function businessExists(businessId: number): Promise<boolean> {
   const [row] = await db.select({ id: businesses.id }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
   return Boolean(row);
+}
+
+/** Real usage against the business's plan limits — modules active, users and branches in use — for the Settings page's subscription panel. */
+export async function getSubscriptionUsage(businessId: number) {
+  const [activeModules, userRows, branchRows] = await Promise.all([
+    getActiveModuleKeys(businessId),
+    db.select({ id: users.id }).from(users).where(eq(users.businessId, businessId)),
+    db.select({ id: branches.id }).from(branches).where(eq(branches.businessId, businessId)),
+  ]);
+
+  return {
+    activeModules: Array.from(activeModules),
+    userCount: userRows.length,
+    branchCount: branchRows.length,
+  };
 }

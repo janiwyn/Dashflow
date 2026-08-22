@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { createAdminForBusiness } from "@/app/actions/super-admin";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ type Props = {
 export default function AddAdminPage({ businesses }: Props) {
   const router = useRouter();
   const [form, setForm] = useState({ username: "", email: "", password: "", businessId: "" });
+  const [pending, startTransition] = useTransition();
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,8 +28,25 @@ export default function AddAdminPage({ businesses }: Props) {
       toast.error("Please fill in all required fields");
       return;
     }
-    toast.success("Admin account added successfully!");
-    router.push("/manage-admin");
+    if (!form.businessId) {
+      toast.error("Choose which business this admin belongs to.");
+      return;
+    }
+    startTransition(async () => {
+      const result = await createAdminForBusiness({
+        businessId: Number(form.businessId),
+        name: form.username,
+        email: form.email,
+        password: form.password,
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      router.push("/manage-admin");
+      router.refresh();
+    });
   };
 
   return (
@@ -60,7 +79,7 @@ export default function AddAdminPage({ businesses }: Props) {
             </Select>
           </div>
           <div className="flex gap-2">
-            <Button type="submit" className="rounded-lg">Add Admin</Button>
+            <Button type="submit" disabled={pending} className="rounded-lg">{pending ? "Adding…" : "Add Admin"}</Button>
             <Button asChild type="button" variant="secondary" className="rounded-lg">
               <Link href="/manage-admin">Cancel</Link>
             </Button>

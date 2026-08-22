@@ -22,6 +22,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const user = useSessionUser();
+  const isSuper = user.role === "super";
 
   return (
     <SidebarProvider>
@@ -34,6 +35,8 @@ export function AppShell({
               roleLabel: user.roleLabel,
               branch: user.branch,
               initials: user.initials,
+              hasMultipleBranches: user.hasMultipleBranches,
+              planKey: user.planKey,
             }}
           />
         </div>
@@ -44,22 +47,26 @@ export function AppShell({
               <div className="relative min-w-0 max-w-md">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search products, receipts, customers…"
+                  placeholder={isSuper ? "Search businesses, admins…" : "Search products, receipts, customers…"}
                   className="h-9 rounded-lg border-border bg-background pl-9 text-sm"
                 />
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Button variant="ghost" size="icon" className="relative rounded-lg" asChild>
-                  <Link href="/notifications" aria-label="Notifications">
-                    <Bell className="size-4" />
-                    <span className="absolute right-2 top-2 size-1.5 rounded-full bg-destructive" />
-                  </Link>
-                </Button>
-                <Button size="sm" className="hidden rounded-lg sm:inline-flex" asChild>
-                  <Link href="/pos">
-                    <Plus className="size-4" /> New sale
-                  </Link>
-                </Button>
+                {!isSuper && (
+                  <>
+                    <Button variant="ghost" size="icon" className="relative rounded-lg" asChild>
+                      <Link href="/notifications" aria-label="Notifications">
+                        <Bell className="size-4" />
+                        <span className="absolute right-2 top-2 size-1.5 rounded-full bg-destructive" />
+                      </Link>
+                    </Button>
+                    <Button size="sm" className="hidden rounded-lg sm:inline-flex" asChild>
+                      <Link href="/pos">
+                        <Plus className="size-4" /> New sale
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </header>

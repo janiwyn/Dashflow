@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSessionUser } from "@/components/session-provider";
 import type { viewBranchNames, viewStockProducts } from "@/db/queries/views";
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export default function ProductImagesPage({ branches, stockProducts }: Props) {
+  const { hasMultipleBranches } = useSessionUser();
   const [branch, setBranch] = useState("All branches");
   const [search, setSearch] = useState("");
   const [images, setImages] = useState<Record<number, string | null>>({});
@@ -50,14 +52,16 @@ export default function ProductImagesPage({ branches, stockProducts }: Props) {
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 max-w-xs rounded-lg"
           />
-          <Select value={branch} onValueChange={setBranch}>
-            <SelectTrigger className="h-9 w-44 rounded-lg text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {branches.map((b) => (
-                <SelectItem key={b} value={b}>{b}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {hasMultipleBranches && (
+            <Select value={branch} onValueChange={setBranch}>
+              <SelectTrigger className="h-9 w-44 rounded-lg text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {branches.map((b) => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -73,7 +77,7 @@ export default function ProductImagesPage({ branches, stockProducts }: Props) {
                   )}
                 </div>
                 <p className="mt-3 truncate text-sm font-medium">{p.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{p.branch}</p>
+                {hasMultipleBranches && <p className="truncate text-xs text-muted-foreground">{p.branch}</p>}
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" variant="outline" className="flex-1 rounded-lg" onClick={() => upload(p.id)}>
                     <Upload className="size-3.5" /> Upload

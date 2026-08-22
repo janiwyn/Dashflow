@@ -26,6 +26,12 @@ export default async function Page() {
   const user = await requireUser();
   const role = user.role ?? "staff";
 
+  // A super account has no businessId of its own (it's platform staff, not
+  // a tenant) — every ordinary tenant-scoped query below falls back to
+  // `user.businessId ?? 1`, which would silently show business #1's data as
+  // if it were "the" dashboard. Send super straight to the real cross-
+  // tenant dashboard instead.
+  if (role === "super") redirect("/super");
   if (role === "manager") redirect("/manager-dashboard");
   if (role === "staff") redirect("/staff-dashboard");
 

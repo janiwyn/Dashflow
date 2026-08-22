@@ -6,11 +6,10 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { accounts, users } from "@/db/schema";
+import { DEFAULT_PASSWORD } from "@/lib/auth-constants";
 import { requireRole, requireUser } from "@/lib/session";
 
 export type ActionResult = { ok: true; message: string } | { ok: false; message: string };
-
-const DEFAULT_PASSWORD = "123456";
 
 /**
  * Resets a user's credential password to the default. Writes the same scrypt

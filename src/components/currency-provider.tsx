@@ -23,7 +23,7 @@ export function CurrencyProvider({
  */
 export function useCurrency() {
   const code = useContext(CurrencyContext);
-  const resolved = code ?? "KES";
+  const resolved = code ?? "UGX";
   return useMemo(
     () => ({ code: resolved, format: (amount: number) => formatMoney(amount, resolved) }),
     [resolved],

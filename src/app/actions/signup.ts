@@ -6,9 +6,17 @@ import { db } from "@/db";
 import { businesses, users } from "@/db/schema";
 import { setBusinessModuleKeys } from "@/db/queries/modules";
 import { MODULE_KEYS, type ModuleKey } from "@/lib/modules";
+import { isPlanKey, PLAN_CATALOG, type PlanKey } from "@/lib/plans";
 import { getCurrentUser } from "@/lib/session";
 
 import type { ActionResult } from "./users";
+
+function subscriptionEndFor(start: Date, billingPeriod: "monthly" | "annual"): string {
+  const end = new Date(start);
+  if (billingPeriod === "annual") end.setFullYear(end.getFullYear() + 1);
+  else end.setMonth(end.getMonth() + 1);
+  return end.toISOString().slice(0, 10);
+}
 
 /**
  * Completes a self-service signup for the "new business" path (admin or
@@ -29,7 +37,13 @@ import type { ActionResult } from "./users";
 export async function completeBusinessSignup(
   userId: string,
   currentBusinessId: number | null,
-  input: { businessName: string; role: "admin" | "manager"; moduleKeys: ModuleKey[] },
+  input: {
+    businessName: string;
+    role: "admin" | "manager";
+    moduleKeys: ModuleKey[];
+    planKey?: string;
+    billingPeriod?: "monthly" | "annual";
+  },
 ): Promise<ActionResult & { businessId?: number }> {
   if (currentBusinessId) return { ok: false, message: "This account already belongs to a business." };
 
@@ -37,7 +51,14 @@ export async function completeBusinessSignup(
   if (!name) return { ok: false, message: "Business name is required." };
 
   const role = input.role === "manager" ? "manager" : "admin";
-  const moduleKeys = input.moduleKeys.filter((k) => (MODULE_KEYS as readonly string[]).includes(k));
+  const plan: PlanKey | null = isPlanKey(input.planKey) ? input.planKey : null;
+  // A package pre-selects its own module set — explicit moduleKeys only
+  // matter for the à-la-carte "build your own" path with no package chosen.
+  const moduleKeys = plan
+    ? PLAN_CATALOG[plan].moduleKeys
+    : input.moduleKeys.filter((k) => (MODULE_KEYS as readonly string[]).includes(k));
+  const billingPeriod = input.billingPeriod === "annual" ? "annual" : "monthly";
+  const start = new Date();
 
   const [business] = await db
     .insert(businesses)
@@ -45,7 +66,10 @@ export async function completeBusinessSignup(
       name,
       status: "active",
       subscriptionStatus: moduleKeys.length > 0 ? "active" : "pending",
-      subscriptionStart: new Date().toISOString().slice(0, 10),
+      subscriptionStart: start.toISOString().slice(0, 10),
+      subscriptionEnd: moduleKeys.length > 0 ? subscriptionEndFor(start, billingPeriod) : null,
+      planKey: plan,
+      billingPeriod,
     })
     .returning({ id: businesses.id });
 
@@ -62,6 +86,8 @@ export async function finishBusinessSignup(input: {
   businessName: string;
   role: "admin" | "manager";
   moduleKeys: ModuleKey[];
+  planKey?: string;
+  billingPeriod?: "monthly" | "annual";
 }): Promise<ActionResult & { businessId?: number }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, message: "Your session expired — please sign up again." };

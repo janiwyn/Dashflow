@@ -16,7 +16,7 @@ export const SUPPORTED_CURRENCIES = [
 
 export type CurrencyCode = (typeof SUPPORTED_CURRENCIES)[number]["code"];
 
-const DEFAULT_CURRENCY: CurrencyCode = "KES";
+const DEFAULT_CURRENCY: CurrencyCode = "UGX";
 
 const BY_CODE = new Map(SUPPORTED_CURRENCIES.map((c) => [c.code, c]));
 

@@ -30,6 +30,7 @@ import {
 
 import { formatMoney } from "@/lib/currency";
 import { MODULE_LIST, MODULE_TILE_STYLE } from "@/lib/modules";
+import { PLAN_LIST } from "@/lib/plans";
 import { getCurrentUser } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -53,6 +54,7 @@ export default async function MarketingHome() {
       <Hero user={user} />
       <CityMarquee />
       <PhotoStrip />
+      <PackagesGrid />
       <ModulesGrid />
       <OldVsNew />
       <Showcases />
@@ -80,7 +82,7 @@ function SiteNav({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> })
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
-          <a href="#modules" className="transition-colors hover:text-foreground">Modules &amp; pricing</a>
+          <a href="#pricing" className="transition-colors hover:text-foreground">Pricing</a>
           <a href="#product" className="transition-colors hover:text-foreground">Product</a>
           <a href="#faq" className="transition-colors hover:text-foreground">FAQ</a>
           <Link href="/track-order" className="transition-colors hover:text-foreground">Track an order</Link>
@@ -166,7 +168,7 @@ function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
               href={user ? "/dashboard" : "/subscribe"}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
             >
-              {user ? "Go to your dashboard" : "Choose your modules"}
+              {user ? "Go to your dashboard" : "Choose your plan"}
               <ArrowRight className="size-4" />
             </Link>
             {user ? (
@@ -178,10 +180,10 @@ function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
               </Link>
             ) : (
               <a
-                href="#modules"
+                href="#pricing"
                 className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white/85 transition-colors hover:bg-white/5"
               >
-                See modules &amp; pricing
+                See pricing
               </a>
             )}
           </div>
@@ -351,21 +353,106 @@ function PhotoStrip() {
   );
 }
 
+/* -------------------------------- Packages ------------------------------- */
+
+function PackagesGrid() {
+  return (
+    <section id="pricing" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-2xl text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Pricing</p>
+        <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
+          Pick the plan that fits your business.
+        </h2>
+        <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+          A small shop and a growing wholesaler shouldn&apos;t pay the same way. Every plan gets
+          the real, full version of each module it includes — plans differ in how many staff
+          logins and branches you get, not in what the software can do. Pay monthly, or annually
+          for two months free.
+        </p>
+      </div>
+
+      <div className="mt-14 grid gap-5 lg:grid-cols-5">
+        {PLAN_LIST.map((p) => (
+          <div
+            key={p.key}
+            className={`relative flex flex-col rounded-2xl border p-6 shadow-card ${
+              p.popular ? "border-primary bg-card ring-1 ring-primary/30" : "border-border bg-card"
+            }`}
+          >
+            {p.popular && (
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
+                Most popular
+              </span>
+            )}
+            <h3 className="text-base font-semibold tracking-tight">{p.label}</h3>
+            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{p.tagline}</p>
+
+            <div className="mt-5">
+              {p.monthlyPrice !== null ? (
+                <>
+                  <span className="num font-[family-name:var(--font-display)] text-2xl font-semibold">
+                    {formatMoney(p.monthlyPrice, "UGX")}
+                  </span>
+                  <span className="text-sm text-muted-foreground">/mo</span>
+                </>
+              ) : (
+                <>
+                  <span className="num font-[family-name:var(--font-display)] text-xl font-semibold">
+                    From {formatMoney(p.startingPrice ?? 0, "UGX")}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">/mo · custom pricing</span>
+                </>
+              )}
+            </div>
+
+            <ul className="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
+              {p.highlights.map((h) => (
+                <li key={h} className="flex items-start gap-2">
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                  {h}
+                </li>
+              ))}
+            </ul>
+
+            <Link
+              href={`/subscribe?plan=${p.key}`}
+              className={`mt-6 inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                p.popular
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "border border-border text-foreground hover:bg-secondary"
+              }`}
+            >
+              {p.monthlyPrice !== null ? "Get started" : "Contact us"}
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-8 text-center text-sm text-muted-foreground">
+        Already have accounting software and only need POS and inventory? Skip the packages —{" "}
+        <a href="#modules" className="font-medium text-primary hover:underline">
+          build your own from individual modules
+        </a>
+        .
+      </p>
+    </section>
+  );
+}
+
 /* -------------------------------- Modules grid ------------------------------- */
 
 function ModulesGrid() {
   return (
     <section id="modules" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Modules &amp; pricing</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Or build your own</p>
         <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
-          One platform. Pay only for what you turn on.
+          Only need a couple of modules? Pick exactly those.
         </h2>
         <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-          Start with a Point of Sale and Inventory. Switch on Accounting, Procurement, HR,
-          Attendance and Payroll the moment your business is ready for them — every module plugs
-          straight into the ones you already run, so nothing gets entered twice. No bundles, no
-          tiers — the price you see on a module is the price you pay for it.
+          Already run accounting elsewhere and just need a till and stock control? Skip the
+          packages above and pick only the individual modules you actually need — even just one.
         </p>
       </div>
 
@@ -381,8 +468,8 @@ function ModulesGrid() {
             </span>
             <span className="text-sm font-semibold tracking-tight">{m.label}</span>
             <span className="text-xs leading-snug text-muted-foreground">{m.description}</span>
-            <span className="num mt-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-foreground/80">
-              {formatMoney(m.monthlyPrice, "KES")}/mo
+            <span className="mt-1 text-[11px] font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+              Add just this module →
             </span>
           </Link>
         ))}
@@ -393,11 +480,11 @@ function ModulesGrid() {
           href="/subscribe"
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
         >
-          Build your plan
+          Build your own plan
           <ArrowRight className="size-3.5" />
         </Link>
         <p className="text-center text-sm text-muted-foreground">
-          Click any module above for its price, or pick several and see the total before you sign up.
+          Pick the modules you need and see the total before you sign up.
         </p>
       </div>
     </section>
@@ -877,7 +964,7 @@ function SiteFooter() {
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
           <a href="#product" className="hover:text-foreground">Product</a>
-          <a href="#modules" className="hover:text-foreground">Modules &amp; pricing</a>
+          <a href="#pricing" className="hover:text-foreground">Pricing</a>
           <a href="#faq" className="hover:text-foreground">FAQ</a>
           <Link href="/login" className="hover:text-foreground">Log in</Link>
           <span className="flex items-center gap-1.5"><Wifi className="size-3.5" /> Works online &amp; off</span>

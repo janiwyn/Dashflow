@@ -11,16 +11,21 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  await requireRole("super", "admin");
-  const accounts = await getUserAccounts();
+  const actor = await requireRole("super", "admin");
+  // A super account resets across the whole platform (its own action,
+  // resetUserPassword, already allows this) — an admin still only sees
+  // their own business's users.
+  const accounts = await getUserAccounts({ allBusinesses: actor.role === "super" });
 
   return (
     <ResetPasswordPage
+      showBusiness={actor.role === "super"}
       accounts={accounts.map((a) => ({
         id: a.id,
         username: a.username ?? a.email,
         role: a.role,
         branch: a.branch,
+        business: a.business,
         status: a.status,
       }))}
     />

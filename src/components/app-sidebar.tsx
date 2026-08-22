@@ -45,6 +45,7 @@ import { HexMark } from "@/components/brand-mark";
 import { useActiveModules } from "@/components/modules-provider";
 import { SignOutButton } from "@/components/sign-out-button";
 import type { ModuleKey } from "@/lib/modules";
+import { meetsPlanTier, type PlanKey } from "@/lib/plans";
 import {
   Sidebar,
   SidebarContent,
@@ -60,77 +61,98 @@ import {
 } from "@/components/ui/sidebar";
 
 type Role = "super" | "admin" | "manager" | "staff";
-/** `module: undefined` marks a Core System screen — never gated by subscription. */
-type NavItem = { title: string; url: string; icon: typeof Boxes; roles: Role[]; module?: ModuleKey };
+/**
+ * `module: undefined` marks a Core System screen — never gated by
+ * subscription. `multiBranchOnly` hides a screen for single-branch
+ * businesses. `minPlan` reserves a screen for a plan tier above what its
+ * `module` alone would grant — e.g. Remote Orders needs the Sales module
+ * (present from Starter) *and* at least the Retail plan, since it's a
+ * growth-stage feature bundled into Sales rather than a module of its own.
+ * Only applies to businesses actually on a package (see meetsPlanTier).
+ */
+type NavItem = {
+  title: string;
+  url: string;
+  icon: typeof Boxes;
+  roles: Role[];
+  module?: ModuleKey;
+  multiBranchOnly?: boolean;
+  minPlan?: PlanKey;
+};
 
 const ALL: Role[] = ["super", "admin", "manager", "staff"];
-const MANAGER_UP: Role[] = ["super", "admin", "manager"];
-const ADMIN_UP: Role[] = ["super", "admin"];
 const SUPER_ONLY: Role[] = ["super"];
 
+// A super account runs the platform, not a business — it never operates a
+// till, sells a product, or manages a single business's payroll. These
+// exclude "super" so those sections don't show up for it at all.
+const TENANT_ALL: Role[] = ["admin", "manager", "staff"];
+const TENANT_MANAGER_UP: Role[] = ["admin", "manager"];
+const TENANT_ADMIN_UP: Role[] = ["admin"];
+
 const operate: NavItem[] = [
-  { title: "Overview", url: "/dashboard", icon: LayoutDashboard, roles: ["super", "admin"] },
-  { title: "Terminal", url: "/pos", icon: ScanBarcode, roles: ALL, module: "pos" },
-  { title: "Sales", url: "/sales", icon: Receipt, roles: ALL, module: "sales" },
-  { title: "Remote orders", url: "/remote-orders", icon: ShoppingBag, roles: ALL, module: "sales" },
-  { title: "QR scanner", url: "/qr-scanner", icon: QrCode, roles: ALL, module: "pos" },
-  { title: "Payment proofs", url: "/payment-proofs", icon: BadgeCheck, roles: MANAGER_UP, module: "sales" },
-  { title: "Till management", url: "/till-management", icon: Coins, roles: MANAGER_UP, module: "pos" },
-  { title: "Receipt preview", url: "/receipt-preview", icon: FileText, roles: ALL, module: "pos" },
+  { title: "Overview", url: "/dashboard", icon: LayoutDashboard, roles: ["admin"] },
+  { title: "Terminal", url: "/pos", icon: ScanBarcode, roles: TENANT_ALL, module: "pos" },
+  { title: "Sales", url: "/sales", icon: Receipt, roles: TENANT_ALL, module: "sales" },
+  { title: "Remote orders", url: "/remote-orders", icon: ShoppingBag, roles: TENANT_ALL, module: "sales", minPlan: "retail" },
+  { title: "QR scanner", url: "/qr-scanner", icon: QrCode, roles: TENANT_ALL, module: "pos", minPlan: "retail" },
+  { title: "Payment proofs", url: "/payment-proofs", icon: BadgeCheck, roles: TENANT_MANAGER_UP, module: "sales", minPlan: "retail" },
+  { title: "Till management", url: "/till-management", icon: Coins, roles: TENANT_MANAGER_UP, module: "pos", minPlan: "retail" },
+  { title: "Receipt preview", url: "/receipt-preview", icon: FileText, roles: TENANT_ALL, module: "pos" },
 ];
 
 const stock: NavItem[] = [
-  { title: "Products", url: "/products", icon: Package, roles: ALL, module: "inventory" },
-  { title: "Inventory", url: "/inventory", icon: Boxes, roles: MANAGER_UP, module: "inventory" },
-  { title: "Edit product", url: "/edit-product", icon: UserCog, roles: MANAGER_UP, module: "inventory" },
-  { title: "Product images", url: "/product-images", icon: Images, roles: MANAGER_UP, module: "inventory" },
-  { title: "Expiry tracking", url: "/expiry", icon: CalendarClock, roles: MANAGER_UP, module: "inventory" },
-  { title: "Suppliers", url: "/suppliers", icon: Truck, roles: MANAGER_UP, module: "procurement" },
+  { title: "Products", url: "/products", icon: Package, roles: TENANT_ALL, module: "inventory" },
+  { title: "Inventory", url: "/inventory", icon: Boxes, roles: TENANT_MANAGER_UP, module: "inventory" },
+  { title: "Edit product", url: "/edit-product", icon: UserCog, roles: TENANT_MANAGER_UP, module: "inventory" },
+  { title: "Product images", url: "/product-images", icon: Images, roles: TENANT_MANAGER_UP, module: "inventory" },
+  { title: "Expiry tracking", url: "/expiry", icon: CalendarClock, roles: TENANT_MANAGER_UP, module: "inventory" },
+  { title: "Suppliers", url: "/suppliers", icon: Truck, roles: TENANT_MANAGER_UP, module: "procurement" },
 ];
 
 const people: NavItem[] = [
-  { title: "Customers", url: "/customers", icon: Users, roles: ALL, module: "customers" },
-  { title: "Customer file", url: "/customer-file", icon: FileText, roles: ALL, module: "customers" },
-  { title: "Debtor payment", url: "/debtor-payment", icon: BadgeDollarSign, roles: ALL, module: "customers" },
-  { title: "Attendance", url: "/attendance", icon: Fingerprint, roles: ALL, module: "attendance" },
-  { title: "Employees", url: "/employees", icon: UsersRound, roles: MANAGER_UP, module: "hr" },
-  { title: "Employee record", url: "/employee", icon: UserRound, roles: MANAGER_UP, module: "hr" },
-  { title: "Payroll", url: "/payroll", icon: Wallet, roles: MANAGER_UP, module: "payroll" },
-  { title: "Payslip", url: "/payslip", icon: FileText, roles: ALL, module: "payroll" },
+  { title: "Customers", url: "/customers", icon: Users, roles: TENANT_ALL, module: "customers" },
+  { title: "Customer file", url: "/customer-file", icon: FileText, roles: TENANT_ALL, module: "customers" },
+  { title: "Debtor payment", url: "/debtor-payment", icon: BadgeDollarSign, roles: TENANT_ALL, module: "customers" },
+  { title: "Attendance", url: "/attendance", icon: Fingerprint, roles: TENANT_ALL, module: "attendance" },
+  { title: "Employees", url: "/employees", icon: UsersRound, roles: TENANT_MANAGER_UP, module: "hr" },
+  { title: "Employee record", url: "/employee", icon: UserRound, roles: TENANT_MANAGER_UP, module: "hr" },
+  { title: "Payroll", url: "/payroll", icon: Wallet, roles: TENANT_MANAGER_UP, module: "payroll" },
+  { title: "Payslip", url: "/payslip", icon: FileText, roles: TENANT_ALL, module: "payroll" },
 ];
 
 const finance: NavItem[] = [
-  { title: "Accounting", url: "/accounting", icon: Calculator, roles: MANAGER_UP, module: "accounting" },
-  { title: "Ledger", url: "/ledger", icon: BookOpen, roles: MANAGER_UP, module: "accounting" },
-  { title: "Transactions", url: "/add-transaction", icon: BookMarked, roles: MANAGER_UP, module: "accounting" },
-  { title: "Chart of accounts", url: "/add-account", icon: Landmark, roles: MANAGER_UP, module: "accounting" },
-  { title: "Cash book", url: "/cash-book", icon: Coins, roles: MANAGER_UP, module: "accounting" },
-  { title: "Petty cash", url: "/petty-cash", icon: Wallet, roles: MANAGER_UP, module: "accounting" },
-  { title: "Trial balance", url: "/trial-balance", icon: Scale, roles: MANAGER_UP, module: "accounting" },
-  { title: "Income statement", url: "/income-statement", icon: LineChart, roles: MANAGER_UP, module: "accounting" },
-  { title: "Balance sheet", url: "/balance-sheet", icon: Scale, roles: MANAGER_UP, module: "accounting" },
-  { title: "Invoices", url: "/invoice-preview", icon: FileText, roles: ALL, module: "sales" },
-  { title: "Expenses", url: "/expenses", icon: Wallet, roles: MANAGER_UP, module: "accounting" },
+  { title: "Accounting", url: "/accounting", icon: Calculator, roles: TENANT_MANAGER_UP, module: "accounting" },
+  { title: "Ledger", url: "/ledger", icon: BookOpen, roles: TENANT_MANAGER_UP, module: "accounting" },
+  { title: "Transactions", url: "/add-transaction", icon: BookMarked, roles: TENANT_MANAGER_UP, module: "accounting" },
+  { title: "Chart of accounts", url: "/add-account", icon: Landmark, roles: TENANT_MANAGER_UP, module: "accounting" },
+  { title: "Cash book", url: "/cash-book", icon: Coins, roles: TENANT_MANAGER_UP, module: "accounting" },
+  { title: "Petty cash", url: "/petty-cash", icon: Wallet, roles: TENANT_MANAGER_UP, module: "accounting" },
+  { title: "Trial balance", url: "/trial-balance", icon: Scale, roles: TENANT_MANAGER_UP, module: "accounting" },
+  { title: "Income statement", url: "/income-statement", icon: LineChart, roles: TENANT_MANAGER_UP, module: "accounting" },
+  { title: "Balance sheet", url: "/balance-sheet", icon: Scale, roles: TENANT_MANAGER_UP, module: "accounting" },
+  { title: "Invoices", url: "/invoice-preview", icon: FileText, roles: TENANT_ALL, module: "sales" },
+  { title: "Expenses", url: "/expenses", icon: Wallet, roles: TENANT_MANAGER_UP, module: "accounting" },
 ];
 
 const insights: NavItem[] = [
-  { title: "Reports", url: "/reports", icon: LineChart, roles: MANAGER_UP, module: "sales" },
-  { title: "Report builder", url: "/reports-generator", icon: FileText, roles: MANAGER_UP, module: "sales" },
-  { title: "Notifications", url: "/notifications", icon: Bell, roles: ALL },
-  { title: "Order alerts", url: "/order-notifications", icon: BellRing, roles: ALL, module: "sales" },
-  { title: "SMS centre", url: "/sms", icon: MessageSquare, roles: MANAGER_UP },
+  { title: "Reports", url: "/reports", icon: LineChart, roles: TENANT_MANAGER_UP, module: "sales" },
+  { title: "Report builder", url: "/reports-generator", icon: FileText, roles: TENANT_MANAGER_UP, module: "sales", minPlan: "professional" },
+  { title: "Notifications", url: "/notifications", icon: Bell, roles: TENANT_ALL },
+  { title: "Order alerts", url: "/order-notifications", icon: BellRing, roles: TENANT_ALL, module: "sales", minPlan: "retail" },
+  { title: "SMS centre", url: "/sms", icon: MessageSquare, roles: TENANT_MANAGER_UP, minPlan: "business" },
 ];
 
 const network: NavItem[] = [
-  { title: "Branches", url: "/branches", icon: Building2, roles: MANAGER_UP },
-  { title: "Branch list", url: "/list-branches", icon: Store, roles: MANAGER_UP },
-  { title: "Branch dashboard", url: "/branch", icon: LayoutDashboard, roles: MANAGER_UP },
-  { title: "Manager view", url: "/manager-dashboard", icon: Briefcase, roles: MANAGER_UP },
-  { title: "Staff view", url: "/staff-dashboard", icon: UserRound, roles: ALL },
+  { title: "Branches", url: "/branches", icon: Building2, roles: TENANT_MANAGER_UP, multiBranchOnly: true },
+  { title: "Branch list", url: "/list-branches", icon: Store, roles: TENANT_MANAGER_UP, multiBranchOnly: true },
+  { title: "Branch dashboard", url: "/branch", icon: LayoutDashboard, roles: TENANT_MANAGER_UP, multiBranchOnly: true },
+  { title: "Manager view", url: "/manager-dashboard", icon: Briefcase, roles: TENANT_MANAGER_UP, minPlan: "retail" },
+  { title: "Staff view", url: "/staff-dashboard", icon: UserRound, roles: TENANT_ALL, minPlan: "retail" },
 ];
 
 const platform: NavItem[] = [
-  { title: "Settings", url: "/settings", icon: Settings, roles: ADMIN_UP },
+  { title: "Settings", url: "/settings", icon: Settings, roles: TENANT_ADMIN_UP },
   { title: "Super admin", url: "/super", icon: ShieldCheck, roles: SUPER_ONLY },
   { title: "Businesses", url: "/manage-business", icon: Briefcase, roles: SUPER_ONLY },
   { title: "Admins", url: "/manage-admin", icon: UserCog, roles: SUPER_ONLY },
@@ -146,6 +168,8 @@ export type SidebarUser = {
   roleLabel: string;
   branch: string | null;
   initials: string;
+  hasMultipleBranches: boolean;
+  planKey: PlanKey | null;
 };
 
 export function AppSidebar({ user }: { user: SidebarUser }) {
@@ -157,7 +181,11 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
 
   const renderGroup = (label: string, items: NavItem[]) => {
     const visible = items.filter(
-      (item) => item.roles.includes(role) && (!item.module || activeModules.has(item.module)),
+      (item) =>
+        item.roles.includes(role) &&
+        (!item.module || activeModules.has(item.module)) &&
+        (!item.multiBranchOnly || user.hasMultipleBranches) &&
+        (!item.minPlan || meetsPlanTier(user.planKey, item.minPlan)),
     );
     if (visible.length === 0) return null;
 

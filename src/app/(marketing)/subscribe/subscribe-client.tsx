@@ -6,32 +6,44 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
-import { addModulesToMyBusiness } from "@/app/actions/subscribe";
+import { addModulesToMyBusiness, subscribeToPlan } from "@/app/actions/subscribe";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatMoney } from "@/lib/currency";
 import { MODULE_LIST, MODULE_TILE_STYLE, modulesMonthlyTotal, type ModuleKey } from "@/lib/modules";
+import { annualPrice, PLAN_LIST, type PlanKey } from "@/lib/plans";
 
 type Step = "select" | "pay";
+type Mode = "package" | "custom";
+type BillingPeriod = "monthly" | "annual";
 
 type Props = {
   initialModules: ModuleKey[];
   /** Modules the signed-in visitor's business already has — offered as "Active", not for sale again. */
   existingModules: ModuleKey[];
+  initialPlan: PlanKey | null;
+  /** The signed-in visitor's business's current package, if it's on one. */
+  existingPlanKey: PlanKey | null;
   /** A signed-in admin/manager adding to their own business, vs. a visitor creating one via /signup. */
   isLoggedIn: boolean;
 };
 
-export default function SubscribePage({ initialModules, existingModules, isLoggedIn }: Props) {
+export default function SubscribePage({ initialModules, existingModules, initialPlan, existingPlanKey, isLoggedIn }: Props) {
   const router = useRouter();
+  // Packages are the primary path now — only start on the à-la-carte picker
+  // if the visitor arrived with specific modules chosen (e.g. from "build
+  // your own" on the marketing page) and no package in mind.
+  const [mode, setMode] = useState<Mode>(initialPlan || initialModules.length === 0 ? "package" : "custom");
+  const [billing, setBilling] = useState<BillingPeriod>("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<PlanKey>(initialPlan ?? existingPlanKey ?? "retail");
   const [selected, setSelected] = useState<Set<ModuleKey>>(new Set(initialModules));
   const [step, setStep] = useState<Step>("select");
   const [paying, setPaying] = useState(false);
   const owned = useMemo(() => new Set(existingModules), [existingModules]);
 
   const keys = useMemo(() => Array.from(selected), [selected]);
-  const total = modulesMonthlyTotal(keys);
+  const customTotal = modulesMonthlyTotal(keys);
 
   const toggle = (key: ModuleKey) => {
     if (owned.has(key)) return;
@@ -52,10 +64,13 @@ export default function SubscribePage({ initialModules, existingModules, isLogge
     await new Promise((resolve) => setTimeout(resolve, 1300));
 
     if (isLoggedIn) {
-      // Already have an account — add straight to it instead of routing
+      // Already have an account — apply straight to it instead of routing
       // through /signup, which would just bounce a signed-in visitor to
-      // /dashboard and silently drop the modules they just "paid" for.
-      const result = await addModulesToMyBusiness(keys);
+      // /dashboard and silently drop what they just "paid" for.
+      const result =
+        mode === "package"
+          ? await subscribeToPlan(selectedPlan, billing)
+          : await addModulesToMyBusiness(keys);
       setPaying(false);
       if (!result.ok) {
         toast.error(result.message);
@@ -67,7 +82,11 @@ export default function SubscribePage({ initialModules, existingModules, isLogge
       return;
     }
 
-    router.push(`/signup?modules=${keys.join(",")}`);
+    if (mode === "package") {
+      router.push(`/signup?plan=${selectedPlan}&billing=${billing}`);
+    } else {
+      router.push(`/signup?modules=${keys.join(",")}`);
+    }
   }
 
   return (
@@ -96,18 +115,35 @@ export default function SubscribePage({ initialModules, existingModules, isLogge
 
       <main className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
         {step === "select" ? (
-          <SelectStep
-            selected={selected}
-            owned={owned}
-            total={total}
-            isLoggedIn={isLoggedIn}
-            onToggle={toggle}
-            onContinue={() => setStep("pay")}
-          />
+          mode === "package" ? (
+            <PackageStep
+              selectedPlan={selectedPlan}
+              onSelectPlan={setSelectedPlan}
+              billing={billing}
+              onBillingChange={setBilling}
+              existingPlanKey={existingPlanKey}
+              hasOtherModules={owned.size > 0}
+              onSwitchToCustom={() => setMode("custom")}
+              onContinue={() => setStep("pay")}
+            />
+          ) : (
+            <SelectStep
+              selected={selected}
+              owned={owned}
+              total={customTotal}
+              isLoggedIn={isLoggedIn}
+              onToggle={toggle}
+              onSwitchToPackage={() => setMode("package")}
+              onContinue={() => setStep("pay")}
+            />
+          )
         ) : (
           <PayStep
+            mode={mode}
+            selectedPlan={selectedPlan}
+            billing={billing}
             keys={keys}
-            total={total}
+            total={customTotal}
             paying={paying}
             isLoggedIn={isLoggedIn}
             onBack={() => setStep("select")}
@@ -119,12 +155,140 @@ export default function SubscribePage({ initialModules, existingModules, isLogge
   );
 }
 
+function BillingToggle({ billing, onChange }: { billing: BillingPeriod; onChange: (b: BillingPeriod) => void }) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1">
+      {(["monthly", "annual"] as const).map((b) => (
+        <button
+          key={b}
+          type="button"
+          onClick={() => onChange(b)}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            billing === b ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {b === "monthly" ? "Monthly" : "Annual — 2 months free"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PackageStep({
+  selectedPlan,
+  onSelectPlan,
+  billing,
+  onBillingChange,
+  existingPlanKey,
+  hasOtherModules,
+  onSwitchToCustom,
+  onContinue,
+}: {
+  selectedPlan: PlanKey;
+  onSelectPlan: (key: PlanKey) => void;
+  billing: BillingPeriod;
+  onBillingChange: (b: BillingPeriod) => void;
+  existingPlanKey: PlanKey | null;
+  hasOtherModules: boolean;
+  onSwitchToCustom: () => void;
+  onContinue: () => void;
+}) {
+  const plan = PLAN_LIST.find((p) => p.key === selectedPlan)!;
+
+  return (
+    <>
+      <div className="text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Choose your plan</p>
+        <h1 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
+          Pick the plan that fits your business
+        </h1>
+        <p className="mt-3 text-[15px] text-muted-foreground">
+          Every plan gets the full, real version of each module — plans differ in staff logins and branches, not features.
+        </p>
+      </div>
+
+      <div className="mt-6 flex justify-center">
+        <BillingToggle billing={billing} onChange={onBillingChange} />
+      </div>
+
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {PLAN_LIST.map((p) => {
+          const active = selectedPlan === p.key;
+          const isCurrent = existingPlanKey === p.key;
+          const price = p.monthlyPrice !== null ? (billing === "annual" ? annualPrice(p.monthlyPrice) : p.monthlyPrice) : null;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => onSelectPlan(p.key)}
+              className={`relative flex flex-col rounded-2xl border p-5 text-left transition-colors ${
+                active ? "border-primary bg-accent/50 shadow-card" : "border-border bg-card hover:bg-secondary/50"
+              }`}
+            >
+              {p.popular && (
+                <span className="absolute -top-2.5 left-4 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                  Popular
+                </span>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold">{p.label}</span>
+                {active && <Check className="size-4 text-primary" />}
+              </div>
+              <div className="mt-2">
+                {price !== null ? (
+                  <>
+                    <span className="num text-lg font-semibold">{formatMoney(price, "UGX")}</span>
+                    <span className="text-xs text-muted-foreground">/{billing === "annual" ? "yr" : "mo"}</span>
+                  </>
+                ) : (
+                  <span className="num text-sm font-semibold">From {formatMoney(p.startingPrice ?? 0, "UGX")}/mo</span>
+                )}
+              </div>
+              {isCurrent && <span className="mt-1 text-[11px] font-medium text-success">Your current plan</span>}
+              <ul className="mt-3 space-y-1 text-[11px] text-muted-foreground">
+                {p.highlights.slice(0, 3).map((h) => (
+                  <li key={h} className="flex items-start gap-1.5">
+                    <Check className="mt-0.5 size-3 shrink-0 text-primary" />
+                    {h}
+                  </li>
+                ))}
+              </ul>
+            </button>
+          );
+        })}
+      </div>
+
+      {hasOtherModules && (
+        <p className="mt-4 rounded-lg bg-warning/10 px-4 py-2.5 text-center text-xs text-warning-foreground">
+          Switching plans sets your active modules to exactly what the plan includes — it can drop modules you currently have that aren&apos;t in the new plan.
+        </p>
+      )}
+
+      <div className="sticky bottom-4 mt-8 flex flex-col items-center gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-lift backdrop-blur sm:flex-row sm:justify-between">
+        <p className="text-sm">
+          <span className="font-semibold">{plan.label}</span> selected
+        </p>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={onSwitchToCustom} className="text-sm font-medium text-muted-foreground hover:text-foreground">
+            Build your own instead
+          </button>
+          <Button onClick={onContinue} className="rounded-lg">
+            Continue to payment
+            <ArrowRight className="size-4" />
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function SelectStep({
   selected,
   owned,
   total,
   isLoggedIn,
   onToggle,
+  onSwitchToPackage,
   onContinue,
 }: {
   selected: Set<ModuleKey>;
@@ -132,12 +296,13 @@ function SelectStep({
   total: number;
   isLoggedIn: boolean;
   onToggle: (key: ModuleKey) => void;
+  onSwitchToPackage: () => void;
   onContinue: () => void;
 }) {
   return (
     <>
       <div className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Subscribe</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Build your own</p>
         <h1 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
           {isLoggedIn ? "Add modules to your business" : "Choose your modules"}
         </h1>
@@ -146,6 +311,9 @@ function SelectStep({
             ? "Modules you already subscribe to are marked Active. Pick more to add them to your account."
             : "Pick as many or as few as your business needs today — add the rest later from Settings."}
         </p>
+        <button type="button" onClick={onSwitchToPackage} className="mt-3 text-sm font-medium text-primary hover:underline">
+          Looking for a package instead?
+        </button>
       </div>
 
       <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -184,7 +352,7 @@ function SelectStep({
                 <span className="text-xs font-medium text-success">Active</span>
               ) : (
                 <span className="num text-xs font-medium text-muted-foreground">
-                  {formatMoney(m.monthlyPrice, "KES")}/mo
+                  {formatMoney(m.monthlyPrice, "UGX")}/mo
                 </span>
               )}
             </button>
@@ -196,7 +364,7 @@ function SelectStep({
         <p className="text-sm">
           <span className="font-semibold">{selected.size}</span> module{selected.size === 1 ? "" : "s"} selected
           {selected.size > 0 && (
-            <span className="num ml-2 font-semibold text-primary">{formatMoney(total, "KES")}/mo</span>
+            <span className="num ml-2 font-semibold text-primary">{formatMoney(total, "UGX")}/mo</span>
           )}
         </p>
         <div className="flex items-center gap-3">
@@ -221,6 +389,9 @@ function SelectStep({
 }
 
 function PayStep({
+  mode,
+  selectedPlan,
+  billing,
   keys,
   total,
   paying,
@@ -228,6 +399,9 @@ function PayStep({
   onBack,
   onPay,
 }: {
+  mode: Mode;
+  selectedPlan: PlanKey;
+  billing: BillingPeriod;
   keys: ModuleKey[];
   total: number;
   paying: boolean;
@@ -235,6 +409,11 @@ function PayStep({
   onBack: () => void;
   onPay: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const plan = PLAN_LIST.find((p) => p.key === selectedPlan)!;
+  const isCustomPricing = mode === "package" && plan.monthlyPrice === null;
+  const payTotal = mode === "package" ? (plan.monthlyPrice !== null ? (billing === "annual" ? annualPrice(plan.monthlyPrice) : plan.monthlyPrice) : 0) : total;
+  const lineItems = mode === "package" ? plan.moduleKeys : keys;
+
   return (
     <div className="mx-auto max-w-md">
       <button
@@ -242,17 +421,19 @@ function PayStep({
         onClick={onBack}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" /> Change modules
+        <ArrowLeft className="size-4" /> {mode === "package" ? "Change plan" : "Change modules"}
       </button>
 
       <h1 className="mt-4 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight sm:text-3xl">
-        Confirm your subscription
+        {isCustomPricing ? "Talk to our team" : "Confirm your subscription"}
       </h1>
 
       <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Order summary</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          {mode === "package" ? `${plan.label} plan` : "Order summary"}
+        </p>
         <ul className="mt-3 divide-y divide-border">
-          {keys.map((key) => {
+          {lineItems.map((key) => {
             const m = MODULE_LIST.find((x) => x.key === key)!;
             return (
               <li key={key} className="flex items-center justify-between py-2 text-sm">
@@ -262,49 +443,78 @@ function PayStep({
                   </span>
                   {m.label}
                 </span>
-                <span className="num text-muted-foreground">{formatMoney(m.monthlyPrice, "KES")}</span>
+                {mode === "custom" && <span className="num text-muted-foreground">{formatMoney(m.monthlyPrice, "UGX")}</span>}
               </li>
             );
           })}
         </ul>
-        <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm font-semibold">
-          <span>Total</span>
-          <span className="num">{formatMoney(total, "KES")}/mo</span>
-        </div>
+        {mode === "package" && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Up to {plan.maxUsers ?? "many"} user{plan.maxUsers === 1 ? "" : "s"} ·{" "}
+            {plan.maxBranches ? `up to ${plan.maxBranches} branch${plan.maxBranches === 1 ? "" : "es"}` : "multiple branches"}
+          </p>
+        )}
+        {!isCustomPricing && (
+          <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm font-semibold">
+            <span>Total{mode === "package" && billing === "annual" ? " (per year)" : ""}</span>
+            <span className="num">{formatMoney(payTotal, "UGX")}{mode === "custom" ? "/mo" : billing === "annual" ? "/yr" : "/mo"}</span>
+          </div>
+        )}
       </div>
 
-      <form onSubmit={onPay} className="mt-6 flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="mpesa-phone">M-Pesa phone number</Label>
-          <Input
-            id="mpesa-phone"
-            name="phone"
-            required
-            className="rounded-lg"
-            placeholder="07XX XXX XXX"
-          />
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Smartphone className="size-3.5" /> We&apos;ll send a payment prompt to this number.
+      {isCustomPricing ? (
+        <div className="mt-6 flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            Enterprise pricing depends on branches, users and integrations — create your account now and our team will follow up to confirm final pricing. Nothing is charged until then.
           </p>
+          <form onSubmit={onPay}>
+            <Button type="submit" disabled={paying} className="w-full rounded-lg">
+              {paying ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Setting up…
+                </>
+              ) : isLoggedIn ? (
+                "Switch to Enterprise"
+              ) : (
+                "Create account"
+              )}
+            </Button>
+          </form>
         </div>
+      ) : (
+        <form onSubmit={onPay} className="mt-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="mpesa-phone">M-Pesa phone number</Label>
+            <Input
+              id="mpesa-phone"
+              name="phone"
+              required
+              className="rounded-lg"
+              placeholder="07XX XXX XXX"
+            />
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Smartphone className="size-3.5" /> We&apos;ll send a payment prompt to this number.
+            </p>
+          </div>
 
-        <Button type="submit" disabled={paying} className="rounded-lg">
-          {paying ? (
-            <>
-              <Loader2 className="size-4 animate-spin" /> Waiting for confirmation…
-            </>
-          ) : (
-            <>Pay {formatMoney(total, "KES")} now</>
-          )}
-        </Button>
+          <Button type="submit" disabled={paying} className="rounded-lg">
+            {paying ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> Waiting for confirmation…
+              </>
+            ) : (
+              <>Pay {formatMoney(payTotal, "UGX")} now</>
+            )}
+          </Button>
 
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-          <ShieldCheck className="size-3.5" />
-          {isLoggedIn
-            ? "These activate on your account immediately after payment."
-            : "You'll set up your login right after payment."}
-        </p>
-      </form>
+          <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+            <ShieldCheck className="size-3.5" />
+            {isLoggedIn
+              ? "These activate on your account immediately after payment."
+              : "You'll set up your login right after payment."}
+          </p>
+        </form>
+      )}
     </div>
   );
 }

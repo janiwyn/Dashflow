@@ -858,6 +858,9 @@ export type Business = {
   subscriptionStart: string;
   subscriptionEnd: string;
   subscriptionStatus: "active" | "pending" | "expired";
+  branchCount: number;
+  planKey: string | null;
+  billingPeriod: "monthly" | "annual";
 };
 
 export async function viewBusinesses(): Promise<Business[]> {
@@ -874,6 +877,9 @@ export async function viewBusinesses(): Promise<Business[]> {
     subscriptionStart: b.subscriptionStart ?? "—",
     subscriptionEnd: b.subscriptionEnd ?? "—",
     subscriptionStatus: b.subscriptionStatus,
+    branchCount: b.branchCount,
+    planKey: b.planKey,
+    billingPeriod: b.billingPeriod,
   }));
 }
 
@@ -883,7 +889,10 @@ export type Admin = {
   email: string;
   businessName: string;
   role: string;
-  status: "active" | "inactive";
+  // Matches the real `user_status` enum ("active" | "suspended") — this
+  // used to relabel "suspended" as "inactive", a status that doesn't exist
+  // in the schema, because the page's toggle never called the real action.
+  status: "active" | "suspended";
   createdAt: string;
 };
 
@@ -895,14 +904,51 @@ export async function viewAdmins(): Promise<Admin[]> {
     email: a.email,
     businessName: a.businessName ?? "—",
     role: a.role,
-    status: a.status === "active" ? "active" : "inactive",
+    status: a.status === "active" ? "active" : "suspended",
     createdAt: a.createdAt.toISOString().slice(0, 10),
   }));
 }
 
+export type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  branch: string | null;
+  status: string;
+  createdAt: string;
+  businessId: number | null;
+  businessName: string | null;
+};
+
+/** Every non-platform account on the system (admin, manager, staff), for the "who's on each business's team" roster — viewAdmins() only covers admin/manager. */
+export async function viewBusinessTeamMembers(): Promise<TeamMember[]> {
+  const rows = await hr.getUserAccounts({ allBusinesses: true });
+  return rows
+    .filter((r) => r.role !== "super")
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      role: r.role,
+      branch: r.branch,
+      status: r.status,
+      createdAt: longDate(r.createdAt),
+      businessId: r.businessId,
+      businessName: r.business,
+    }));
+}
+
 export async function viewBusinessGrowth() {
   const rows = await superAdmin.getBusinessGrowth();
-  return rows.map((r) => ({ month: r.month, total: r.total }));
+  // `added` (new registrations that month) is kept alongside the running
+  // `total` so a page can show a real "new this month" figure instead of a
+  // hardcoded placeholder.
+  return rows.map((r) => ({ month: r.month, total: r.total, added: r.added }));
+}
+
+export async function viewPlatformSummary() {
+  return superAdmin.getPlatformSummary();
 }
 
 export async function viewSystemLogs(): Promise<string[]> {
@@ -911,6 +957,45 @@ export async function viewSystemLogs(): Promise<string[]> {
     (l) =>
       `${l.createdAt.toISOString().slice(0, 19).replace("T", " ")} - [${l.actor}] ${l.message}`,
   );
+}
+
+export type SystemLogEntry = {
+  id: number;
+  actor: string;
+  message: string;
+  date: string;
+  time: string;
+};
+
+/** The structured counterpart to viewSystemLogs()'s flat strings — for a real table instead of a text dump. */
+export async function viewSystemLogEntries(): Promise<SystemLogEntry[]> {
+  const rows = await superAdmin.getSystemLogs();
+  return rows.map((l) => ({
+    id: l.id,
+    actor: l.actor,
+    message: l.message,
+    date: longDate(l.createdAt),
+    time: clockTime(l.createdAt),
+  }));
+}
+
+export type SystemUpdateEntry = {
+  id: number;
+  fileName: string;
+  notes: string | null;
+  date: string;
+  time: string;
+};
+
+export async function viewSystemUpdates(): Promise<SystemUpdateEntry[]> {
+  const rows = await superAdmin.getSystemUpdates();
+  return rows.map((u) => ({
+    id: u.id,
+    fileName: u.fileName,
+    notes: u.notes,
+    date: longDate(u.uploadedAt),
+    time: clockTime(u.uploadedAt),
+  }));
 }
 
 export async function viewProfile() {
@@ -941,7 +1026,20 @@ export async function viewBusinessSettings() {
     address: b.address ?? "",
     taxPin: b.taxPin ?? "",
     currency: b.currency,
+    planKey: b.planKey,
+    billingPeriod: b.billingPeriod,
+    subscriptionStatus: b.subscriptionStatus,
+    subscriptionStart: b.subscriptionStart,
+    subscriptionEnd: b.subscriptionEnd,
   };
+}
+
+/** Real usage against the business's plan limits, for the Settings page's subscription panel. */
+export async function viewSubscriptionUsage() {
+  const { getCurrentUser } = await import("@/lib/session");
+  const { getSubscriptionUsage } = await import("./modules");
+  const user = await getCurrentUser();
+  return getSubscriptionUsage(user?.businessId ?? 1);
 }
 
 /** Notification row shapes, kept for the alert screens. */
@@ -977,29 +1075,87 @@ export async function viewInventoryStats() {
   return catalog.getInventorySummary();
 }
 
+export async function viewStockLevelBreakdown() {
+  return catalog.getStockLevelBreakdown();
+}
+
+export async function viewStockByBranch() {
+  return catalog.getStockByBranch();
+}
+
+/** Best sellers by revenue over the last 30 days — the Inventory dashboard's real replacement for a "fastest mover" stat. */
+export async function viewTopMovers(limit = 5) {
+  const since = new Date();
+  since.setDate(since.getDate() - 29);
+  const rows = await salesQueries.getTopProducts({ limit, since });
+  return rows.map((r) => ({ name: r.name, units: r.units, revenue: r.revenue }));
+}
+
+/**
+ * Headline KPIs for the Sales dashboard, over a rolling 30-day window vs
+ * the 30 days before that — not literal today/yesterday, since a POS demo
+ * business can have zero receipts on the exact current calendar day while
+ * still having plenty of real recent activity to show.
+ */
 export async function viewSalesStats() {
-  const [totals, refunds, pending] = await Promise.all([
-    salesQueries.getSalesTotals(),
-    salesQueries.getRefundTotals(1),
+  const [windowStats, refunds, pending, profit] = await Promise.all([
+    salesQueries.getSalesWindowStats(30),
+    salesQueries.getRefundTotals(30),
     salesQueries.getPendingReceiptCount(),
+    salesQueries.getProfitStats(30),
   ]);
 
   return {
-    gross: totals.todayRevenue,
-    grossDelta: delta(totals.todayRevenue, totals.yesterdayRevenue),
-    receipts: totals.todayReceipts,
-    receiptsDelta: delta(totals.todayReceipts, totals.yesterdayReceipts),
+    gross: windowStats.current.revenue,
+    grossDelta: delta(windowStats.current.revenue, windowStats.previous.revenue),
+    receipts: windowStats.current.receipts,
+    receiptsDelta: delta(windowStats.current.receipts, windowStats.previous.receipts),
     refunds: refunds.amount,
     refundCount: refunds.receipts,
     pending,
+    averageOrderValue: windowStats.current.receipts
+      ? Math.round(windowStats.current.revenue / windowStats.current.receipts)
+      : 0,
+    profit: profit.currentProfit,
+    profitDelta: delta(profit.currentProfit, profit.previousProfit),
+    customers: windowStats.current.customers,
+    customersDelta: delta(windowStats.current.customers, windowStats.previous.customers),
   };
 }
 
+/** Chart data for the Sales dashboard: category/branch breakdowns, revenue-vs-profit trend, top products and payment mix — all real, trailing-30-day (or 14-day for the daily trend) figures. */
+export async function viewSalesAnalytics() {
+  const since = new Date();
+  since.setDate(since.getDate() - 29);
+
+  const [byCategory, byBranch, profitSeries, topProducts, paymentBreakdown] = await Promise.all([
+    salesQueries.getSalesByCategory(30),
+    salesQueries.getSalesByBranchTotals(30),
+    salesQueries.getProfitSeries(14),
+    salesQueries.getTopProducts({ limit: 5, since }),
+    salesQueries.getPaymentBreakdown({ since }),
+  ]);
+
+  return {
+    byCategory,
+    byBranch,
+    profitSeries,
+    topProducts: topProducts.map((p) => ({ name: p.name, revenue: p.revenue })),
+    paymentBreakdown: paymentBreakdown.map((p) => ({ method: label(p.method), count: p.count, total: p.total })),
+  };
+}
+
+/**
+ * Uses a 30-day rolling window rather than the literal last 7 calendar
+ * days — a demo/seed business's real activity can easily cluster earlier
+ * in the month and leave the most-recent week empty, which would make
+ * "orders" and "best day" read as zero despite real data existing.
+ */
 export async function viewReportStats() {
   const [totals, series, margin] = await Promise.all([
     salesQueries.getSalesTotals(),
-    salesQueries.getRevenueSeries(7),
-    salesQueries.getGrossMarginTrend(7),
+    salesQueries.getRevenueSeries(30),
+    salesQueries.getGrossMarginTrend(30),
   ]);
   const orders = series.reduce((s, d) => s + d.orders, 0);
 
@@ -1014,6 +1170,17 @@ export async function viewReportStats() {
       series[0] ?? { day: "—", revenue: 0, orders: 0, date: "" },
     ),
   };
+}
+
+/** Revenue, cost of sales, expenses (by category) and net profit for the trailing `days` window — the whole-business report's real P&L figures. */
+export async function viewIncomeStatementSummary(days = 30) {
+  return accounting.getIncomeStatement(days);
+}
+
+/** Monthly revenue for the trailing `months` — the whole-business report's long-range trend chart. */
+export async function viewMonthlyRevenueTrend(months = 6) {
+  const rows = await salesQueries.getMonthlyRevenue(months);
+  return rows.map((r) => ({ month: r.month, revenue: r.revenue, orders: r.orders }));
 }
 
 export async function viewManagerStats() {
