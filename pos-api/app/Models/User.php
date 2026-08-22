@@ -19,7 +19,7 @@ class User extends Model
 
     public $timestamps = true;
 
-    protected $fillable = ['name', 'phone'];
+    protected $fillable = ['name', 'phone', 'theme'];
 
     protected $hidden = [];
 

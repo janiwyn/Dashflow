@@ -31,8 +31,9 @@ class StaffDashboardController extends Controller
             ->where('status', '!=', 'refunded')
             ->whereDate('sold_at', now()->toDateString());
 
-        $revenue = (float) (clone $scope())->sum('total');
-        $receipts = (clone $scope())->count();
+        $totals = (clone $scope())->selectRaw('coalesce(sum(total), 0) as revenue, count(*) as receipts')->first();
+        $revenue = (float) $totals->revenue;
+        $receipts = (int) $totals->receipts;
         $items = (int) DB::table('sale_items')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->where('sales.business_id', $businessId)

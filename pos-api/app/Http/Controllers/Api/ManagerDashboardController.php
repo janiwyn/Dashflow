@@ -7,9 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\Expense;
-use App\Models\Product;
 use App\Models\Sale;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Ports the web app's "/manager-dashboard" (sidebar label "Manager view",
@@ -47,8 +47,13 @@ class ManagerDashboardController extends Controller
             ->whereDate('incurred_on', now()->toDateString())
             ->sum('amount');
 
-        $productsScope = Product::where('business_id', $businessId)
-            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId));
+        // One round-trip instead of two — count(*) and the low-stock filter(...) count
+        // share the same table and scope, so there's no reason to query it twice.
+        $productTotals = DB::table('products')
+            ->where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->selectRaw('count(*) as product_count, count(*) filter (where stock <= low_stock_threshold) as low_stock')
+            ->first();
 
         $totalStaff = Employee::where('business_id', $businessId)
             ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
@@ -59,8 +64,8 @@ class ManagerDashboardController extends Controller
             'branchName' => $branchId ? Branch::find($branchId)?->name : null,
             'salesToday' => $salesToday,
             'expensesToday' => $expensesToday,
-            'productCount' => (clone $productsScope)->count(),
-            'lowStock' => (clone $productsScope)->lowStock()->count(),
+            'productCount' => (int) $productTotals->product_count,
+            'lowStock' => (int) $productTotals->low_stock,
             'totalStaff' => $totalStaff,
         ]);
     }

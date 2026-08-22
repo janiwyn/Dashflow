@@ -49,37 +49,190 @@ class SaleController extends Controller
         ]));
     }
 
-    /** Same three numbers the web app's Sales page leads with — today's gross, receipts and refunds, each with a vs-yesterday delta where it makes sense. */
+    /**
+     * The web app's Sales dashboard headline row — gross, receipts, customers served,
+     * average order value, profit and refunds, each vs the 30 days before. A rolling
+     * 30-day window rather than literal today/yesterday, same reason as the web app's
+     * viewSalesStats(): a demo/seed business can have real recent activity that isn't
+     * on the exact current calendar day.
+     *
+     * Two queries via FILTER clauses instead of what would otherwise be well over a
+     * dozen separate sum()/count() calls — one against `sales` for revenue/receipts/
+     * customers/refunds/pending, one against `sale_items` (joined to products) for the
+     * cost basis profit needs. On this connection every avoided round-trip is ~550ms.
+     */
     public function stats(Request $request)
     {
         $businessId = $this->businessId($request);
         $branchId = $this->enforcedBranchId($request, $request->integer('branch_id') ?: null);
 
-        $scope = fn () => Sale::query()
+        $days = 30;
+        $currentSince = now()->subDays($days - 1)->startOfDay();
+        $previousSince = now()->subDays(($days * 2) - 1)->startOfDay();
+
+        $salesRow = DB::table('sales')
             ->where('business_id', $businessId)
-            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId));
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->where('sold_at', '>=', $previousSince)
+            ->selectRaw(
+                "coalesce(sum(total) filter (where status != 'refunded' and sold_at >= ?), 0) as current_revenue,
+                 count(*) filter (where status != 'refunded' and sold_at >= ?) as current_receipts,
+                 count(distinct customer_id) filter (where status != 'refunded' and sold_at >= ?) as current_customers,
+                 coalesce(sum(total) filter (where status != 'refunded' and sold_at < ?), 0) as previous_revenue,
+                 count(*) filter (where status != 'refunded' and sold_at < ?) as previous_receipts,
+                 count(distinct customer_id) filter (where status != 'refunded' and sold_at < ?) as previous_customers,
+                 coalesce(sum(total) filter (where status = 'refunded' and sold_at >= ?), 0) as refund_amount,
+                 count(*) filter (where status = 'refunded' and sold_at >= ?) as refund_count",
+                [$currentSince, $currentSince, $currentSince, $currentSince, $currentSince, $currentSince, $currentSince, $currentSince],
+            )
+            ->first();
 
-        $todayRevenue = (float) (clone $scope())->where('status', '!=', 'refunded')->whereDate('sold_at', now()->toDateString())->sum('total');
-        $todayReceipts = (clone $scope())->where('status', '!=', 'refunded')->whereDate('sold_at', now()->toDateString())->count();
-        $yesterdayRevenue = (float) (clone $scope())->where('status', '!=', 'refunded')->whereDate('sold_at', now()->subDay()->toDateString())->sum('total');
-        $yesterdayReceipts = (clone $scope())->where('status', '!=', 'refunded')->whereDate('sold_at', now()->subDay()->toDateString())->count();
+        // Pending has no date bound in the web app either — every pending receipt ever, not just this window.
+        $pending = DB::table('sales')
+            ->where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->where('status', 'pending')
+            ->count();
 
-        $refundsToday = (clone $scope())->where('status', 'refunded')->whereDate('sold_at', now()->toDateString());
-        $refundAmount = (float) (clone $refundsToday)->sum('total');
-        $refundCount = (clone $refundsToday)->count();
+        $profitRow = DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
+            ->where('sales.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->where('sales.status', '!=', 'refunded')
+            ->where('sales.sold_at', '>=', $previousSince)
+            ->selectRaw(
+                'coalesce(sum(sale_items.quantity * sale_items.unit_price) filter (where sales.sold_at >= ?), 0) as current_revenue,
+                 coalesce(sum(sale_items.quantity * products.buying_price) filter (where sales.sold_at >= ?), 0) as current_cost,
+                 coalesce(sum(sale_items.quantity * sale_items.unit_price) filter (where sales.sold_at < ?), 0) as previous_revenue,
+                 coalesce(sum(sale_items.quantity * products.buying_price) filter (where sales.sold_at < ?), 0) as previous_cost',
+                [$currentSince, $currentSince, $currentSince, $currentSince],
+            )
+            ->first();
 
-        $pending = (clone $scope())->where('status', 'pending')->count();
+        $currentRevenue = (float) $salesRow->current_revenue;
+        $currentReceipts = (int) $salesRow->current_receipts;
+        $currentProfit = (float) $profitRow->current_revenue - (float) $profitRow->current_cost;
+        $previousProfit = (float) $profitRow->previous_revenue - (float) $profitRow->previous_cost;
 
         $delta = fn ($now, $prev) => $prev > 0 ? round((($now - $prev) / $prev) * 100) : null;
 
         return response()->json([
-            'gross' => $todayRevenue,
-            'grossDeltaPct' => $delta($todayRevenue, $yesterdayRevenue),
-            'receipts' => $todayReceipts,
-            'receiptsDeltaPct' => $delta($todayReceipts, $yesterdayReceipts),
-            'refunds' => $refundAmount,
-            'refundCount' => $refundCount,
+            'gross' => $currentRevenue,
+            'grossDeltaPct' => $delta($currentRevenue, (float) $salesRow->previous_revenue),
+            'receipts' => $currentReceipts,
+            'receiptsDeltaPct' => $delta($currentReceipts, (int) $salesRow->previous_receipts),
+            'refunds' => (float) $salesRow->refund_amount,
+            'refundCount' => (int) $salesRow->refund_count,
             'pending' => $pending,
+            'averageOrderValue' => $currentReceipts ? round($currentRevenue / $currentReceipts) : 0,
+            'profit' => $currentProfit,
+            'profitDeltaPct' => $delta($currentProfit, $previousProfit),
+            'customers' => (int) $salesRow->current_customers,
+            'customersDeltaPct' => $delta((int) $salesRow->current_customers, (int) $salesRow->previous_customers),
+        ]);
+    }
+
+    /**
+     * The web app's Sales dashboard chart data: category/branch breakdowns, a 14-day
+     * revenue-vs-profit trend, top 5 products and the payment-method mix — all real,
+     * trailing-30-day (or 14-day for the daily trend) figures, same as viewSalesAnalytics().
+     */
+    public function analytics(Request $request)
+    {
+        $businessId = $this->businessId($request);
+        $branchId = $this->enforcedBranchId($request, $request->integer('branch_id') ?: null);
+        $since30 = now()->subDays(29)->startOfDay();
+        $since14 = now()->subDays(13)->startOfDay();
+
+        $byCategory = DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+            ->where('sales.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->where('sales.status', '!=', 'refunded')
+            ->where('sales.sold_at', '>=', $since30)
+            ->selectRaw("coalesce(categories.name, 'Uncategorised') as name, sum(sale_items.quantity * sale_items.unit_price) as revenue")
+            ->groupBy('categories.name')
+            ->orderByDesc('revenue')
+            ->get()
+            ->map(fn ($r) => ['name' => $r->name, 'revenue' => (float) $r->revenue]);
+
+        $byBranch = DB::table('sales')
+            ->leftJoin('branches', 'branches.id', '=', 'sales.branch_id')
+            ->where('sales.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->where('sales.status', '!=', 'refunded')
+            ->where('sales.sold_at', '>=', $since30)
+            ->selectRaw("coalesce(branches.name, 'Unassigned') as name, sum(sales.total) as revenue")
+            ->groupBy('branches.name')
+            ->orderByDesc('revenue')
+            ->get()
+            ->map(fn ($r) => ['name' => $r->name, 'revenue' => (float) $r->revenue]);
+
+        $profitSeries = DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
+            ->where('sales.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->where('sales.status', '!=', 'refunded')
+            ->where('sales.sold_at', '>=', $since14)
+            ->selectRaw(
+                "to_char(sales.sold_at, 'YYYY-MM-DD') as date, to_char(sales.sold_at, 'DD Mon') as day,
+                 coalesce(sum(sale_items.quantity * sale_items.unit_price), 0) as revenue,
+                 coalesce(sum(sale_items.quantity * products.buying_price), 0) as cost",
+            )
+            ->groupBy('date', 'day')
+            ->orderBy('date')
+            ->get()
+            ->map(fn ($r) => ['day' => $r->day, 'revenue' => (float) $r->revenue, 'profit' => (float) $r->revenue - (float) $r->cost]);
+
+        $topProducts = DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->where('sales.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->where('sales.status', '!=', 'refunded')
+            ->where('sales.sold_at', '>=', $since30)
+            ->selectRaw('sale_items.name as name, sum(sale_items.quantity * sale_items.unit_price) as revenue')
+            ->groupBy('sale_items.name')
+            ->orderByDesc('revenue')
+            ->limit(5)
+            ->get()
+            ->map(fn ($r) => ['name' => $r->name, 'revenue' => (float) $r->revenue]);
+
+        $paymentTotal = DB::table('sales')
+            ->where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->where('status', '!=', 'refunded')
+            ->where('sold_at', '>=', $since30)
+            ->count();
+
+        $paymentBreakdown = DB::table('sales')
+            ->where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->where('status', '!=', 'refunded')
+            ->where('sold_at', '>=', $since30)
+            ->selectRaw('method, count(*) as cnt, coalesce(sum(total), 0) as total')
+            ->groupBy('method')
+            ->orderByDesc('total')
+            ->get()
+            // Raw method key, not the label — the PWA's existing renderPaymentMixDonut()
+            // (already used on the Branch dashboard) colours and capitalises by this
+            // exact key, so keeping it raw here reuses that component as-is.
+            ->map(fn ($r) => [
+                'method' => $r->method,
+                'count' => (int) $r->cnt,
+                'amount' => (float) $r->total,
+                'percent' => $paymentTotal > 0 ? round(($r->cnt / $paymentTotal) * 100) : 0,
+            ]);
+
+        return response()->json([
+            'byCategory' => $byCategory->values(),
+            'byBranch' => $byBranch->values(),
+            'profitSeries' => $profitSeries->values(),
+            'topProducts' => $topProducts->values(),
+            'paymentBreakdown' => $paymentBreakdown->values(),
         ]);
     }
 

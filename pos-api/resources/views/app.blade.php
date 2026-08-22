@@ -25,11 +25,11 @@
          so the phone app and desktop app read as the same product. Everything
          below this — shadows, gradients, radii — is this same palette executed
          with more considered depth and polish, not a different color identity. */
-      --bg: #f4f6f8;
+      --bg: #f2f5f3;
       --panel: #ffffff;
-      --panel-2: #eff1f4;
-      --border: #e5e8ec;
-      --border-strong: #d7dbe1;
+      --panel-2: #edf1ee;
+      --border: #e2e7e3;
+      --border-strong: #d3dad4;
       --text: #101924;
       --muted: #616a75;
       --muted-2: #8790994d;
@@ -51,18 +51,67 @@
 
       /* Elevation scale — soft, layered, diffused shadows read as "designed"; a
          single flat 1px shadow (the old value everywhere here) reads as a
-         template default. Each step layers a tight contact shadow under a
-         wider ambient one, the way real light falls on a raised surface. */
-      --shadow-xs: 0 1px 2px rgba(16,24,40,0.05);
-      --shadow-sm: 0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.05);
-      --shadow-md: 0 2px 6px rgba(16,24,40,0.05), 0 8px 24px rgba(16,24,40,0.08);
-      --shadow-lg: 0 8px 16px rgba(16,24,40,0.06), 0 16px 40px rgba(16,24,40,0.14);
-      --shadow-brand: 0 4px 14px rgba(0,137,99,0.28);
+         template default. Each step layers a tight neutral contact shadow under a
+         wider ambient one, and the ambient layer carries a faint brand-green tint
+         rather than plain slate — the same trick premium light-theme apps use so
+         shadows read as "this surface belongs to this product," not a generic
+         card. A thin inset top highlight on the smallest step suggests a soft
+         light source, the way a subtly embossed surface catches the eye. */
+      --shadow-xs: 0 1px 2px rgba(16,24,40,0.06);
+      --shadow-sm: 0 1px 2px rgba(16,24,40,0.05), 0 3px 10px rgba(0,110,80,0.06), inset 0 1px 0 rgba(255,255,255,0.7);
+      --shadow-md: 0 2px 6px rgba(16,24,40,0.06), 0 10px 26px rgba(0,110,80,0.09);
+      --shadow-lg: 0 8px 16px rgba(16,24,40,0.07), 0 20px 46px rgba(0,110,80,0.13);
+      --shadow-brand: 0 6px 18px rgba(0,137,99,0.32);
 
       --radius-sm: 10px;
       --radius-md: 14px;
       --radius-lg: 20px;
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /*
+     * Dark mode — same token names as :root above, so every component that already
+     * reads var(--bg)/var(--panel)/etc. re-themes for free with zero per-component
+     * changes. Set via [data-theme="dark"] on <html>, toggled from Settings and
+     * persisted to localStorage (read by the inline script at the top of <head>,
+     * before the stylesheet loads, so there's no flash of the light theme).
+     * Deliberately near-black + one vivid lime accent, matching a specific reference
+     * (glossy black fintech cards, single bright-green accent everywhere) rather than
+     * a generic muted dark-navy palette.
+     */
+    [data-theme="dark"] {
+      /* Near-black surfaces with a vivid lime accent — matches the reference fintech
+         screens exactly (glossy black cards, one bright green used everywhere) rather
+         than the softer dark-navy/teal draft this replaced. */
+      --bg: #07080a;
+      --panel: #101310;
+      --panel-2: #1a1f18;
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.16);
+      --text: #f4f7f0;
+      --muted: #93a08d;
+      --muted-2: rgba(147,160,141,0.35);
+      --brand: #a6e22e;
+      --brand-dark: #6f9c22;
+      --brand-light: #c6f166;
+      --brand-fg: #091306;
+      --brand-tint: rgba(166,226,46,0.16);
+      --accent: #5b9df9;
+      --accent-tint: rgba(91,157,249,0.16);
+      --violet: #b794f6;
+      --violet-tint: rgba(183,148,246,0.16);
+      --danger: #f87171;
+      --danger-bg: rgba(248,113,113,0.15);
+      --success: #a6e22e;
+      --success-bg: rgba(166,226,46,0.15);
+      --warning: #fbbf24;
+      --warning-bg: rgba(251,191,36,0.15);
+
+      --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.3);
+      --shadow-md: 0 2px 10px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+      --shadow-lg: 0 12px 24px rgba(0,0,0,0.42), 0 24px 56px rgba(0,0,0,0.45);
+      --shadow-brand: 0 6px 22px rgba(166,226,46,0.4);
     }
     * { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
@@ -77,8 +126,47 @@
       letter-spacing: -0.011em;
     }
     input, select, button, textarea { font: inherit; letter-spacing: inherit; }
-    #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); position: relative; }
+    /* A faint brand-tinted glow instead of a flat fill — the same low-opacity green wash used behind the login hero, just subtle enough here to read as texture rather than a visible gradient. Works unchanged in dark mode too, where it becomes a soft ambient glow against the near-black surface. */
+    #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; background: radial-gradient(140% 90% at 15% -12%, rgba(0,137,99,0.06), transparent 55%), var(--bg); position: relative; }
     .hidden { display: none !important; }
+
+    /*
+     * Desktop/tablet preview: below this width #app just fills the real device
+     * screen edge-to-edge like a normal installed PWA — nothing here ever runs
+     * on an actual phone. Above it, every "position: fixed" element in this
+     * file (sidebar drawer, modal sheets, toasts, the bottom tab bar) is a
+     * descendant of #app, and fixed positioning always resolves against the
+     * nearest ancestor that establishes a containing block (a transform does
+     * that) — so giving #app a transform and a real height turns it into a
+     * self-contained phone screen instead of those elements escaping to the
+     * edges of the browser window.
+     *
+     * #app itself must NOT also be the scrolling element: a transformed
+     * ancestor that scrolls drags its "fixed" descendants along with the
+     * scroll instead of keeping them pinned (exactly the bug where the
+     * bottom tab bar drifted up on scroll) — because once a transform makes
+     * it their containing block, they're positioned relative to that box's
+     * content, not the visible viewport. So #app stays static (overflow:
+     * hidden, just for the rounded corners) and <main> — the actual
+     * scrollable panel content, sitting between the fixed header and the
+     * fixed tab bar — is the one that scrolls internally instead.
+     */
+    @media (min-width: 600px) {
+      body {
+        display: flex; align-items: center; justify-content: center; padding: 32px 16px;
+        background: radial-gradient(120% 120% at 50% -12%, #eef3f0 0%, #dde2e8 55%, #d1d7de 100%);
+      }
+      #app {
+        width: 412px; height: min(860px, calc(100vh - 64px)); min-height: 0; margin: 0;
+        border-radius: 44px; border: 10px solid #14181d;
+        box-shadow: 0 32px 64px -16px rgba(16,24,40,0.38), 0 0 0 1px rgba(16,24,40,0.06);
+        overflow: hidden;
+        transform: translateZ(0);
+      }
+      #main-screen { min-height: 0; }
+      #main-screen > main { flex: 1; min-height: 0; overflow-y: auto; }
+      #main-screen > main::-webkit-scrollbar, .auth-form-area::-webkit-scrollbar { width: 0; height: 0; }
+    }
 
     /* Tactile feedback — every primary interactive surface dips slightly on
        press, the single cheapest thing that makes a touch UI feel real
@@ -179,6 +267,54 @@
     .greeting-time { font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
     .greeting-date { color: var(--muted); font-size: 0.72rem; margin-top: 1px; }
 
+    /*
+     * Overview hero — same gradient recipe as the login screen's .auth-hero, reused
+     * here so the very first thing a signed-in user sees still feels like a
+     * considered, designed product rather than a flat white admin list. Everything
+     * below it (stat card tints) stays in the app's established light theme; this is
+     * the one deliberately bold, saturated surface on the page.
+     */
+    .overview-hero {
+      position: relative; overflow: hidden; border-radius: var(--radius-lg);
+      padding: 20px 18px; margin-bottom: 18px; box-shadow: var(--shadow-brand);
+      background:
+        radial-gradient(120% 140% at 88% -20%, rgba(255,255,255,0.22), transparent 55%),
+        linear-gradient(155deg, var(--brand-light) 0%, var(--brand) 55%, var(--brand-dark) 100%);
+    }
+    .overview-hero::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background-image: radial-gradient(circle at 92% 15%, rgba(255,255,255,0.16), transparent 42%);
+    }
+    .overview-hero .greeting-row { position: relative; z-index: 1; margin-bottom: 0; }
+    .overview-hero .greeting { color: #fff; }
+    .overview-hero .greeting-sub { color: rgba(255,255,255,0.86); }
+    .overview-hero .greeting-clock { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.28); backdrop-filter: blur(6px); box-shadow: none; }
+    .overview-hero .greeting-time { color: #fff; }
+    .overview-hero .greeting-date { color: rgba(255,255,255,0.78); }
+
+    /* Soft colour wash per stat, matching that card's own icon hue — turns four identical white tiles into a set that reads at a glance. Each also gets a faint glow in the same hue, the light-theme equivalent of the reference's glowing dark tiles. */
+    .stat-tint-revenue { background: linear-gradient(160deg, var(--panel) 45%, var(--brand-tint)); border-color: rgba(0,137,99,0.16); box-shadow: 0 10px 22px -12px rgba(0,137,99,0.35), var(--shadow-sm); }
+    .stat-tint-receipts { background: linear-gradient(160deg, var(--panel) 45%, var(--accent-tint)); border-color: rgba(29,100,194,0.16); box-shadow: 0 10px 22px -12px rgba(29,100,194,0.32), var(--shadow-sm); }
+    .stat-tint-stock { background: linear-gradient(160deg, var(--panel) 45%, var(--warning-bg)); border-color: rgba(146,98,10,0.16); box-shadow: 0 10px 22px -12px rgba(146,98,10,0.3), var(--shadow-sm); }
+    .stat-tint-customers { background: linear-gradient(160deg, var(--panel) 45%, var(--violet-tint)); border-color: rgba(109,40,217,0.16); box-shadow: 0 10px 22px -12px rgba(109,40,217,0.32), var(--shadow-sm); }
+
+    /*
+     * Today-vs-average gauge — the one borrowed "instrument panel" piece from the
+     * dark-dial reference, rebuilt as a real light-theme SVG ring rather than copying
+     * its dark styling. The percentage is genuine (today's revenue over this week's
+     * daily average, both already fetched for the bar chart below), not decorative.
+     */
+    .gauge-card { display: flex; align-items: center; gap: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow-sm); }
+    .gauge-ring-wrap { position: relative; width: 100px; height: 100px; flex-shrink: 0; filter: drop-shadow(0 0 12px rgba(0,137,99,0.3)); }
+    .gauge-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .gauge-track { fill: none; stroke: var(--panel-2); stroke-width: 10; }
+    .gauge-fill { fill: none; stroke: url(#gaugeGradient); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 0 326.73; transition: stroke-dasharray 0.7s var(--ease); }
+    .gauge-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .gauge-value { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+    .gauge-value-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1px; }
+    .gauge-info-title { font-size: 0.86rem; font-weight: 700; }
+    .gauge-info-sub { font-size: 0.76rem; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
     .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
     .stat-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
     .stat-grid-3 .stat { padding: 10px; gap: 2px; }
@@ -219,6 +355,15 @@
     .list-row .name { font-size: 0.9rem; font-weight: 500; }
     .list-row .meta { color: var(--muted); font-size: 0.76rem; margin-top: 2px; }
     .list-row .amount { font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
+
+    /* --- Ranked bar list (branch/product revenue breakdowns) --- */
+    .rank-list { display: flex; flex-direction: column; gap: 12px; }
+    .rank-row-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 5px; font-size: 0.85rem; }
+    .rank-row-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rank-row-value { color: var(--muted); font-weight: 600; white-space: nowrap; }
+    .rank-bar-track { height: 8px; border-radius: 5px; background: var(--panel-2); overflow: hidden; }
+    .rank-bar-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--brand-light), var(--brand)); transition: width 0.4s var(--ease); }
+
     .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; letter-spacing: -0.01em; }
     .pill-warn { background: var(--warning-bg); color: var(--warning); }
     .pill-ok { background: var(--success-bg); color: var(--success); }
@@ -544,19 +689,44 @@
       <main>
         <!-- Overview -->
         <div class="tab-panel active" data-panel="overview">
-          <div class="greeting-row">
-            <div>
-              <h2 class="greeting" id="greeting-text">Hello</h2>
-              <p class="greeting-sub" id="greeting-sub">—</p>
+          <div class="overview-hero">
+            <div class="greeting-row">
+              <div>
+                <h2 class="greeting" id="greeting-text">Hello</h2>
+                <p class="greeting-sub" id="greeting-sub">—</p>
+              </div>
+              <div class="greeting-clock" id="greeting-clock">
+                <div class="greeting-time" id="greeting-time">--:--</div>
+                <div class="greeting-date" id="greeting-date">—</div>
+              </div>
             </div>
-            <div class="greeting-clock" id="greeting-clock">
-              <div class="greeting-time" id="greeting-time">--:--</div>
-              <div class="greeting-date" id="greeting-date">—</div>
+          </div>
+
+          <div class="gauge-card">
+            <div class="gauge-ring-wrap">
+              <svg viewBox="0 0 120 120" class="gauge-ring">
+                <defs>
+                  <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--brand-light)"/>
+                    <stop offset="100%" stop-color="var(--brand-dark)"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="60" cy="60" r="52" class="gauge-track"/>
+                <circle cx="60" cy="60" r="52" class="gauge-fill" id="gauge-fill-circle"/>
+              </svg>
+              <div class="gauge-center">
+                <div class="gauge-value" id="gauge-pct">—</div>
+                <div class="gauge-value-label">of avg day</div>
+              </div>
+            </div>
+            <div>
+              <div class="gauge-info-title">Today vs your weekly average</div>
+              <div class="gauge-info-sub" id="gauge-info-sub">Loading…</div>
             </div>
           </div>
 
           <div class="stat-grid">
-            <div class="stat">
+            <div class="stat stat-tint-revenue">
               <div class="stat-icon stat-icon-revenue">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 6v.01M18 18v.01"/></svg>
               </div>
@@ -566,7 +736,7 @@
                 <div class="hint" id="stat-sales-delta"></div>
               </div>
             </div>
-            <div class="stat">
+            <div class="stat stat-tint-receipts">
               <div class="stat-icon stat-icon-receipts">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3h16v18l-3-2-2 2-2-2-2 2-2-2-2 2-3-2z"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>
               </div>
@@ -576,7 +746,7 @@
                 <div class="hint" id="stat-avg-basket"></div>
               </div>
             </div>
-            <div class="stat">
+            <div class="stat stat-tint-stock">
               <div class="stat-icon stat-icon-stock">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
               </div>
@@ -586,7 +756,7 @@
                 <div class="hint" id="stat-low-stock-hint"></div>
               </div>
             </div>
-            <div class="stat">
+            <div class="stat stat-tint-customers">
               <div class="stat-icon stat-icon-customers">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
               </div>
@@ -720,6 +890,35 @@
           </div>
 
           <button type="button" class="btn-primary" id="inv-add-product-btn" style="width:100%;margin-top:6px;">+ Add product</button>
+
+          <div class="card" style="margin-top:14px;">
+            <div class="section-title" style="margin-top:0;">Stock level analytics</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Every product, by stock status</p>
+            <div id="inv-levels-chart"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Top movers</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Best sellers by revenue, last 30 days</p>
+            <div class="rank-list" id="inv-movers-list"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Stock by branch</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Value per branch, at cost</p>
+            <div class="rank-list" id="inv-branch-list"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title-row" style="margin-top:0;">
+              <div class="section-title" style="margin:0;display:flex;align-items:center;gap:6px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" style="width:16px;height:16px;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                Low stock alerts
+              </div>
+            </div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Products at or below their reorder point</p>
+            <div id="inv-low-stock-list"><p class="empty">Loading…</p></div>
+          </div>
         </div>
 
         <!-- Expiry tracking -->
@@ -744,22 +943,49 @@
         <!-- Sales -->
         <div class="tab-panel" data-panel="sales">
           <div class="back-row"><button data-back class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><strong>Sales</strong></div>
+          <p class="tagline" style="text-align:left;margin:-6px 0 12px;">Last 30 days, vs the 30 days before</p>
 
-          <div class="stat-grid-3">
-            <div class="stat">
-              <div class="label">Gross today</div>
-              <div class="value" id="sales-stat-gross">—</div>
-              <div class="hint" id="sales-stat-gross-hint"></div>
-            </div>
-            <div class="stat">
-              <div class="label">Receipts</div>
-              <div class="value" id="sales-stat-receipts">—</div>
-              <div class="hint" id="sales-stat-receipts-hint"></div>
-            </div>
-            <div class="stat">
-              <div class="label">Refunds</div>
-              <div class="value" id="sales-stat-refunds">—</div>
-              <div class="hint" id="sales-stat-refunds-hint"></div>
+          <div class="stat-grid" id="sales-stat-grid" style="margin:0 0 4px;">
+            <div class="loading-row"><div class="spinner"></div> Loading…</div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Sales over time</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Daily revenue, last 14 days</p>
+            <div class="bar-chart" id="sales-trend-chart"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Sales by category</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Revenue share, last 30 days</p>
+            <div id="sales-category-chart"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Sales by branch</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Revenue by location, last 30 days</p>
+            <div class="rank-list" id="sales-branch-list"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Top 5 products</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">By revenue, last 30 days</p>
+            <div class="rank-list" id="sales-products-list"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Orders by payment mode</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Share of receipts, last 30 days</p>
+            <div id="sales-payment-chart"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Sales vs profit</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Daily, last 14 days</p>
+            <div class="bar-chart" id="sales-vs-profit-chart"></div>
+            <div class="donut-legend" style="flex-direction:row;gap:16px;margin-top:10px;justify-content:center;">
+              <div class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--brand);"></span>Sales</div>
+              <div class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--accent);"></span>Profit</div>
             </div>
           </div>
 
@@ -1033,6 +1259,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
               <input type="text" id="pos-search" placeholder="Search product" />
             </div>
+            <button type="button" class="btn-secondary" id="pos-scan-btn" title="Scan barcode">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M3 5v14M8 5v14M6 5v14M12 5v14M14 5v14M18 5v14M21 5v14"/></svg>
+            </button>
             <button type="button" class="btn-secondary" id="pos-hold-btn" title="Hold sale">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><circle cx="12" cy="12" r="10"/><path d="M10 15V9M14 15V9"/></svg>
             </button>
@@ -1094,6 +1323,36 @@
             </button>
           </div>
           <div id="held-sales-list"></div>
+        </div>
+
+        <!-- Scan barcode sheet -->
+        <div id="scan-modal-backdrop" class="modal-backdrop hidden"></div>
+        <div id="scan-modal" class="modal-sheet hidden">
+          <div class="modal-header">
+            <strong>Scan barcode</strong>
+            <button type="button" class="icon-btn" id="scan-modal-close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div style="text-align:center;">
+            <div id="scan-camera-off" class="qr-frame">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:64px;height:64px;color:var(--muted);"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M3 12h18"/></svg>
+            </div>
+            <div id="scan-camera-on" class="qr-frame hidden" style="padding:0; overflow:hidden;">
+              <video id="scan-video" muted playsinline autoplay style="width:100%; height:100%; object-fit:cover;"></video>
+              <div class="qr-viewfinder"></div>
+            </div>
+
+            <p class="tagline" id="scan-hint" style="margin-top:12px;">Hold a product's barcode up to the camera — items add to the cart automatically</p>
+
+            <button type="button" class="btn-primary" id="scan-camera-toggle" style="margin-top:4px;">Scan with camera</button>
+            <p class="error" id="scan-camera-error"></p>
+
+            <form id="scan-manual-form" style="display:flex; gap:8px; margin-top:14px;">
+              <input type="text" id="scan-manual-code" placeholder="Or type/scan SKU" style="flex:1;" autocomplete="off" />
+              <button type="submit" class="btn-secondary">Add</button>
+            </form>
+          </div>
         </div>
 
         <!-- Suppliers (procurement) -->
@@ -1816,15 +2075,49 @@
         <!-- Reports -->
         <div class="tab-panel" data-panel="reports">
           <div class="back-row"><button data-back class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><strong>Reports</strong></div>
+          <p class="tagline" id="reports-subtitle" style="text-align:left;margin:-6px 0 12px;">Loading…</p>
+          <button type="button" class="btn-secondary" id="reports-print-btn" style="width:100%;margin-bottom:14px;">Download PDF</button>
 
-          <div class="stat-grid" style="margin:12px 0;">
-            <div class="stat"><div class="label">This week's revenue</div><div class="value" id="reports-stat-revenue">—</div></div>
-            <div class="stat"><div class="label">Gross margin</div><div class="value" id="reports-stat-margin">—</div></div>
-            <div class="stat"><div class="label">Orders</div><div class="value" id="reports-stat-orders">—</div></div>
+          <div class="stat-grid" id="reports-stat-grid" style="margin:0 0 4px;">
+            <div class="loading-row"><div class="spinner"></div> Loading…</div>
           </div>
+
           <div class="card">
-            <div class="section-title" style="margin-top:0;">Orders — last 7 days</div>
-            <div class="bar-chart" id="reports-orders-chart"></div>
+            <div class="section-title" style="margin-top:0;">Revenue trend</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Monthly, last 6 months</p>
+            <div class="bar-chart" id="reports-trend-chart"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Sales by category</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Revenue share, last 30 days</p>
+            <div id="reports-category-chart"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Revenue by branch</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Last 30 days</p>
+            <div class="rank-list" id="reports-branch-list"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Top products</div>
+            <p class="tagline" style="text-align:left;margin:-8px 0 10px;">By revenue, last 30 days</p>
+            <div class="rank-list" id="reports-products-list"></div>
+          </div>
+
+          <div class="hidden" id="reports-pl-section">
+            <div class="card">
+              <div class="section-title" style="margin-top:0;">Expense breakdown</div>
+              <p class="tagline" style="text-align:left;margin:-8px 0 10px;">By category, last 30 days</p>
+              <div id="reports-expense-chart"></div>
+            </div>
+
+            <div class="card">
+              <div class="section-title" style="margin-top:0;">Profit &amp; loss summary</div>
+              <p class="tagline" style="text-align:left;margin:-8px 0 10px;">Last 30 days</p>
+              <div id="reports-pl-list"></div>
+            </div>
           </div>
 
           <div class="card">
@@ -1956,6 +2249,21 @@
             <p class="tagline" style="text-align:left;margin:8px 0 0;">Changes apply to your account only.</p>
           </div>
 
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Appearance</div>
+            <p class="tagline" style="text-align:left;margin:-6px 0 10px;">Choose how Dashflow looks on this device.</p>
+            <div class="subtabs" id="theme-toggle">
+              <button type="button" class="btn-secondary" data-theme-choice="light" style="display:flex;align-items:center;justify-content:center;gap:6px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                Light
+              </button>
+              <button type="button" class="btn-secondary" data-theme-choice="dark" style="display:flex;align-items:center;justify-content:center;gap:6px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                Dark
+              </button>
+            </div>
+          </div>
+
           <!-- Business (read-only for manager/staff) -->
           <div class="card hidden" id="biz-readonly-card">
             <div class="section-title" style="margin-top:0;">Business</div>
@@ -1993,6 +2301,16 @@
             </div>
             <p class="error" id="biz-settings-error"></p>
             <button type="button" class="btn-primary" id="save-biz-settings" style="width:100%;margin-top:10px;">Save changes</button>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Subscription</div>
+            <div id="subscription-body"><p class="empty">Loading…</p></div>
+          </div>
+
+          <div class="card">
+            <div class="section-title" style="margin-top:0;">Receipt printer</div>
+            <div id="printer-body"></div>
           </div>
 
           <button class="btn-danger" id="logout-btn" style="width:100%;">Log out</button>
@@ -2034,6 +2352,12 @@
     let USER_ROLE = "";
     let SELECTED_BRANCH_ID = null;
     let BRANCH_LOCKED = false;
+    // Package-tier gating, same rules as the web app's meetsPlanTier(): PLAN_KEY is
+    // null for a super account or a business paying à la carte (never restricted by
+    // minPlan there), and HAS_MULTIPLE_BRANCHES is a real branch-count check, not an
+    // assumption from the plan alone.
+    let PLAN_KEY = null;
+    let HAS_MULTIPLE_BRANCHES = false;
     // Bumped on every login/logout so a slow request from a previous session
     // (this API can take several seconds per call) can detect it's stale and
     // discard its result instead of overwriting state the new session already set.
@@ -2098,7 +2422,8 @@
     async function tryResumeSession() {
       if (!TOKEN) return showLogin();
       try {
-        await api("/me");
+        const me = await api("/me");
+        applyTheme(me.theme || "light");
         showApp();
       } catch {
         localStorage.removeItem("dashflow_token");
@@ -2134,6 +2459,9 @@
       document.getElementById("profile-hiredate").classList.add("hidden");
       document.getElementById("biz-readonly-card").classList.add("hidden");
       document.getElementById("biz-edit-card").classList.add("hidden");
+      // Same reasoning as the reset above: theme is per-account, so the login
+      // screen must never carry over the last signed-in user's dark mode.
+      applyTheme("light");
     }
 
     async function showApp() {
@@ -2196,6 +2524,7 @@
         const data = await api("/login", { method: "POST", body: JSON.stringify({ email, password }) });
         TOKEN = data.token;
         localStorage.setItem("dashflow_token", TOKEN);
+        applyTheme(data.user?.theme || "light");
         showApp();
       } catch (err) {
         errorEl.textContent = err.message;
@@ -2318,22 +2647,22 @@
       { key: "inventory", panel: "expiry", label: "Expiry Tracking", loader: loadExpiryPanel, group: "Inventory", icon: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 1h6"/>' },
       { key: "procurement", panel: "suppliers", label: "Procurement", loader: loadSuppliersPanel, group: "Inventory", icon: '<path d="M3 3h2l2.4 12.4a2 2 0 002 1.6h8.2a2 2 0 002-1.6L21 8H6"/>' },
       { key: "sales", panel: "sales", label: "Sales", loader: loadSales, group: "Sales & till", icon: '<path d="M3 3v18h18M7 15l4-4 4 4 4-8"/>' },
-      { key: "sales", panel: "orders", label: "Remote Orders", loader: loadOrders, group: "Sales & till", icon: '<path d="M20 7H4l1.5 12h13L20 7zM8 7V5a4 4 0 018 0v2"/>' },
-      { key: "pos", panel: "qr-scanner", label: "QR Scanner", loader: loadQrScannerPanel, group: "Sales & till", icon: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/>' },
-      { key: "sales", panel: "payment-proofs", label: "Payment Proofs", loader: loadPaymentProofsPanel, group: "Sales & till", icon: '<rect x="3" y="4" width="18" height="15" rx="2"/><path d="m3 7 9 6 9-6"/>' },
-      { key: "pos", panel: "till", label: "Till Management", loader: loadTillPanel, group: "Sales & till", icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2H10a2 2 0 00-2 2v16"/>' },
-      { key: "sales", panel: "order-alerts", label: "Order Alerts", loader: loadOrderAlertsPanel, group: "Sales & till", icon: '<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><circle cx="18" cy="6" r="4" fill="var(--danger)" stroke="none"/>' },
+      { key: "sales", panel: "orders", label: "Remote Orders", loader: loadOrders, group: "Sales & till", minPlan: "retail", icon: '<path d="M20 7H4l1.5 12h13L20 7zM8 7V5a4 4 0 018 0v2"/>' },
+      { key: "pos", panel: "qr-scanner", label: "QR Scanner", loader: loadQrScannerPanel, group: "Sales & till", minPlan: "retail", icon: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/>' },
+      { key: "sales", panel: "payment-proofs", label: "Payment Proofs", loader: loadPaymentProofsPanel, group: "Sales & till", minPlan: "retail", icon: '<rect x="3" y="4" width="18" height="15" rx="2"/><path d="m3 7 9 6 9-6"/>' },
+      { key: "pos", panel: "till", label: "Till Management", loader: loadTillPanel, group: "Sales & till", minPlan: "retail", icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2H10a2 2 0 00-2 2v16"/>' },
+      { key: "sales", panel: "order-alerts", label: "Order Alerts", loader: loadOrderAlertsPanel, group: "Sales & till", minPlan: "retail", icon: '<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><circle cx="18" cy="6" r="4" fill="var(--danger)" stroke="none"/>' },
       { key: "sales", panel: "reports", label: "Reports", loader: loadReportsPanel, roles: ["super", "admin", "manager"], group: "Sales & till", icon: '<path d="M18 20V10M12 20V4M6 20v-6"/>' },
       { key: "customers", panel: "customers", label: "Customers", loader: loadCustomersPanel, group: "People", icon: '<path d="M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>' },
       { key: "hr", panel: "employees", label: "Employees", loader: loadEmployeesPanel, group: "People", icon: '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
       { key: "attendance", panel: "attendance", label: "Attendance", loader: loadAttendancePanel, group: "People", icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>' },
       { key: "payroll", panel: "payroll", label: "Payroll", loader: loadPayrollPanel, group: "People", icon: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M8 15h.01M12 15h4"/>' },
       { key: "accounting", panel: "accounting", label: "Accounting", loader: loadAccountingPanel, group: "Finance", icon: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>' },
-      { key: null, panel: "branches", label: "Branches", loader: loadBranchesPanel, roles: ["super", "admin", "manager"], group: "Business", icon: '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/>' },
-      { key: null, panel: "manager-view", label: "Manager view", loader: loadManagerViewPanel, roles: ["super", "admin", "manager"], group: "Business", icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>' },
-      { key: null, panel: "staff-view", label: "Staff view", loader: loadStaffViewPanel, group: "Business", icon: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 00-16 0"/>' },
+      { key: null, panel: "branches", label: "Branches", loader: loadBranchesPanel, roles: ["super", "admin", "manager"], group: "Business", multiBranchOnly: true, icon: '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/>' },
+      { key: null, panel: "manager-view", label: "Manager view", loader: loadManagerViewPanel, roles: ["super", "admin", "manager"], group: "Business", minPlan: "retail", icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>' },
+      { key: null, panel: "staff-view", label: "Staff view", loader: loadStaffViewPanel, group: "Business", minPlan: "retail", icon: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 00-16 0"/>' },
       { key: null, panel: "notifications", label: "Notifications", loader: loadNotificationsPanel, group: "Business", icon: '<path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 003.4 0"/>' },
-      { key: null, panel: "sms", label: "SMS centre", loader: loadSmsPanel, roles: ["super", "admin", "manager"], group: "Business", icon: '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>' },
+      { key: null, panel: "sms", label: "SMS centre", loader: loadSmsPanel, roles: ["super", "admin", "manager"], group: "Business", minPlan: "business", icon: '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>' },
     ];
     const PANEL_LOADERS = Object.fromEntries(NAV_ITEMS.map((n) => [n.panel, n.loader]));
     PANEL_LOADERS.settings = loadSettingsPanel;
@@ -2343,7 +2672,9 @@
       const nav = document.getElementById("sidebar-nav");
       const items = NAV_ITEMS.filter((n) => !n.hideFromSidebar
         && (n.key === null || ACTIVE_MODULES.includes(n.key))
-        && (!n.roles || n.roles.includes(USER_ROLE)));
+        && (!n.roles || n.roles.includes(USER_ROLE))
+        && (!n.multiBranchOnly || HAS_MULTIPLE_BRANCHES)
+        && (!n.minPlan || meetsPlanTier(PLAN_KEY, n.minPlan)));
 
       let html = "";
       let lastGroup = null;
@@ -2365,12 +2696,21 @@
       });
     }
 
+    /** Same tier order and "no plan = never restricted" rule as the web app's meetsPlanTier() in lib/plans.ts. */
+    const PLAN_TIERS = ["starter", "retail", "business", "professional", "enterprise"];
+    function meetsPlanTier(key, min) {
+      if (!key) return true;
+      return PLAN_TIERS.indexOf(key) >= PLAN_TIERS.indexOf(min);
+    }
+
     async function loadModules() {
       const gen = SESSION_GEN;
       try {
         const data = await api("/modules");
         if (gen !== SESSION_GEN) return;
         ACTIVE_MODULES = data.active;
+        PLAN_KEY = data.planKey;
+        HAS_MULTIPLE_BRANCHES = data.hasMultipleBranches;
         renderSidebar();
       } catch (err) {
         toast(err.message, "error");
@@ -2384,6 +2724,7 @@
       if (panel !== "qr-scanner" && QR_CAMERA_STREAM) {
         qrStopCamera();
       }
+      if (SCAN_CAMERA_STREAM) closeScanModal();
 
       document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
       document.querySelector(`.tab-panel[data-panel="${panel}"]`).classList.add("active");
@@ -2450,6 +2791,27 @@
       `).join("");
     }
 
+    /** Today's revenue as a share of this week's daily average — real numbers already fetched for the bar chart above, just re-expressed as a ring. */
+    function renderTodayGauge(todayRevenue, series) {
+      const circumference = 2 * Math.PI * 52;
+      const avg = series.length ? series.reduce((s, d) => s + d.revenue, 0) / series.length : 0;
+
+      if (avg <= 0) {
+        document.getElementById("gauge-fill-circle").style.strokeDasharray = `0 ${circumference}`;
+        document.getElementById("gauge-pct").textContent = "—";
+        document.getElementById("gauge-info-sub").textContent = todayRevenue > 0
+          ? `${money(todayRevenue)} today — not enough history yet to compare.`
+          : "No sales this week yet.";
+        return;
+      }
+
+      const pct = Math.round((todayRevenue / avg) * 100);
+      const filled = (Math.min(pct, 100) / 100) * circumference;
+      document.getElementById("gauge-fill-circle").style.strokeDasharray = `${filled} ${circumference}`;
+      document.getElementById("gauge-pct").textContent = `${pct}%`;
+      document.getElementById("gauge-info-sub").textContent = `${money(todayRevenue)} today vs ${money(Math.round(avg))} average — ${pct >= 100 ? "ahead of" : "behind"} pace.`;
+    }
+
     async function loadOverview() {
       const gen = SESSION_GEN;
       showLoading("overview-recent-sales");
@@ -2497,6 +2859,7 @@
 
         document.getElementById("week-revenue").textContent = money(dash.weekRevenue);
         renderBarChart(dash.revenueSeries);
+        renderTodayGauge(dash.today.salesTotal, dash.revenueSeries);
 
         const sales = await api("/sales");
         if (gen !== SESSION_GEN) return;
@@ -2728,16 +3091,69 @@
       document.getElementById("inv-subtitle").textContent = BRANCH_LOCKED
         ? "Business-wide stock summary"
         : (SELECTED_BRANCH_ID ? "Stock summary for the selected branch" : "Stock summary across all branches");
+      showLoading("inv-low-stock-list");
       try {
-        const s = await api("/products/summary");
+        const [s, analytics, lowStock] = await Promise.all([
+          api("/products/summary"),
+          api("/products/analytics"),
+          api("/products?low_stock=1"),
+        ]);
         document.getElementById("inv-stat-cost").textContent = money(s.costValue);
         document.getElementById("inv-stat-retail").textContent = money(s.retailValue);
         document.getElementById("inv-stat-skus").textContent = s.skuCount;
         document.getElementById("inv-stat-units").textContent = s.stockUnits;
         document.getElementById("inv-stat-low").textContent = s.lowStock;
+
+        renderStockLevelsDonut(analytics.levels);
+        renderRankedBars("inv-movers-list", analytics.topMovers);
+        renderRankedBars("inv-branch-list", analytics.byBranch.map((b) => ({ name: b.name, revenue: b.value })));
+
+        document.getElementById("inv-low-stock-list").innerHTML = lowStock.length
+          ? lowStock.slice(0, 20).map((p) => `
+              <div class="list-row">
+                <div>
+                  <div class="name">${p.name}</div>
+                  <div class="meta">${p.category || "Uncategorised"} · ${p.sku || "—"}</div>
+                </div>
+                <span class="pill pill-warn">${p.stock} left</span>
+              </div>
+            `).join("")
+          : '<p class="empty">Nothing is low on stock right now.</p>';
       } catch (err) {
         toast(err.message, "error");
       }
+    }
+
+    /** Fixed three-way health split (in stock / low / out) — same semantic colours as the web app's status pills, not the generic per-item palette the other donuts use. */
+    function renderStockLevelsDonut(levels) {
+      const container = document.getElementById("inv-levels-chart");
+      const data = [
+        { name: "In stock", value: levels.healthy, color: "var(--success)" },
+        { name: "Low stock", value: levels.low, color: "var(--warning)" },
+        { name: "Out of stock", value: levels.out, color: "var(--danger)" },
+      ];
+      const total = data.reduce((s, d) => s + d.value, 0);
+      if (!total) {
+        container.innerHTML = '<p class="empty">No products yet.</p>';
+        return;
+      }
+      let cumulative = 0;
+      const stops = data.map((d) => {
+        const start = cumulative;
+        cumulative += (d.value / total) * 100;
+        return `${d.color} ${start}% ${cumulative}%`;
+      }).join(", ");
+      const legend = data.map((d) => `
+        <div class="donut-legend-item">
+          <span class="donut-legend-dot" style="background:${d.color};"></span>
+          <span style="flex:1;">${d.name}</span>
+          <span style="font-weight:600;">${d.value}</span>
+        </div>
+      `).join("");
+      container.innerHTML = `
+        <div class="donut-chart" style="background:conic-gradient(${stops});"></div>
+        <div class="donut-legend">${legend}</div>
+      `;
     }
 
     document.getElementById("inv-add-product-btn").addEventListener("click", () => {
@@ -2779,23 +3195,69 @@
       return status === "paid" ? "pill-ok" : status === "pending" ? "pill-warn" : "pill-danger";
     }
 
+    /** Full 30-day visual dashboard, ported to match the web app's own Sales page. */
     async function loadSales() {
+      showLoading("sales-stat-grid");
       showLoading("sales-list");
-      document.querySelectorAll("#sales-stat-gross, #sales-stat-receipts, #sales-stat-refunds").forEach((el) => { el.textContent = "—"; });
       try {
-        const stats = await api("/sales/stats");
-        document.getElementById("sales-stat-gross").textContent = money(stats.gross);
-        document.getElementById("sales-stat-gross-hint").textContent = stats.grossDeltaPct === null ? "today" : `${stats.grossDeltaPct >= 0 ? "+" : ""}${stats.grossDeltaPct}% vs yesterday`;
-        document.getElementById("sales-stat-receipts").textContent = stats.receipts;
-        document.getElementById("sales-stat-receipts-hint").textContent = `${stats.pending} pending`;
-        document.getElementById("sales-stat-refunds").textContent = money(stats.refunds);
-        document.getElementById("sales-stat-refunds-hint").textContent = `${stats.refundCount} receipt${stats.refundCount === 1 ? "" : "s"}`;
+        const [stats, analytics] = await Promise.all([api("/sales/stats"), api("/sales/analytics")]);
+        renderSalesStatCards(stats);
+        renderBarChart(analytics.profitSeries.map((d) => ({ day: d.day.split(" ")[0], revenue: d.revenue })), "sales-trend-chart");
+        renderReportDonut("sales-category-chart", analytics.byCategory);
+        renderRankedBars("sales-branch-list", analytics.byBranch);
+        renderRankedBars("sales-products-list", analytics.topProducts);
+        document.getElementById("sales-payment-chart").innerHTML = renderPaymentMixDonut(analytics.paymentBreakdown);
+        renderSalesVsProfitChart(analytics.profitSeries);
 
         ALL_SALES = await api("/sales");
         renderSalesList();
       } catch (err) {
         toast(err.message, "error");
       }
+    }
+
+    /** Same six stats, same order, as the web app's Sales page: gross, receipts, customers, average order value, profit, refunds. */
+    function renderSalesStatCards(stats) {
+      const deltaHint = (label, delta, suffix) => {
+        if (delta === null) return { hint: suffix, hintClass: "" };
+        return { hint: `${delta >= 0 ? "+" : ""}${delta}% ${suffix}`, hintClass: delta >= 0 ? "up" : "down" };
+      };
+
+      const cards = [
+        { label: "Gross sales", value: money(stats.gross), ...deltaHint("gross", stats.grossDeltaPct, "vs previous 30 days") },
+        { label: "Receipts issued", value: String(stats.receipts), ...deltaHint("receipts", stats.receiptsDeltaPct, "vs previous 30 days") },
+        { label: "Customers served", value: String(stats.customers), ...deltaHint("customers", stats.customersDeltaPct, "vs previous 30 days") },
+        { label: "Avg order value", value: money(stats.averageOrderValue), hint: "per receipt, last 30 days" },
+        { label: "Profit", value: money(stats.profit), ...deltaHint("profit", stats.profitDeltaPct, "vs previous 30 days, est.") },
+        { label: "Refunds", value: money(stats.refunds), hint: `${stats.refundCount} receipt${stats.refundCount === 1 ? "" : "s"} · ${stats.pending} pending` },
+      ];
+
+      document.getElementById("sales-stat-grid").innerHTML = cards.map((c) => `
+        <div class="stat">
+          <div class="label">${c.label}</div>
+          <div class="value">${c.value}</div>
+          <div class="hint ${c.hintClass || ""}">${c.hint}</div>
+        </div>
+      `).join("");
+    }
+
+    /** Two thinner bars per day (sales + profit) inside the same bar-chart columns used everywhere else in this app — the mobile equivalent of the web app's combined bar+line chart. */
+    function renderSalesVsProfitChart(series) {
+      const container = document.getElementById("sales-vs-profit-chart");
+      if (!series.length) {
+        container.innerHTML = '<p class="empty">No data yet.</p>';
+        return;
+      }
+      const max = Math.max(1, ...series.map((d) => Math.max(d.revenue, d.profit)));
+      container.innerHTML = series.map((d) => `
+        <div class="bar-col">
+          <div style="display:flex;align-items:flex-end;gap:2px;height:100%;width:100%;justify-content:center;">
+            <div class="bar" style="height:${Math.max(4, (d.revenue / max) * 100)}%;max-width:9px;" title="Sales: ${money(d.revenue)}"></div>
+            <div class="bar" style="height:${Math.max(4, (d.profit / max) * 100)}%;max-width:9px;background:var(--accent);" title="Profit: ${money(d.profit)}"></div>
+          </div>
+          <div class="bar-day">${d.day.split(" ")[0]}</div>
+        </div>
+      `).join("");
     }
 
     function renderSalesList() {
@@ -3568,6 +4030,25 @@
       renderPosProducts();
     });
 
+    // A handheld USB/Bluetooth scanner acts like a keyboard: it types the code into
+    // whatever's focused, then fires Enter. If the search box happens to be focused
+    // (the natural place a cashier's cursor sits) and the code exactly matches a
+    // product's SKU, treat it as a scan — add to cart and clear the field for the
+    // next item — rather than leaving it as a live filter with only one result.
+    document.getElementById("pos-search").addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const value = e.target.value.trim();
+      if (!value) return;
+      const product = PRODUCTS.find((p) => (p.sku || "").toLowerCase() === value.toLowerCase());
+      if (product) {
+        e.preventDefault();
+        posScanLookup(value);
+        document.getElementById("pos-search").value = "";
+        POS_SEARCH = "";
+        renderPosProducts();
+      }
+    });
+
     function renderPosProducts() {
       const grid = document.getElementById("pos-product-grid");
       const list = PRODUCTS.filter((p) =>
@@ -3753,6 +4234,119 @@
     document.getElementById("pos-held-btn").addEventListener("click", openHeldModal);
     document.getElementById("held-modal-close").addEventListener("click", closeHeldModal);
     document.getElementById("held-modal-backdrop").addEventListener("click", closeHeldModal);
+
+    /*
+     * ---- Barcode scanner (New Sale) ----
+     * Same two input paths as the web terminal's own scanner: a live camera reading
+     * real barcode formats via the browser's BarcodeDetector API, and a manual/
+     * keyboard-wedge field a handheld USB or Bluetooth scanner types straight into.
+     * Matches against each product's SKU (the code actually printed on its shelf
+     * label), not the internal numeric product id used to key the cart.
+     */
+    const SCAN_BARCODE_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"];
+    let SCAN_CAMERA_STREAM = null;
+    let SCAN_CAMERA_RAF = null;
+    let SCAN_LAST = { code: null, at: 0 };
+
+    function scanCameraSupported() {
+      return typeof window !== "undefined" && "BarcodeDetector" in window;
+    }
+
+    /** Adds the matched product to the cart — used by both the camera loop and the manual/keyboard-wedge field. */
+    function posScanLookup(code) {
+      const value = (code || "").trim();
+      if (!value) return false;
+      const product = PRODUCTS.find((p) => (p.sku || "").toLowerCase() === value.toLowerCase());
+      if (!product) {
+        toast(`No product matches code "${value}".`, "error");
+        return false;
+      }
+      if (product.stock <= 0) {
+        toast("Out of stock.", "error");
+        return false;
+      }
+      bumpCart(product.id, 1);
+      toast(`${product.name} — ${money(product.price)}`, "success");
+      return true;
+    }
+
+    function scanStopCamera() {
+      if (SCAN_CAMERA_RAF) cancelAnimationFrame(SCAN_CAMERA_RAF);
+      SCAN_CAMERA_RAF = null;
+      SCAN_CAMERA_STREAM?.getTracks().forEach((t) => t.stop());
+      SCAN_CAMERA_STREAM = null;
+      document.getElementById("scan-camera-on").classList.add("hidden");
+      document.getElementById("scan-camera-off").classList.remove("hidden");
+      document.getElementById("scan-camera-toggle").textContent = "Scan with camera";
+    }
+
+    async function scanStartCamera() {
+      document.getElementById("scan-camera-error").textContent = "";
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        SCAN_CAMERA_STREAM = stream;
+        const video = document.getElementById("scan-video");
+        video.srcObject = stream;
+        await video.play();
+        document.getElementById("scan-camera-off").classList.add("hidden");
+        document.getElementById("scan-camera-on").classList.remove("hidden");
+        document.getElementById("scan-camera-toggle").textContent = "Stop camera";
+
+        const detector = new window.BarcodeDetector({ formats: SCAN_BARCODE_FORMATS });
+        const tick = async () => {
+          if (!video || video.readyState < 2) {
+            SCAN_CAMERA_RAF = requestAnimationFrame(tick);
+            return;
+          }
+          try {
+            const codes = await detector.detect(video);
+            if (codes.length > 0) {
+              const value = codes[0].rawValue;
+              const now = Date.now();
+              // A held-up product stays in frame for many video frames — this stops
+              // the same code being re-scanned and re-added every ~16ms.
+              if (!(SCAN_LAST.code === value && now - SCAN_LAST.at < 1500)) {
+                SCAN_LAST = { code: value, at: now };
+                posScanLookup(value);
+              }
+            }
+          } catch {
+            // A single failed frame isn't worth surfacing — keep scanning.
+          }
+          SCAN_CAMERA_RAF = requestAnimationFrame(tick);
+        };
+        SCAN_CAMERA_RAF = requestAnimationFrame(tick);
+      } catch {
+        document.getElementById("scan-camera-error").textContent = "Couldn't access the camera. Check the browser's camera permission and try again.";
+      }
+    }
+
+    function openScanModal() {
+      if (!scanCameraSupported()) {
+        document.getElementById("scan-camera-toggle").classList.add("hidden");
+        document.getElementById("scan-hint").textContent = "Camera scanning isn't supported in this browser — try Chrome or Edge, or use a handheld barcode scanner (it types into the field below like a keyboard).";
+      }
+      document.getElementById("scan-modal").classList.remove("hidden");
+      document.getElementById("scan-modal-backdrop").classList.remove("hidden");
+      document.getElementById("scan-manual-code").focus();
+    }
+    function closeScanModal() {
+      scanStopCamera();
+      document.getElementById("scan-modal").classList.add("hidden");
+      document.getElementById("scan-modal-backdrop").classList.add("hidden");
+    }
+    document.getElementById("pos-scan-btn").addEventListener("click", openScanModal);
+    document.getElementById("scan-modal-close").addEventListener("click", closeScanModal);
+    document.getElementById("scan-modal-backdrop").addEventListener("click", closeScanModal);
+    document.getElementById("scan-camera-toggle").addEventListener("click", () => {
+      if (SCAN_CAMERA_STREAM) scanStopCamera();
+      else scanStartCamera();
+    });
+    document.getElementById("scan-manual-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById("scan-manual-code");
+      if (posScanLookup(input.value)) input.value = "";
+    });
 
     /* ---------------- Suppliers / Procurement ---------------- */
     let ALL_SUPPLIERS = [];
@@ -5886,12 +6480,16 @@
 
     /* ---------------- Reports ---------------- */
     let REPORT_RESULT = null;
+    const REPORT_CHART_COLORS = ["#008963", "#1d64c2", "#6d28d9", "#92620a", "#da283c"];
 
+    /** Full 30-day visual dashboard, ported to match the web app's own /reports page. */
     async function loadReportsPanel() {
-      showLoading("report-results");
+      showLoading("reports-stat-grid");
       document.getElementById("report-results").innerHTML = '<p class="empty">Choose a report type and tap Generate.</p>';
       REPORT_RESULT = null;
       document.getElementById("report-export-btn").disabled = true;
+      document.getElementById("reports-subtitle").textContent =
+        `Full business overview as of ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`;
       // Branch performance compares across branches — meaningless (and blocked server-side) for an account locked to one branch.
       const branchPerfOption = document.querySelector('#report-type option[value="branch_performance"]');
       if (branchPerfOption) {
@@ -5902,26 +6500,135 @@
       }
       try {
         const data = await api("/reports/summary");
-        document.getElementById("reports-stat-revenue").textContent = money(data.weekRevenue);
-        document.getElementById("reports-stat-margin").textContent = `${data.marginPct}% ${data.marginDeltaPct >= 0 ? "+" : ""}${data.marginDeltaPct}%`;
-        document.getElementById("reports-stat-orders").textContent = `${data.orders} (~${data.averagePerDay}/day)`;
-        renderReportsOrdersChart(data.series);
+        renderReportStatCards(data);
+        renderReportsTrendChart(data.monthlyTrend);
+        renderReportDonut("reports-category-chart", data.byCategory);
+        renderRankedBars("reports-branch-list", data.byBranch);
+        renderRankedBars("reports-products-list", data.topProducts);
+
+        const plSection = document.getElementById("reports-pl-section");
+        if (data.accountingEnabled && data.income) {
+          plSection.classList.remove("hidden");
+          renderReportDonut("reports-expense-chart", data.income.expenses.map((e) => ({ name: e.category, revenue: e.amount })));
+          renderIncomeStatement(data.income);
+        } else {
+          plSection.classList.add("hidden");
+        }
       } catch (err) {
         toast(err.message, "error");
       }
     }
 
-    function renderReportsOrdersChart(series) {
-      const container = document.getElementById("reports-orders-chart");
-      const max = Math.max(1, ...series.map((d) => d.orders));
-      const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "short" });
-      container.innerHTML = series.length ? series.map((d) => `
-        <div class="bar-col ${d.day === todayLabel ? "today" : ""}">
-          <div class="bar" style="height:${Math.max(4, (d.orders / max) * 100)}%" title="${d.orders} order${d.orders === 1 ? "" : "s"}"></div>
-          <div class="bar-day">${d.day}</div>
+    /** Revenue / orders / growth / best-day — same stat set as the web app's /reports, swapping in Total expenses + Net profit instead of Gross margin once the accounting module is active. */
+    function renderReportStatCards(data) {
+      const cards = [{ label: "Revenue", value: money(data.revenue), hint: "last 30 days" }];
+
+      if (data.accountingEnabled && data.income) {
+        cards.push({ label: "Total expenses", value: money(data.income.totalExpenses), hint: "last 30 days" });
+        cards.push({ label: "Net profit", value: money(data.income.netProfit), hint: "after expenses" });
+      } else {
+        cards.push({
+          label: "Gross margin",
+          value: `${data.marginPct}%`,
+          hint: `${data.marginDeltaPct >= 0 ? "+" : ""}${data.marginDeltaPct}% vs prior 30 days`,
+          hintClass: data.marginDeltaPct >= 0 ? "up" : "down",
+        });
+      }
+
+      cards.push({ label: "Orders", value: String(data.orders), hint: `avg ${data.averagePerDay} / day` });
+
+      const trend = data.monthlyTrend;
+      const current = trend[trend.length - 1];
+      const previous = trend[trend.length - 2];
+      let growthValue = "—";
+      if (current && previous && previous.revenue >= 1) {
+        const growth = Math.round(((current.revenue - previous.revenue) / previous.revenue) * 100);
+        growthValue = `${growth >= 0 ? "+" : ""}${growth}%`;
+      }
+      cards.push({ label: "Revenue growth", value: growthValue, hint: "vs previous month" });
+      cards.push({ label: "Best day", value: data.bestDay.day, hint: money(data.bestDay.revenue) });
+
+      document.getElementById("reports-stat-grid").innerHTML = cards.map((c) => `
+        <div class="stat">
+          <div class="label">${c.label}</div>
+          <div class="value">${c.value}</div>
+          <div class="hint ${c.hintClass || ""}">${c.hint}</div>
         </div>
-      `).join("") : '<p class="empty">No orders this week yet.</p>';
+      `).join("");
     }
+
+    function renderReportsTrendChart(monthlyTrend) {
+      const container = document.getElementById("reports-trend-chart");
+      if (!monthlyTrend.length) {
+        container.innerHTML = '<p class="empty">No sales yet.</p>';
+        return;
+      }
+      const max = Math.max(1, ...monthlyTrend.map((d) => d.revenue));
+      container.innerHTML = monthlyTrend.map((d) => `
+        <div class="bar-col">
+          <div class="bar" style="height:${Math.max(4, (d.revenue / max) * 100)}%" title="${money(d.revenue)}"></div>
+          <div class="bar-day">${d.month.split(" ")[0]}</div>
+        </div>
+      `).join("");
+    }
+
+    /** Pure-CSS conic-gradient donut, same zero-dependency approach as the payment mix chart — reused here for any {name, revenue}[] breakdown. */
+    function renderReportDonut(containerId, data) {
+      const container = document.getElementById(containerId);
+      if (!data.length) {
+        container.innerHTML = '<p class="empty">No data yet.</p>';
+        return;
+      }
+      const total = data.reduce((s, d) => s + d.revenue, 0) || 1;
+      let cumulative = 0;
+      const stops = data.map((d, i) => {
+        const start = cumulative;
+        cumulative += (d.revenue / total) * 100;
+        return `${REPORT_CHART_COLORS[i % REPORT_CHART_COLORS.length]} ${start}% ${cumulative}%`;
+      }).join(", ");
+      const legend = data.map((d, i) => `
+        <div class="donut-legend-item">
+          <span class="donut-legend-dot" style="background:${REPORT_CHART_COLORS[i % REPORT_CHART_COLORS.length]};"></span>
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.name}</span>
+          <span>${money(d.revenue)}</span>
+        </div>
+      `).join("");
+      container.innerHTML = `
+        <div class="donut-chart" style="background:conic-gradient(${stops});"></div>
+        <div class="donut-legend">${legend}</div>
+      `;
+    }
+
+    /** Ranked, sized bars for a {name, revenue}[] breakdown — the mobile-friendly equivalent of the web app's horizontal bar charts. */
+    function renderRankedBars(containerId, data) {
+      const container = document.getElementById(containerId);
+      if (!data.length) {
+        container.innerHTML = '<p class="empty">No data yet.</p>';
+        return;
+      }
+      const max = Math.max(1, ...data.map((d) => d.revenue));
+      container.innerHTML = data.map((d) => `
+        <div class="rank-row">
+          <div class="rank-row-top"><span class="rank-row-name">${d.name}</span><span class="rank-row-value">${money(d.revenue)}</span></div>
+          <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${Math.max(4, (d.revenue / max) * 100)}%"></div></div>
+        </div>
+      `).join("");
+    }
+
+    function renderIncomeStatement(income) {
+      document.getElementById("reports-pl-list").innerHTML = `
+        <div class="list-row"><div class="name">Revenue</div><div class="amount">${money(income.revenue)}</div></div>
+        <div class="list-row"><div class="name" style="color:var(--muted);">Cost of sales</div><div class="amount" style="color:var(--muted);">− ${money(income.costOfSales)}</div></div>
+        <div class="list-row"><div class="name" style="font-weight:700;">Gross profit</div><div class="amount">${money(income.grossProfit)}</div></div>
+        <div class="list-row"><div class="name" style="color:var(--muted);">Total expenses</div><div class="amount" style="color:var(--muted);">− ${money(income.totalExpenses)}</div></div>
+        <div class="list-row" style="border-top:2px solid var(--border);padding-top:14px;">
+          <div class="name" style="font-weight:800;font-size:1.05rem;">Net profit</div>
+          <div class="amount" style="font-size:1.05rem;color:var(--brand-dark);">${money(income.netProfit)}</div>
+        </div>
+      `;
+    }
+
+    document.getElementById("reports-print-btn").addEventListener("click", () => window.print());
 
     async function generateReport() {
       const type = document.getElementById("report-type").value;
@@ -6457,19 +7164,60 @@
         document.getElementById("settings-biz-name").textContent = me.businessName || "—";
         document.getElementById("settings-currency").textContent = CURRENCY;
 
-        // Three tiers, not two: admin/super get a real editable business form, manager
-        // gets the existing read-only summary, and staff — who never had access to any
-        // business-level info in the web app either — gets neither card at all.
+        // Admin/super get a real editable business form; manager and staff get the
+        // read-only summary — the web app now shows business info to every role the
+        // same way, just without edit access below admin.
         const isAdminUp = me.role === "super" || me.role === "admin";
-        const isManager = me.role === "manager";
-        document.getElementById("biz-readonly-card").classList.toggle("hidden", !isManager);
+        document.getElementById("biz-readonly-card").classList.toggle("hidden", isAdminUp);
         document.getElementById("biz-edit-card").classList.toggle("hidden", !isAdminUp);
         if (isAdminUp) loadBusinessSettings();
       } catch (err) {
         if (gen !== SESSION_GEN) return;
         toast(err.message, "error");
       }
+
+      loadSubscriptionPanel();
+      renderPrinterPanel();
+      applyTheme(currentTheme());
     }
+
+    /* ---------------- Appearance (light / dark) ----------------
+     * Theme is a per-account preference, not a per-device one — this is a
+     * shared POS terminal, and different staff log in and out of the same
+     * browser all shift long. So the choice is saved to the signed-in user's
+     * own account (PATCH /me/theme) and applied from server data (the /login
+     * and /me responses' user.theme), never from localStorage — a
+     * device-scoped value would leak one person's dark-mode choice into the
+     * next different account that logs into this same phone or terminal.
+     * The switch itself is still instant: every colour in this file is a CSS
+     * custom property keyed off [data-theme], so setting the attribute here
+     * is the whole visual change.
+     */
+    function currentTheme() {
+      return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    }
+    function applyTheme(mode) {
+      if (mode === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+      }
+      document.querySelectorAll("#theme-toggle [data-theme-choice]").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.themeChoice === mode);
+      });
+    }
+    async function chooseTheme(mode) {
+      applyTheme(mode);
+      try {
+        await api("/me/theme", { method: "PATCH", body: JSON.stringify({ theme: mode }) });
+      } catch (err) {
+        toast(err.message, "error");
+      }
+    }
+    document.querySelectorAll("#theme-toggle [data-theme-choice]").forEach((btn) => {
+      btn.addEventListener("click", () => chooseTheme(btn.dataset.themeChoice));
+    });
+    applyTheme(currentTheme());
 
     document.getElementById("save-profile").addEventListener("click", async () => {
       const errorEl = document.getElementById("settings-error");
@@ -6547,6 +7295,251 @@
         btn.textContent = "Save changes";
       }
     });
+
+    /** Same package tier colours as the web app's marketing/checkout grid — kept distinct per module rather than the app's own accent tokens. */
+    const MODULE_COLORS = {
+      pos: "#2563eb", inventory: "#d97706", sales: "#059669", accounting: "#7c3aed",
+      procurement: "#0891b2", customers: "#e11d48", hr: "#0d9488", attendance: "#4f46e5", payroll: "#65a30d",
+    };
+
+    /** Read-only for every role here — changing plan is a web-app-only flow (its own /subscribe checkout), not ported to the phone. */
+    async function loadSubscriptionPanel() {
+      const el = document.getElementById("subscription-body");
+      el.innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading…</div>';
+      try {
+        const data = await api("/subscription");
+        renderSubscription(data);
+      } catch (err) {
+        el.innerHTML = `<p class="error">${err.message}</p>`;
+      }
+    }
+
+    function subscriptionUsageBar(label, used, max) {
+      const pct = max ? Math.min(100, Math.round((used / max) * 100)) : 0;
+      return `
+        <div style="margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+            <span style="color:var(--muted);">${label}</span>
+            <span style="font-weight:600;">${used} ${max !== null ? `of ${max}` : "(unlimited)"}</span>
+          </div>
+          ${max !== null ? `<div class="rank-bar-track" style="margin-top:5px;"><div class="rank-bar-fill" style="width:${Math.max(pct, used > 0 ? 3 : 0)}%;${pct >= 100 ? "background:var(--danger);" : ""}"></div></div>` : ""}
+        </div>
+      `;
+    }
+
+    function renderSubscription(data) {
+      const statusClass = data.status === "active" ? "pill-ok" : data.status === "pending" ? "pill-warn" : "pill-danger";
+      const priceText = data.isCustomPricing ? "Custom pricing" : `${money(data.price)}${data.billingPeriod === "annual" ? "/yr" : "/mo"}`;
+      const modulesHtml = data.modules.length
+        ? data.modules.map((m) => `<span class="pill" style="background:${(MODULE_COLORS[m.key] || "#64748b")}1f;color:${MODULE_COLORS[m.key] || "#64748b"};">${m.label}</span>`).join(" ")
+        : '<span class="tagline" style="margin:0;text-align:left;">No modules active.</span>';
+      const dates = data.subscriptionStart || data.subscriptionEnd
+        ? `<p class="tagline" style="margin:6px 0 0;text-align:left;">${data.subscriptionStart ? `Started ${data.subscriptionStart}` : ""}${data.subscriptionStart && data.subscriptionEnd ? " · " : ""}${data.subscriptionEnd ? `Renews ${data.subscriptionEnd}` : ""}</p>`
+        : "";
+
+      document.getElementById("subscription-body").innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <p style="font-size:1.05rem;font-weight:800;margin:0;">${data.planLabel ? `${data.planLabel} plan` : "Custom (à la carte modules)"}</p>
+          <span class="pill ${statusClass}" style="text-transform:capitalize;">${data.status}</span>
+        </div>
+        <p style="margin:4px 0 0;color:var(--muted);font-size:0.9rem;">${priceText}</p>
+        ${data.planTagline ? `<p class="tagline" style="margin:2px 0 0;text-align:left;">${data.planTagline}</p>` : ""}
+        ${dates}
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;">${modulesHtml}</div>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+          <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0;">Usage</p>
+          ${subscriptionUsageBar("Users", data.usage.userCount, data.usage.maxUsers)}
+          ${subscriptionUsageBar("Branches", data.usage.branchCount, data.usage.maxBranches)}
+          ${!data.planKey ? `<p class="tagline" style="margin-top:10px;text-align:left;">No package selected — usage isn't capped, and you're billed per module active above.</p>` : ""}
+        </div>
+      `;
+    }
+
+    /* ---------------- Receipt printer (Web Bluetooth + ESC/POS) ----------------
+     * Same transport and command-builder logic as the web app's
+     * lib/printing/{bluetooth-printer,escpos}.ts, ported to vanilla JS since this
+     * file has no bundler/React runtime — a global PRINTER object stands in for that
+     * module's exported class instance, held for the life of the page like the web
+     * app's PrinterProvider holds it for the life of the session. Web Bluetooth only
+     * works in Chrome/Edge (desktop and Android) over HTTPS or localhost — never
+     * Safari/Firefox, so `supported` gates the whole panel exactly like there.
+     */
+    const PRINTER_KNOWN_SERVICES = [
+      "000018f0-0000-1000-8000-00805f9b34fb",
+      "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+      "0000ff00-0000-1000-8000-00805f9b34fb",
+      "0000ffe0-0000-1000-8000-00805f9b34fb",
+    ];
+    const PRINTER_CHUNK_SIZE = 180;
+    const PRINTER_CHUNK_DELAY_MS = 20;
+
+    const PRINTER = { status: "disconnected", device: null, characteristic: null, name: null, error: null, testing: false };
+
+    function printerSupported() {
+      return typeof navigator !== "undefined" && "bluetooth" in navigator;
+    }
+
+    async function printerFindWritableCharacteristic(server) {
+      const services = await server.getPrimaryServices();
+      for (const service of services) {
+        const characteristics = await service.getCharacteristics();
+        const writable = characteristics.find((c) => c.properties.write || c.properties.writeWithoutResponse);
+        if (writable) return writable;
+      }
+      throw new Error("This device doesn't expose a printable Bluetooth service.");
+    }
+
+    const printerSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    async function printerWrite(data) {
+      const withResponse = PRINTER.characteristic.properties.write;
+      for (let offset = 0; offset < data.length; offset += PRINTER_CHUNK_SIZE) {
+        const chunk = new Uint8Array(data.subarray(offset, offset + PRINTER_CHUNK_SIZE));
+        if (withResponse) {
+          await PRINTER.characteristic.writeValueWithResponse(chunk);
+        } else {
+          await PRINTER.characteristic.writeValueWithoutResponse(chunk);
+        }
+        if (offset + PRINTER_CHUNK_SIZE < data.length) await printerSleep(PRINTER_CHUNK_DELAY_MS);
+      }
+    }
+
+    async function connectPrinter() {
+      if (!navigator.bluetooth) {
+        PRINTER.error = "This browser doesn't support Web Bluetooth. Try Chrome or Edge.";
+        renderPrinterPanel();
+        return;
+      }
+      PRINTER.error = null;
+      PRINTER.status = "connecting";
+      renderPrinterPanel();
+      try {
+        const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: PRINTER_KNOWN_SERVICES });
+        if (!device.gatt) throw new Error("This device doesn't support GATT connections.");
+        const server = await device.gatt.connect();
+        const characteristic = await printerFindWritableCharacteristic(server);
+        device.addEventListener("gattserverdisconnected", () => {
+          PRINTER.status = "disconnected";
+          PRINTER.device = null;
+          PRINTER.characteristic = null;
+          PRINTER.name = null;
+          renderPrinterPanel();
+        });
+        PRINTER.device = device;
+        PRINTER.characteristic = characteristic;
+        PRINTER.name = device.name || "Unnamed printer";
+        PRINTER.status = "connected";
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Could not connect to the printer.";
+        if (!/cancelled|user gesture/i.test(message)) PRINTER.error = message;
+        PRINTER.status = "disconnected";
+      }
+      renderPrinterPanel();
+    }
+
+    function disconnectPrinter() {
+      PRINTER.device?.gatt?.disconnect();
+      PRINTER.status = "disconnected";
+      PRINTER.device = null;
+      PRINTER.characteristic = null;
+      PRINTER.name = null;
+      renderPrinterPanel();
+    }
+
+    /** Minimal ESC/POS byte builder — same commands and 32-column layout as the web app's buildReceipt(), just for a test slip here rather than a real receipt. */
+    function buildTestReceipt() {
+      const ESC = 0x1b, GS = 0x1d;
+      const WIDTH = 32;
+      const out = [];
+      const raw = (...cmd) => out.push(...cmd);
+      const push = (s) => out.push(...Array.from(new TextEncoder().encode(s)));
+      const line = (s) => push((s || "") + "\n");
+      const center = (s) => { const pad = Math.max(0, Math.floor((WIDTH - s.length) / 2)); return " ".repeat(pad) + s; };
+
+      raw(ESC, 0x40); // init
+      raw(ESC, 0x61, 0x01, GS, 0x21, 0x11); // align center, double size
+      line("Dashflow POS");
+      raw(GS, 0x21, 0x00); // double off
+      line("Test receipt");
+      line("-".repeat(WIDTH));
+      raw(ESC, 0x61, 0x00); // align left
+      line("Ref:      TEST-0001");
+      line("Date:     " + new Date().toLocaleString());
+      line("Cashier:  Settings");
+      line("-".repeat(WIDTH));
+      line("Sample item");
+      line("  1 x USh 100          USh 100");
+      line("Second item");
+      line("  2 x USh 250          USh 500");
+      line("-".repeat(WIDTH));
+      raw(ESC, 0x45, 0x01); // bold on
+      line("TOTAL              USh 600");
+      raw(ESC, 0x45, 0x00); // bold off
+      line();
+      raw(ESC, 0x61, 0x01);
+      line("Printer connected successfully");
+      line();
+      line();
+      line();
+      raw(ESC, 0x64, 3, GS, 0x56, 0x00); // feed + cut
+      return new Uint8Array(out);
+    }
+
+    async function testPrintReceipt() {
+      if (!PRINTER.characteristic) return;
+      PRINTER.testing = true;
+      renderPrinterPanel();
+      try {
+        await printerWrite(buildTestReceipt());
+        toast("Test receipt sent to the printer.", "success");
+      } catch (err) {
+        toast(err.message || "Could not print.", "error");
+      } finally {
+        PRINTER.testing = false;
+        renderPrinterPanel();
+      }
+    }
+
+    function renderPrinterPanel() {
+      const el = document.getElementById("printer-body");
+      if (!el) return;
+
+      if (!printerSupported()) {
+        el.innerHTML = `<p class="tagline" style="text-align:left;margin:0;">Bluetooth printing isn't supported in this browser. Use Chrome or Edge on desktop or Android to connect a printer.</p>`;
+        return;
+      }
+
+      const connected = PRINTER.status === "connected";
+      const iconBg = connected ? "background:var(--success-bg);color:var(--success);" : "background:var(--panel-2);color:var(--muted);";
+      const statusText = connected ? PRINTER.name : PRINTER.status === "connecting" ? "Connecting…" : "No printer connected";
+      const subText = connected ? "Ready to print receipts over Bluetooth." : "Pair a Bluetooth thermal receipt printer to print straight from the till.";
+
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="width:40px;height:40px;flex-shrink:0;border-radius:10px;display:flex;align-items:center;justify-content:center;${iconBg}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><path d="M6.5 6.5 17.5 17.5M6.5 17.5 17.5 6.5M12 2v6.5M12 15.5V22"/></svg>
+          </span>
+          <div style="min-width:0;flex:1;">
+            <p style="font-size:0.9rem;font-weight:600;margin:0;">${statusText}</p>
+            <p class="tagline" style="margin:2px 0 0;text-align:left;">${subText}</p>
+            ${PRINTER.error ? `<p class="error" style="margin-top:4px;">${PRINTER.error}</p>` : ""}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          ${connected
+            ? `<button type="button" class="btn-secondary" id="printer-test-btn" style="flex:1;" ${PRINTER.testing ? "disabled" : ""}>${PRINTER.testing ? "Printing…" : "Print test receipt"}</button>
+               <button type="button" class="btn-secondary" id="printer-disconnect-btn" style="flex:1;">Disconnect</button>`
+            : `<button type="button" class="btn-primary" id="printer-connect-btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;" ${PRINTER.status === "connecting" ? "disabled" : ""}>
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M6.5 6.5 17.5 17.5M6.5 17.5 17.5 6.5M12 2v6.5M12 15.5V22"/></svg>
+                 Connect Bluetooth printer
+               </button>`}
+        </div>
+      `;
+
+      document.getElementById("printer-connect-btn")?.addEventListener("click", connectPrinter);
+      document.getElementById("printer-disconnect-btn")?.addEventListener("click", disconnectPrinter);
+      document.getElementById("printer-test-btn")?.addEventListener("click", testPrintReceipt);
+    }
 
     /* ---------------- Install prompt (Android/Chrome) ---------------- */
     let deferredPrompt;

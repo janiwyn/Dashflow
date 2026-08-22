@@ -97,6 +97,16 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Neon is a remote, single-region Postgres — every fresh TCP+TLS handshake to it
+            // costs ~2s from this machine (measured directly), on top of ~550ms per individual
+            // query round-trip. Without this, that ~2s connect cost is paid again on every
+            // single HTTP request, since Laravel closes non-persistent connections at the end
+            // of each request. A persistent PDO connection is cached by the PHP process itself
+            // (keyed on dsn+credentials) and reused by the next request that process serves —
+            // safe here because php-fpm workers and `php artisan serve` are both one long-lived
+            // process handling requests sequentially, never two requests touching the same
+            // connection at once.
+            'options' => extension_loaded('pdo_pgsql') ? [PDO::ATTR_PERSISTENT => (bool) env('DB_PERSISTENT', true)] : [],
         ],
 
         'sqlsrv' => [

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
+import { getCurrentUser } from "@/lib/session";
 
 import "./globals.css";
 
@@ -17,9 +18,17 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.svg" },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Theme is a per-account preference, not a per-device one — a shared POS
+  // terminal sees many different staff log in and out through a shift, and
+  // one person's dark-mode choice must never leak into the next person's
+  // session. So the class is rendered from the signed-in user's own `theme`
+  // column, not from localStorage (which is scoped to the browser, not the
+  // account). Signed-out visitors (marketing, login) always render light.
+  const user = await getCurrentUser();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={user?.theme === "dark" ? "dark" : undefined} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

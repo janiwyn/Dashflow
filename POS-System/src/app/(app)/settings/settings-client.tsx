@@ -2,16 +2,33 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
-import { Bluetooth, BluetoothConnected, Save, Building2, Coins, CreditCard, Printer } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Bluetooth,
+  BluetoothConnected,
+  Building2,
+  CalendarDays,
+  Coins,
+  CreditCard,
+  Mail,
+  Printer,
+  Save,
+  SunMoon,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { updateBusinessSettings } from "@/app/actions/settings";
+import { updateOwnProfile } from "@/app/actions/users";
 import { AppShell } from "@/components/app-shell";
 import { useCurrency } from "@/components/currency-provider";
 import { usePrinter } from "@/components/printer-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { currencyMeta, formatMoney } from "@/lib/currency";
 import { MODULE_CATALOG, MODULE_TILE_STYLE, modulesMonthlyTotal, type ModuleKey } from "@/lib/modules";
 import { annualPrice, isPlanKey, PLAN_CATALOG } from "@/lib/plans";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,15 +39,155 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SUPPORTED_CURRENCIES } from "@/lib/currency";
-import type { viewBusinessSettings, viewSubscriptionUsage } from "@/db/queries/views";
+import type { viewBusinessSettings, viewProfile, viewSubscriptionUsage } from "@/db/queries/views";
+
+type BusinessSettings = NonNullable<Awaited<ReturnType<typeof viewBusinessSettings>>>;
+type SubscriptionUsage = Awaited<ReturnType<typeof viewSubscriptionUsage>>;
 
 type Props = {
-  settings: NonNullable<Awaited<ReturnType<typeof viewBusinessSettings>>>;
-  usage: Awaited<ReturnType<typeof viewSubscriptionUsage>>;
+  currentProfile: NonNullable<Awaited<ReturnType<typeof viewProfile>>>;
+  settings: BusinessSettings | null;
+  usage: SubscriptionUsage | null;
+  isAdmin: boolean;
 };
 
-export default function SettingsPage({ settings, usage }: Props) {
+export default function SettingsPage({ currentProfile, settings, usage, isAdmin }: Props) {
+  return (
+    <AppShell title="Settings" subtitle="Your profile, business details, currency and subscription">
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          {settings && <TabsTrigger value="business">Business</TabsTrigger>}
+          {settings && usage && <TabsTrigger value="subscription">Subscription</TabsTrigger>}
+          <TabsTrigger value="printer">Printer</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile">
+          <ProfileTab currentProfile={currentProfile} />
+        </TabsContent>
+
+        {settings && (
+          <TabsContent value="business">
+            <BusinessTab settings={settings} readOnly={!isAdmin} />
+          </TabsContent>
+        )}
+
+        {settings && usage && (
+          <TabsContent value="subscription">
+            <SubscriptionPanel settings={settings} usage={usage} readOnly={!isAdmin} />
+          </TabsContent>
+        )}
+
+        <TabsContent value="printer">
+          <PrinterSettings />
+        </TabsContent>
+      </Tabs>
+    </AppShell>
+  );
+}
+
+function ProfileTab({ currentProfile }: { currentProfile: Props["currentProfile"] }) {
+  const router = useRouter();
+  const [name, setName] = useState(currentProfile.name);
+  const [phone, setPhone] = useState(currentProfile.phone === "—" ? "" : currentProfile.phone);
+  const [pending, startTransition] = useTransition();
+  const initials = currentProfile.name.split(" ").map((s) => s[0]).join("").slice(0, 2);
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      toast.error("Name is required.");
+      return;
+    }
+    startTransition(async () => {
+      const result = await updateOwnProfile({ name: name.trim(), phone: phone.trim() });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message);
+      router.refresh();
+    });
+  };
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="panel h-fit overflow-hidden">
+        <div className="h-20 bg-gradient-to-br from-primary/25 via-primary/10 to-transparent" />
+        <div className="-mt-10 px-6 pb-6">
+          <Avatar className="size-20 border-4 border-card shadow-card">
+            <AvatarFallback className="text-xl font-semibold">{initials}</AvatarFallback>
+          </Avatar>
+          <p className="mt-3 truncate text-lg font-semibold tracking-tight">{currentProfile.name}</p>
+          <Badge variant="secondary" className="mt-1.5">
+            {currentProfile.role}
+          </Badge>
+
+          <div className="mt-5 grid gap-3 border-t border-border pt-5 text-sm">
+            <div className="flex items-center gap-2.5 text-muted-foreground">
+              <Mail className="size-4 shrink-0" />
+              <span className="truncate">{currentProfile.email}</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-muted-foreground">
+              <Building2 className="size-4 shrink-0" />
+              <span className="truncate">{currentProfile.branch}</span>
+            </div>
+            {currentProfile.hireDate && (
+              <div className="flex items-center gap-2.5 text-muted-foreground">
+                <CalendarDays className="size-4 shrink-0" />
+                <span className="truncate">Member since {currentProfile.hireDate}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="panel min-w-0 p-6">
+        <div className="mb-5 flex items-center gap-2">
+          <UserRound className="size-4 text-muted-foreground" />
+          <h2 className="text-base font-semibold">Personal information</h2>
+        </div>
+        <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label>Full Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} name="name" className="rounded-lg" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Phone</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} name="phone" className="rounded-lg" />
+          </div>
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label>Email</Label>
+            <Input type="email" defaultValue={currentProfile.email} name="email" disabled className="rounded-lg" />
+            <p className="text-xs text-muted-foreground">Email is your sign-in identity and can&apos;t be changed here.</p>
+          </div>
+
+          <div className="flex flex-col-reverse items-start gap-3 border-t border-border pt-5 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">Changes apply to your account only.</p>
+            <Button type="submit" disabled={pending} className="rounded-lg">
+              <Save className="size-4" /> {pending ? "Saving…" : "Update Profile"}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      <div className="panel min-w-0 p-6 lg:col-span-2">
+        <div className="mb-1 flex items-center gap-2">
+          <SunMoon className="size-4 text-muted-foreground" />
+          <h2 className="text-base font-semibold">Appearance</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">Choose how Dashflow looks on this device.</p>
+        <div className="mt-4">
+          <ThemeToggle />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BusinessTab({ settings, readOnly }: { settings: BusinessSettings; readOnly: boolean }) {
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState({
     name: settings.name,
@@ -54,99 +211,106 @@ export default function SettingsPage({ settings, usage }: Props) {
   };
 
   return (
-    <AppShell title="Settings" subtitle="Business profile, contact details, currency and subscription">
-      <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-2">
+    <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-2">
+      {readOnly && (
+        <p className="lg:col-span-2 text-xs text-muted-foreground">
+          Only admins can change business details — you&apos;re viewing this read-only.
+        </p>
+      )}
+      <div className="panel min-w-0 p-6">
+        <div className="mb-5 flex items-center gap-2">
+          <Building2 className="size-4 text-muted-foreground" />
+          <h2 className="text-base font-semibold">Business profile</h2>
+        </div>
+        <div className="grid gap-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="name">Business name</Label>
+            <Input
+              id="name"
+              required
+              disabled={readOnly}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="tagline">Tagline</Label>
+            <Input
+              id="tagline"
+              placeholder="e.g. Quality groceries, every branch"
+              disabled={readOnly}
+              value={form.tagline}
+              onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="phone">Phone</Label>
+            <Input
+              id="phone"
+              disabled={readOnly}
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="address">Address</Label>
+            <Input
+              id="address"
+              disabled={readOnly}
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="taxPin">Tax PIN</Label>
+            <Input
+              id="taxPin"
+              placeholder="Printed on invoices and receipts"
+              disabled={readOnly}
+              value={form.taxPin}
+              onChange={(e) => setForm({ ...form, taxPin: e.target.value })}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-6">
         <div className="panel min-w-0 p-6">
           <div className="mb-5 flex items-center gap-2">
-            <Building2 className="size-4 text-muted-foreground" />
-            <h2 className="text-base font-semibold">Business profile</h2>
+            <Coins className="size-4 text-muted-foreground" />
+            <h2 className="text-base font-semibold">Currency</h2>
           </div>
-          <div className="grid gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="name">Business name</Label>
-              <Input
-                id="name"
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="tagline">Tagline</Label>
-              <Input
-                id="tagline"
-                placeholder="e.g. Quality groceries, every branch"
-                value={form.tagline}
-                onChange={(e) => setForm({ ...form, tagline: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="taxPin">Tax PIN</Label>
-              <Input
-                id="taxPin"
-                placeholder="Printed on invoices and receipts"
-                value={form.taxPin}
-                onChange={(e) => setForm({ ...form, taxPin: e.target.value })}
-              />
-            </div>
+          <div className="grid gap-1.5">
+            <Label>Display currency</Label>
+            <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })} disabled={readOnly}>
+              <SelectTrigger className="rounded-lg">
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.symbol} — {c.name} ({c.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Every amount across the dashboard, receipts and reports switches to this currency
+              once saved.
+            </p>
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-6">
-          <div className="panel min-w-0 p-6">
-            <div className="mb-5 flex items-center gap-2">
-              <Coins className="size-4 text-muted-foreground" />
-              <h2 className="text-base font-semibold">Currency</h2>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Display currency</Label>
-              <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-                <SelectTrigger className="rounded-lg">
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORTED_CURRENCIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.symbol} — {c.name} ({c.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Every amount across the dashboard, receipts and reports switches to this currency
-                once saved.
-              </p>
-            </div>
-          </div>
-
+        {!readOnly && (
           <div className="panel min-w-0 p-6">
             <Button type="submit" disabled={pending} className="w-full rounded-lg sm:w-auto">
               <Save className="size-4" />
               {pending ? "Saving…" : "Save changes"}
             </Button>
           </div>
-        </div>
-      </form>
-
-      <SubscriptionPanel settings={settings} usage={usage} />
-      <PrinterSettings />
-    </AppShell>
+        )}
+      </div>
+    </form>
   );
 }
 
@@ -172,7 +336,15 @@ function UsageBar({ label, used, max }: { label: string; used: number; max: numb
   );
 }
 
-function SubscriptionPanel({ settings, usage }: Props) {
+function SubscriptionPanel({
+  settings,
+  usage,
+  readOnly,
+}: {
+  settings: BusinessSettings;
+  usage: NonNullable<SubscriptionUsage>;
+  readOnly: boolean;
+}) {
   const plan = isPlanKey(settings.planKey) ? PLAN_CATALOG[settings.planKey] : null;
   const activeModules = usage.activeModules as ModuleKey[];
 
@@ -190,15 +362,17 @@ function SubscriptionPanel({ settings, usage }: Props) {
         : "bg-destructive/12 text-destructive";
 
   return (
-    <div className="panel mt-6 min-w-0 p-6">
+    <div className="panel min-w-0 p-6">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <CreditCard className="size-4 text-muted-foreground" />
           <h2 className="text-base font-semibold">Subscription</h2>
         </div>
-        <Button asChild variant="outline" size="sm" className="rounded-lg">
-          <Link href="/subscribe">{plan ? "Change plan" : "Upgrade to a package"}</Link>
-        </Button>
+        {!readOnly && (
+          <Button asChild variant="outline" size="sm" className="rounded-lg">
+            <Link href="/subscribe">{plan ? "Change plan" : "Upgrade to a package"}</Link>
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -282,7 +456,7 @@ function PrinterSettings() {
   };
 
   return (
-    <div className="panel mt-6 min-w-0 p-6">
+    <div className="panel min-w-0 p-6">
       <div className="mb-5 flex items-center gap-2">
         <Printer className="size-4 text-muted-foreground" />
         <h2 className="text-base font-semibold">Receipt printer</h2>

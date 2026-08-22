@@ -7,9 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Business;
 use App\Models\Customer;
-use App\Models\Product;
 use App\Models\RemoteOrder;
-use App\Models\Sale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -25,22 +23,39 @@ class DashboardController extends Controller
         $user = $this->authUser($request);
         $branch = $branchId ? Branch::find($branchId) : null;
 
-        $salesScope = fn () => Sale::query()
+        // Combined into one round-trip via FILTER clauses — Neon's ~550ms-per-query network
+        // latency from this machine means four separate sum()/count() calls here cost ~2.2s
+        // that one query avoids entirely.
+        $todayStart = now()->startOfDay();
+        $yesterdayStart = now()->subDay()->startOfDay();
+        $weekStart = now()->subDays(6)->startOfDay();
+
+        $salesTotals = DB::table('sales')
             ->where('business_id', $businessId)
             ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
-            ->where('status', '!=', 'refunded');
+            ->where('status', '!=', 'refunded')
+            ->selectRaw(
+                'coalesce(sum(total) filter (where sold_at >= ?), 0) as today_revenue,
+                 count(*) filter (where sold_at >= ?) as today_receipts,
+                 coalesce(sum(total) filter (where sold_at >= ? and sold_at < ?), 0) as yesterday_revenue,
+                 coalesce(sum(total) filter (where sold_at >= ?), 0) as week_revenue',
+                [$todayStart, $todayStart, $yesterdayStart, $todayStart, $weekStart],
+            )
+            ->first();
 
-        $todayRevenue = (float) (clone $salesScope())->whereDate('sold_at', now()->toDateString())->sum('total');
-        $todayReceipts = (clone $salesScope())->whereDate('sold_at', now()->toDateString())->count();
-        $yesterdayRevenue = (float) (clone $salesScope())->whereDate('sold_at', now()->subDay()->toDateString())->sum('total');
-        $weekRevenue = (float) (clone $salesScope())->where('sold_at', '>=', now()->subDays(6)->startOfDay())->sum('total');
+        $todayRevenue = (float) $salesTotals->today_revenue;
+        $todayReceipts = (int) $salesTotals->today_receipts;
+        $yesterdayRevenue = (float) $salesTotals->yesterday_revenue;
+        $weekRevenue = (float) $salesTotals->week_revenue;
 
-        $productsScope = fn () => Product::query()
+        $productTotals = DB::table('products')
             ->where('business_id', $businessId)
-            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId));
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->selectRaw('count(*) filter (where stock <= low_stock_threshold) as low_stock_count, coalesce(sum(buying_price * stock), 0) as stock_value')
+            ->first();
 
-        $lowStockCount = (clone $productsScope())->lowStock()->count();
-        $stockValue = (float) (clone $productsScope())->selectRaw('coalesce(sum(buying_price * stock), 0) as v')->value('v');
+        $lowStockCount = (int) $productTotals->low_stock_count;
+        $stockValue = (float) $productTotals->stock_value;
 
         $pendingOrdersCount = RemoteOrder::query()
             ->where('business_id', $businessId)
@@ -63,7 +78,7 @@ class DashboardController extends Controller
 
         return response()->json([
             'business' => ['name' => $business->name, 'currency' => $business->currency],
-            'user' => ['name' => $user->name, 'role' => $user->role],
+            'user' => ['name' => $user->name, 'role' => $user->role, 'theme' => $user->theme ?? 'light'],
             'branchLocked' => $user->isBranchLocked(),
             'selectedBranchId' => $branchId,
             'branchName' => $branch?->name,

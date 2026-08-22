@@ -210,10 +210,11 @@ class AccountingController extends Controller
         $days = $request->integer('days') ?: 30;
         $since = now()->subDays($days - 1)->startOfDay();
 
-        $salesScope = fn () => Sale::where('business_id', $businessId)->where('sold_at', '>=', $since);
-
-        $revenue = (float) (clone $salesScope())->where('status', '!=', 'refunded')->sum('total');
-        $refunds = (float) (clone $salesScope())->where('status', 'refunded')->sum('total');
+        $salesTotals = Sale::where('business_id', $businessId)->where('sold_at', '>=', $since)
+            ->selectRaw("coalesce(sum(total) filter (where status != 'refunded'), 0) as revenue, coalesce(sum(total) filter (where status = 'refunded'), 0) as refunds")
+            ->first();
+        $revenue = (float) $salesTotals->revenue;
+        $refunds = (float) $salesTotals->refunds;
 
         $costOfSales = (float) DB::table('sale_items')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')

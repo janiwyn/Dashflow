@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Ports the web app's "/reports" (a fixed weekly snapshot) and "/reports-generator"
+ * Ports the web app's "/reports" (a full 30-day visual dashboard) and "/reports-generator"
  * (the real report builder: type + branch + date-range filters, generate, CSV export).
  * Gated by the "sales" module there too — reporting is bundled into that subscription,
  * not its own module.
@@ -24,7 +24,14 @@ class ReportController extends Controller
 
     const PAYMENT_LABELS = ['cash' => 'Cash', 'mpesa' => 'Mobile Money', 'card' => 'Card', 'invoice' => 'Invoice', 'bank' => 'Bank'];
 
-    /** The "/reports" weekly snapshot: revenue, gross margin trend, orders, and a 7-day chart. */
+    /**
+     * The "/reports" dashboard — ported to match the web app's own /reports page: a
+     * rolling-30-day KPI set, a 6-month revenue trend, category/branch/product
+     * breakdowns, and (only when the accounting module is active) a full P&L.
+     * Uses a 30-day rolling window rather than the literal calendar week, same reason
+     * as the web app's viewReportStats(): a demo/seed business can have real recent
+     * activity that isn't on the exact current day.
+     */
     public function summary(Request $request)
     {
         $this->requireModule($request, 'sales');
@@ -32,7 +39,7 @@ class ReportController extends Controller
         $businessId = $this->businessId($request);
         $branchId = $this->enforcedBranchId($request, $request->integer('branch_id') ?: null);
 
-        $days = 7;
+        $days = 30;
         $since = now()->subDays($days - 1)->startOfDay();
 
         $series = DB::table('sales')
@@ -45,43 +52,187 @@ class ReportController extends Controller
             ->orderBy('date')
             ->get();
 
-        $weekRevenue = (float) $series->sum('revenue');
         $orders = (int) $series->sum('orders');
         $averagePerDay = $series->count() ? round($orders / $series->count()) : 0;
+        $bestDay = $series->sortByDesc('revenue')->first();
 
-        $currentMargin = $this->grossMarginPercent($businessId, $branchId, now()->subDays($days - 1)->startOfDay(), now());
-        $previousMargin = $this->grossMarginPercent($businessId, $branchId, now()->subDays(($days * 2) - 1)->startOfDay(), now()->subDays($days)->endOfDay());
+        $margin = $this->marginWithDelta($businessId, $branchId, $since, now()->subDays(($days * 2) - 1)->startOfDay());
+
+        $byCategory = $this->salesByCategory($businessId, $branchId, $days);
+        $byBranch = $this->salesByBranch($businessId, $branchId, $days);
+        $topProducts = $this->topProductsByRevenue($businessId, $branchId, $days, 5);
+        $revenue = array_sum(array_column($byCategory, 'revenue'));
+
+        $accountingEnabled = in_array('accounting', $this->activeModules($request), true);
+        $income = $accountingEnabled ? $this->incomeStatement($businessId, $branchId, $days, $margin['currentCost']) : null;
 
         return response()->json([
-            'weekRevenue' => $weekRevenue,
+            'revenue' => $revenue,
             'orders' => $orders,
             'averagePerDay' => $averagePerDay,
-            'marginPct' => round($currentMargin * 10) / 10,
-            'marginDeltaPct' => round(($currentMargin - $previousMargin) * 10) / 10,
-            'series' => $series->map(fn ($r) => ['day' => $r->day, 'revenue' => (float) $r->revenue, 'orders' => (int) $r->orders]),
+            'marginPct' => $margin['marginPct'],
+            'marginDeltaPct' => $margin['marginDeltaPct'],
+            'bestDay' => $bestDay ? ['day' => $bestDay->day, 'revenue' => (float) $bestDay->revenue] : ['day' => '—', 'revenue' => 0],
+            'accountingEnabled' => $accountingEnabled,
+            'income' => $income,
+            'monthlyTrend' => $this->monthlyRevenue($businessId, $branchId, 6),
+            'byCategory' => $byCategory,
+            'byBranch' => $byBranch,
+            'topProducts' => $topProducts,
         ]);
+    }
+
+    private function salesByCategory(int $businessId, ?int $branchId, int $days): array
+    {
+        $since = now()->subDays($days - 1)->startOfDay();
+        $rows = DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+            ->where('sales.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->where('sales.status', '!=', 'refunded')
+            ->where('sales.sold_at', '>=', $since)
+            ->selectRaw("coalesce(categories.name, 'Uncategorised') as name, sum(sale_items.quantity * sale_items.unit_price) as revenue")
+            ->groupBy('categories.name')
+            ->orderByDesc('revenue')
+            ->get();
+
+        return $rows->map(fn ($r) => ['name' => $r->name, 'revenue' => (float) $r->revenue])->values()->all();
+    }
+
+    private function salesByBranch(int $businessId, ?int $branchId, int $days): array
+    {
+        $since = now()->subDays($days - 1)->startOfDay();
+        $rows = DB::table('sales')
+            ->leftJoin('branches', 'branches.id', '=', 'sales.branch_id')
+            ->where('sales.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->where('sales.status', '!=', 'refunded')
+            ->where('sales.sold_at', '>=', $since)
+            ->selectRaw("coalesce(branches.name, 'Unassigned') as name, sum(sales.total) as revenue")
+            ->groupBy('branches.name')
+            ->orderByDesc('revenue')
+            ->get();
+
+        return $rows->map(fn ($r) => ['name' => $r->name, 'revenue' => (float) $r->revenue])->values()->all();
+    }
+
+    private function topProductsByRevenue(int $businessId, ?int $branchId, int $days, int $limit): array
+    {
+        $since = now()->subDays($days - 1)->startOfDay();
+        $rows = DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->where('sales.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->where('sales.status', '!=', 'refunded')
+            ->where('sales.sold_at', '>=', $since)
+            ->selectRaw('sale_items.name as name, sum(sale_items.quantity * sale_items.unit_price) as revenue')
+            ->groupBy('sale_items.name')
+            ->orderByDesc('revenue')
+            ->limit($limit)
+            ->get();
+
+        return $rows->map(fn ($r) => ['name' => $r->name, 'revenue' => (float) $r->revenue])->values()->all();
+    }
+
+    /**
+     * Revenue, cost of sales and expenses by category for the trailing `days`. Takes
+     * `$costOfSales` as a parameter rather than querying it itself — it's the exact same
+     * figure (same window, same branch scope, same buying-price basis) that
+     * marginWithDelta() already computed as a side effect, and at ~550ms per query on this
+     * connection, not re-running it is a real saving, not a micro-optimisation.
+     */
+    private function incomeStatement(int $businessId, ?int $branchId, int $days, float $costOfSales): array
+    {
+        $since = now()->subDays($days - 1)->startOfDay();
+
+        $revenue = (float) DB::table('sales')
+            ->where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->where('sold_at', '>=', $since)
+            ->selectRaw("coalesce(sum(total) filter (where status != 'refunded'), 0) as v")
+            ->value('v');
+
+        $expenseRows = DB::table('expenses')
+            ->where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->where('incurred_on', '>=', $since)
+            ->selectRaw('category, coalesce(sum(amount), 0) as amount')
+            ->groupBy('category')
+            ->orderByDesc('amount')
+            ->get();
+
+        $expenses = $expenseRows->map(fn ($r) => ['category' => $r->category, 'amount' => (float) $r->amount])->values();
+        $totalExpenses = (float) $expenses->sum('amount');
+
+        $grossProfit = $revenue - $costOfSales;
+
+        return [
+            'revenue' => $revenue,
+            'costOfSales' => $costOfSales,
+            'grossProfit' => $grossProfit,
+            'expenses' => $expenses->all(),
+            'totalExpenses' => $totalExpenses,
+            'netProfit' => $grossProfit - $totalExpenses,
+        ];
+    }
+
+    private function monthlyRevenue(int $businessId, ?int $branchId, int $months): array
+    {
+        $rows = DB::table('sales')
+            ->where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->where('status', '!=', 'refunded')
+            ->where('sold_at', '>=', now()->startOfMonth()->subMonths($months - 1))
+            ->selectRaw("to_char(sold_at, 'Mon YYYY') as month, to_char(sold_at, 'YYYY-MM') as key, coalesce(sum(total), 0) as revenue, count(id) as orders")
+            ->groupBy('month', 'key')
+            ->orderBy('key')
+            ->get();
+
+        return $rows->map(fn ($r) => ['month' => $r->month, 'revenue' => (float) $r->revenue, 'orders' => (int) $r->orders])->values()->all();
     }
 
     /**
      * Approximate gross margin — uses each product's CURRENT buying price as the cost
      * basis (sales don't snapshot cost at time of sale), same intentional simplification
      * the web app uses. Not a bug: margin on old sales shifts if buying prices change today.
+     *
+     * Computes the current AND previous window in a single query (via FILTER clauses)
+     * instead of the four separate queries this used to take (revenue + cost, twice) —
+     * on a remote connection like this one, each avoided round-trip is ~550ms.
      */
-    private function grossMarginPercent(int $businessId, ?int $branchId, $since, $until): float
+    private function marginWithDelta(int $businessId, ?int $branchId, $currentSince, $previousSince): array
     {
-        $base = fn () => DB::table('sale_items')
+        $row = DB::table('sale_items')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
             ->where('sales.business_id', $businessId)
             ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
             ->where('sales.status', '!=', 'refunded')
-            ->whereBetween('sales.sold_at', [$since, $until]);
+            ->where('sales.sold_at', '>=', $previousSince)
+            ->selectRaw(
+                'coalesce(sum(sale_items.quantity * sale_items.unit_price) filter (where sales.sold_at >= ?), 0) as current_revenue,
+                 coalesce(sum(sale_items.quantity * products.buying_price) filter (where sales.sold_at >= ?), 0) as current_cost,
+                 coalesce(sum(sale_items.quantity * sale_items.unit_price) filter (where sales.sold_at < ?), 0) as previous_revenue,
+                 coalesce(sum(sale_items.quantity * products.buying_price) filter (where sales.sold_at < ?), 0) as previous_cost',
+                [$currentSince, $currentSince, $currentSince, $currentSince],
+            )
+            ->first();
 
-        $revenue = (float) $base()->selectRaw('coalesce(sum(sale_items.quantity * sale_items.unit_price), 0) as v')->value('v');
-        $cost = (float) $base()
-            ->join('products', 'products.id', '=', 'sale_items.product_id')
-            ->selectRaw('coalesce(sum(sale_items.quantity * products.buying_price), 0) as v')->value('v');
+        $currentRevenue = (float) $row->current_revenue;
+        $currentCost = (float) $row->current_cost;
+        $previousRevenue = (float) $row->previous_revenue;
+        $previousCost = (float) $row->previous_cost;
 
-        return $revenue > 0 ? (($revenue - $cost) / $revenue) * 100 : 0;
+        $currentMargin = $currentRevenue > 0 ? (($currentRevenue - $currentCost) / $currentRevenue) * 100 : 0;
+        $previousMargin = $previousRevenue > 0 ? (($previousRevenue - $previousCost) / $previousRevenue) * 100 : 0;
+
+        return [
+            'marginPct' => round($currentMargin * 10) / 10,
+            'marginDeltaPct' => round(($currentMargin - $previousMargin) * 10) / 10,
+            'currentCost' => $currentCost,
+        ];
     }
 
     /** The report builder — six report types plus one bonus (branch performance) the web app built the query for but never actually exposed anywhere. */

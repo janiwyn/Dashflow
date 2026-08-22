@@ -51,7 +51,22 @@ class BranchController extends Controller
 
         $today = now()->toDateString();
 
-        return response()->json($branches->map(function (Branch $b) use ($today) {
+        // Was 2 queries PER branch (an N+1) — grouped into 2 queries total for every
+        // branch on the list, then joined in PHP, regardless of how many branches exist.
+        $staffCounts = Employee::whereIn('branch_id', $branches->pluck('id'))
+            ->where('status', 'active')
+            ->selectRaw('branch_id, count(*) as cnt')
+            ->groupBy('branch_id')
+            ->pluck('cnt', 'branch_id');
+
+        $todaySales = Sale::whereIn('branch_id', $branches->pluck('id'))
+            ->where('status', '!=', 'refunded')
+            ->whereDate('sold_at', $today)
+            ->selectRaw('branch_id, coalesce(sum(total), 0) as total')
+            ->groupBy('branch_id')
+            ->pluck('total', 'branch_id');
+
+        return response()->json($branches->map(function (Branch $b) use ($staffCounts, $todaySales) {
             return [
                 'id' => $b->id,
                 'name' => $b->name,
@@ -59,8 +74,8 @@ class BranchController extends Controller
                 'contact' => $b->contact,
                 'managerName' => $b->manager_name,
                 'status' => $b->status,
-                'staffCount' => Employee::where('branch_id', $b->id)->where('status', 'active')->count(),
-                'todaySales' => (float) Sale::where('branch_id', $b->id)->where('status', '!=', 'refunded')->whereDate('sold_at', $today)->sum('total'),
+                'staffCount' => (int) ($staffCounts[$b->id] ?? 0),
+                'todaySales' => (float) ($todaySales[$b->id] ?? 0),
             ];
         }));
     }
@@ -140,10 +155,6 @@ class BranchController extends Controller
         $this->requireManagerUp($request);
         $this->scopeOrFail($request, $branch);
 
-        $salesScope = fn () => Sale::where('branch_id', $branch->id)->where('status', '!=', 'refunded');
-
-        $totalSales = (float) (clone $salesScope())->sum('total');
-        $receipts = (clone $salesScope())->count();
         $totalExpenses = (float) Expense::where('branch_id', $branch->id)->sum('amount');
 
         $staff = Employee::with('user')->where('branch_id', $branch->id)->where('status', 'active')->orderBy('name')->get();
@@ -159,15 +170,22 @@ class BranchController extends Controller
             ->get()
             ->map(fn ($r) => ['day' => $r->day, 'revenue' => (float) $r->revenue]);
 
-        $paymentMixRaw = (clone $salesScope())->selectRaw('method, coalesce(sum(total), 0) as total')->groupBy('method')->get();
-        $grandTotal = (float) $paymentMixRaw->sum('total');
+        // totalSales and receipts don't need their own queries — they're just the sum and
+        // count of the payment-mix rows we're already fetching, one query below instead of three.
+        $paymentMixRaw = Sale::where('branch_id', $branch->id)->where('status', '!=', 'refunded')
+            ->selectRaw('method, coalesce(sum(total), 0) as total, count(*) as cnt')
+            ->groupBy('method')->get();
+        $totalSales = (float) $paymentMixRaw->sum('total');
+        $receipts = (int) $paymentMixRaw->sum('cnt');
         $paymentMix = $paymentMixRaw->map(fn ($r) => [
             'method' => $r->method,
             'amount' => (float) $r->total,
-            'percent' => $grandTotal > 0 ? round(((float) $r->total / $grandTotal) * 100) : 0,
+            'percent' => $totalSales > 0 ? round(((float) $r->total / $totalSales) * 100) : 0,
         ])->values();
 
-        $stockValue = (float) Product::where('branch_id', $branch->id)->selectRaw('coalesce(sum(buying_price * stock), 0) as v')->value('v');
+        $stock = Product::where('branch_id', $branch->id)
+            ->selectRaw('count(*) as cnt, coalesce(sum(buying_price * stock), 0) as value')
+            ->first();
 
         return response()->json([
             'branch' => [
@@ -184,7 +202,7 @@ class BranchController extends Controller
             ]),
             'revenueSeries' => $series,
             'paymentMix' => $paymentMix,
-            'stock' => ['count' => Product::where('branch_id', $branch->id)->count(), 'value' => $stockValue],
+            'stock' => ['count' => (int) $stock->cnt, 'value' => (float) $stock->value],
         ]);
     }
 

@@ -53,6 +53,7 @@ class AuthController extends Controller
                 'role' => $user['role'] ?? null,
                 'businessId' => $user['businessId'] ?? null,
                 'branchId' => $user['branchId'] ?? null,
+                'theme' => $user['theme'] ?? 'light',
             ],
         ]);
     }
@@ -141,7 +142,26 @@ class AuthController extends Controller
             'branchId' => $user->branch_id,
             'businessName' => optional($user->business)->name,
             'branchName' => optional($user->branch)->name,
+            'theme' => $user->theme ?? 'light',
         ]);
+    }
+
+    /**
+     * Persists the caller's own light/dark preference to their account, not
+     * the device — the shared `theme` column on the `user` table also backs
+     * the web app's toggle, so a business owner's choice matches on both.
+     */
+    public function updateTheme(Request $request)
+    {
+        $user = $this->authUser($request);
+
+        $data = $request->validate([
+            'theme' => ['required', 'string', 'in:light,dark'],
+        ]);
+
+        $user->update($data);
+
+        return response()->json(['message' => 'Theme updated.']);
     }
 
     /** Only name and phone are self-editable — email is the auth identity, and role/business/branch are privilege fields set elsewhere. */

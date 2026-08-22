@@ -9,7 +9,9 @@ use App\Models\Debtor;
 use App\Models\Notification;
 use App\Models\Product;
 use App\Models\RemoteOrder;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Ports the web app's "/notifications" — a core, always-on feature (no
@@ -47,15 +49,39 @@ class NotificationController extends Controller
         ]);
     }
 
-    /** Feeds the sidebar badge — a real count, unlike the web app's static dot. */
+    /**
+     * Feeds the sidebar badge — a real count, unlike the web app's static dot.
+     *
+     * This used to call the three alert-list methods below and count() the resulting
+     * PHP collections — meaning a badge count paid for three full row fetches (with
+     * eager-loaded branch relations and array mapping) plus three more queries just to
+     * look up suppressed IDs, six round-trips total for a number. This does the same
+     * three domains as lightweight count() queries with the suppression check inlined
+     * as a NOT EXISTS subquery, so each domain is one round-trip instead of two.
+     */
     public function count(Request $request)
     {
         $businessId = $this->businessId($request);
         $branchId = $this->enforcedBranchId($request, $request->integer('branch_id') ?: null);
 
-        $alerts = $this->lowStockAlerts($businessId, $branchId)->count()
-            + $this->shopDebtorAlerts($businessId, $branchId)->count()
-            + $this->customerDebtorAlerts($businessId)->count();
+        $lowStock = Product::where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->lowStock()
+            ->whereNotExists(fn (Builder $q) => $this->suppressionSubquery($q, $businessId, 'low_stock', 'products.id'))
+            ->count();
+
+        $shopDebtors = Debtor::where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->where('balance', '>', 0)
+            ->whereNotExists(fn (Builder $q) => $this->suppressionSubquery($q, $businessId, 'shop_debtor', 'debtors.id'))
+            ->count();
+
+        $customerDebtors = Customer::where('business_id', $businessId)
+            ->where('account_balance', '>', 0)
+            ->whereNotExists(fn (Builder $q) => $this->suppressionSubquery($q, $businessId, 'customer_debtor', 'customers.id'))
+            ->count();
+
+        $alerts = $lowStock + $shopDebtors + $customerDebtors;
 
         $orderAlerts = 0;
         if (in_array('sales', $this->activeModules($request), true)) {
@@ -65,6 +91,17 @@ class NotificationController extends Controller
         }
 
         return response()->json(['alerts' => $alerts, 'orderAlerts' => $orderAlerts, 'total' => $alerts + $orderAlerts]);
+    }
+
+    /** The NOT EXISTS equivalent of suppressedIds()'s whereNotIn(pluck(...)) — same suppression rule, one round-trip instead of two. */
+    private function suppressionSubquery(Builder $query, int $businessId, string $kind, string $referenceColumn): Builder
+    {
+        return $query->select(DB::raw(1))->from('notifications')
+            ->whereColumn('notifications.reference_id', $referenceColumn)
+            ->where('notifications.business_id', $businessId)
+            ->where('notifications.kind', $kind)
+            ->where('notifications.is_read', true)
+            ->where(fn ($q) => $q->whereNull('notifications.due_date')->orWhere('notifications.due_date', '>', now()));
     }
 
     public function dismiss(Request $request)

@@ -167,6 +167,20 @@ export async function updateOwnProfile(input: {
     })
     .where(eq(users.id, user.id));
 
-  revalidatePath("/profile");
+  revalidatePath("/settings");
   return { ok: true, message: "Profile updated." };
+}
+
+/**
+ * Persists the caller's own light/dark preference to their account, not the
+ * device — so the choice follows them from terminal to terminal and never
+ * leaks to the next different account that logs into the same browser.
+ */
+export async function setOwnTheme(theme: "light" | "dark"): Promise<ActionResult> {
+  const user = await requireUser();
+
+  await db.update(users).set({ theme }).where(eq(users.id, user.id));
+
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Theme updated." };
 }

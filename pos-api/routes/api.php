@@ -35,6 +35,7 @@ Route::post('/signup', [AuthController::class, 'signup']);
 Route::middleware('auth.session')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::patch('/me', [AuthController::class, 'updateMe']);
+    Route::patch('/me/theme', [AuthController::class, 'updateTheme']);
     Route::get('/modules', [ModuleController::class, 'index']);
     Route::get('/branches', [BranchController::class, 'index']);
     Route::get('/branches/list', [BranchController::class, 'list']);
@@ -47,6 +48,7 @@ Route::middleware('auth.session')->group(function () {
     // Inventory
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/summary', [ProductController::class, 'summary']);
+    Route::get('/products/analytics', [ProductController::class, 'analytics']);
     Route::get('/products/expiring', [ProductController::class, 'expiring']);
     Route::post('/products', [ProductController::class, 'store']);
     Route::patch('/products/{product}', [ProductController::class, 'update']);
@@ -56,6 +58,7 @@ Route::middleware('auth.session')->group(function () {
     // POS / Sales
     Route::get('/sales', [SaleController::class, 'index']);
     Route::get('/sales/stats', [SaleController::class, 'stats']);
+    Route::get('/sales/analytics', [SaleController::class, 'analytics']);
     Route::get('/sales/receipt', [SaleController::class, 'receipt']);
     Route::post('/sales', [SaleController::class, 'store']);
     Route::get('/remote-orders', [RemoteOrderController::class, 'index']);
@@ -156,4 +159,5 @@ Route::middleware('auth.session')->group(function () {
     // Business settings
     Route::get('/business-settings', [BusinessSettingsController::class, 'show']);
     Route::patch('/business-settings', [BusinessSettingsController::class, 'update']);
+    Route::get('/subscription', [BusinessSettingsController::class, 'subscription']);
 });

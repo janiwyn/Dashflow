@@ -8,6 +8,7 @@ use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
@@ -38,21 +39,87 @@ class ProductController extends Controller
         return response()->json($products->map(fn (Product $p) => $this->serialize($p)));
     }
 
-    /** Real aggregate numbers for the Inventory dashboard — the web app's own /inventory page has two of these hardcoded (low stock, "fastest mover") instead of reading them from this same query. */
+    /**
+     * Real aggregate numbers for the Inventory dashboard — the web app's own /inventory
+     * page has two of these hardcoded (low stock, "fastest mover") instead of reading
+     * them from this same query.
+     *
+     * One query instead of five — all five read the same products table with the same
+     * scope, so a single row of aggregates covers all of them.
+     */
     public function summary(Request $request)
     {
         $branchId = $this->enforcedBranchId($request, $request->integer('branch_id') ?: null);
 
-        $base = Product::query()
+        $row = Product::query()
             ->where('business_id', $this->businessId($request))
-            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId));
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->selectRaw(
+                'count(*) as sku_count,
+                 coalesce(sum(stock), 0) as stock_units,
+                 coalesce(sum(selling_price * stock), 0) as retail_value,
+                 coalesce(sum(buying_price * stock), 0) as cost_value,
+                 count(*) filter (where stock <= low_stock_threshold) as low_stock',
+            )
+            ->first();
 
         return response()->json([
-            'skuCount' => (clone $base)->count(),
-            'stockUnits' => (int) (clone $base)->sum('stock'),
-            'retailValue' => (float) (clone $base)->selectRaw('coalesce(sum(selling_price * stock), 0) as v')->value('v'),
-            'costValue' => (float) (clone $base)->selectRaw('coalesce(sum(buying_price * stock), 0) as v')->value('v'),
-            'lowStock' => (clone $base)->lowStock()->count(),
+            'skuCount' => (int) $row->sku_count,
+            'stockUnits' => (int) $row->stock_units,
+            'retailValue' => (float) $row->retail_value,
+            'costValue' => (float) $row->cost_value,
+            'lowStock' => (int) $row->low_stock,
+        ]);
+    }
+
+    /**
+     * The web app's Inventory dashboard charts: stock-level health (in stock / low /
+     * out), best sellers by revenue over the last 30 days, and stock value per branch
+     * — same three real queries as viewStockLevelBreakdown()/viewTopMovers()/
+     * viewStockByBranch().
+     */
+    public function analytics(Request $request)
+    {
+        $businessId = $this->businessId($request);
+        $branchId = $this->enforcedBranchId($request, $request->integer('branch_id') ?: null);
+
+        $levels = Product::where('business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->selectRaw(
+                'count(*) filter (where stock > low_stock_threshold) as healthy,
+                 count(*) filter (where stock > 0 and stock <= low_stock_threshold) as low,
+                 count(*) filter (where stock = 0) as out',
+            )
+            ->first();
+
+        $byBranch = DB::table('products')
+            ->leftJoin('branches', 'branches.id', '=', 'products.branch_id')
+            ->where('products.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('products.branch_id', $branchId))
+            ->selectRaw("coalesce(branches.name, 'Unassigned') as name, coalesce(sum(products.stock), 0) as units, coalesce(sum(products.stock * products.buying_price), 0) as value")
+            ->groupBy('branches.name')
+            ->orderByDesc('value')
+            ->get()
+            ->map(fn ($r) => ['name' => $r->name, 'units' => (int) $r->units, 'value' => (float) $r->value]);
+
+        $since = now()->subDays(29)->startOfDay();
+        $topMovers = DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->where('sales.business_id', $businessId)
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->where('sales.status', '!=', 'refunded')
+            ->where('sales.sold_at', '>=', $since)
+            ->selectRaw('sale_items.name as name, sum(sale_items.quantity) as units, sum(sale_items.quantity * sale_items.unit_price) as revenue')
+            ->groupBy('sale_items.name')
+            ->orderByDesc('revenue')
+            ->limit(5)
+            ->get()
+            ->map(fn ($r) => ['name' => $r->name, 'units' => (int) $r->units, 'revenue' => (float) $r->revenue]);
+
+        return response()->json([
+            'levels' => ['healthy' => (int) $levels->healthy, 'low' => (int) $levels->low, 'out' => (int) $levels->out],
+            'byBranch' => $byBranch->values(),
+            'topMovers' => $topMovers->values(),
         ]);
     }
 

@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ScopesTenant;
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Business;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 /**
@@ -32,6 +35,70 @@ class BusinessSettingsController extends Controller
         ['code' => 'GBP', 'name' => 'British Pound', 'symbol' => '£'],
         ['code' => 'EUR', 'name' => 'Euro', 'symbol' => '€'],
     ];
+
+    /** Same catalog as the web app's lib/plans.ts — just the fields the Subscription card needs. */
+    const PLAN_CATALOG = [
+        'starter' => ['label' => 'Starter', 'tagline' => 'For very small shops just getting off the ground.', 'monthlyPrice' => 50000, 'maxUsers' => 1, 'maxBranches' => 1],
+        'retail' => ['label' => 'Retail', 'tagline' => 'For shops that are growing and need a bit more room.', 'monthlyPrice' => 100000, 'maxUsers' => 3, 'maxBranches' => 1],
+        'business' => ['label' => 'Business', 'tagline' => 'For wholesalers and medium businesses running real volume.', 'monthlyPrice' => 200000, 'maxUsers' => 10, 'maxBranches' => 3],
+        'professional' => ['label' => 'Professional', 'tagline' => 'For larger, multi-branch businesses with staff to manage.', 'monthlyPrice' => 350000, 'maxUsers' => 25, 'maxBranches' => null],
+        'enterprise' => ['label' => 'Enterprise', 'tagline' => 'For companies with complex, custom requirements.', 'monthlyPrice' => null, 'maxUsers' => null, 'maxBranches' => null],
+    ];
+
+    /** Same catalog as the web app's lib/modules.ts — just label + à-la-carte price. */
+    const MODULE_CATALOG = [
+        'pos' => ['label' => 'Point of Sale', 'monthlyPrice' => 50000],
+        'inventory' => ['label' => 'Inventory Management', 'monthlyPrice' => 40000],
+        'sales' => ['label' => 'Sales Management', 'monthlyPrice' => 40000],
+        'accounting' => ['label' => 'Accounting', 'monthlyPrice' => 60000],
+        'procurement' => ['label' => 'Procurement', 'monthlyPrice' => 40000],
+        'customers' => ['label' => 'Customer Management', 'monthlyPrice' => 30000],
+        'hr' => ['label' => 'Human Resources', 'monthlyPrice' => 50000],
+        'attendance' => ['label' => 'Attendance', 'monthlyPrice' => 30000],
+        'payroll' => ['label' => 'Payroll', 'monthlyPrice' => 50000],
+    ];
+
+    /**
+     * The web app's Subscription card — plan (or à la carte modules), price, status,
+     * dates and usage. Read-only for every role, matching the web app's settings page
+     * (only admins can actually change the plan, from the web app's own /subscribe flow —
+     * not ported here).
+     */
+    public function subscription(Request $request)
+    {
+        $businessId = $this->businessId($request);
+        $business = Business::findOrFail($businessId);
+        $activeModuleKeys = $this->activeModules($request);
+
+        $plan = $business->plan_key ? (self::PLAN_CATALOG[$business->plan_key] ?? null) : null;
+
+        if ($plan) {
+            $price = $plan['monthlyPrice'] === null
+                ? null
+                : ($business->billing_period === 'annual' ? $plan['monthlyPrice'] * 10 : $plan['monthlyPrice']);
+        } else {
+            $price = array_sum(array_map(fn ($k) => self::MODULE_CATALOG[$k]['monthlyPrice'] ?? 0, $activeModuleKeys));
+        }
+
+        return response()->json([
+            'planKey' => $business->plan_key,
+            'planLabel' => $plan['label'] ?? null,
+            'planTagline' => $plan['tagline'] ?? null,
+            'billingPeriod' => $business->billing_period,
+            'price' => $price,
+            'isCustomPricing' => $plan && $plan['monthlyPrice'] === null,
+            'status' => $business->subscription_status,
+            'subscriptionStart' => $business->subscription_start ? Carbon::parse($business->subscription_start)->toDateString() : null,
+            'subscriptionEnd' => $business->subscription_end ? Carbon::parse($business->subscription_end)->toDateString() : null,
+            'modules' => array_values(array_map(fn ($k) => ['key' => $k, 'label' => self::MODULE_CATALOG[$k]['label'] ?? $k], $activeModuleKeys)),
+            'usage' => [
+                'userCount' => User::where('business_id', $businessId)->count(),
+                'maxUsers' => $plan['maxUsers'] ?? null,
+                'branchCount' => Branch::where('business_id', $businessId)->count(),
+                'maxBranches' => $plan['maxBranches'] ?? null,
+            ],
+        ]);
+    }
 
     public function show(Request $request)
     {
