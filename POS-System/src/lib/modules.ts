@@ -22,7 +22,7 @@ export type ModuleDefinition = {
   label: string;
   description: string;
   icon: LucideIcon;
-  /** KES, per business per month — shown on the marketing site and at checkout. */
+  /** UGX, per business per month — shown on the marketing site and at checkout. */
   monthlyPrice: number;
 };
 
@@ -39,63 +39,63 @@ export const MODULE_CATALOG: Record<ModuleKey, ModuleDefinition> = {
     label: "Point of Sale",
     description: "Checkout terminal, receipts, till and cash drawer management.",
     icon: ScanBarcode,
-    monthlyPrice: 1200,
+    monthlyPrice: 50000,
   },
   inventory: {
     key: "inventory",
     label: "Inventory Management",
     description: "Stock levels, pricing, product catalog and expiry tracking.",
     icon: Boxes,
-    monthlyPrice: 1000,
+    monthlyPrice: 40000,
   },
   sales: {
     key: "sales",
     label: "Sales Management",
     description: "Sales history, remote orders, payment proofs and reporting.",
     icon: BadgeDollarSign,
-    monthlyPrice: 900,
+    monthlyPrice: 40000,
   },
   accounting: {
     key: "accounting",
     label: "Accounting",
     description: "Ledgers, cash book, petty cash and financial statements.",
     icon: Calculator,
-    monthlyPrice: 1800,
+    monthlyPrice: 60000,
   },
   procurement: {
     key: "procurement",
     label: "Procurement",
     description: "Supplier accounts, delivery history and payables.",
     icon: Truck,
-    monthlyPrice: 900,
+    monthlyPrice: 40000,
   },
   customers: {
     key: "customers",
     label: "Customer Management",
     description: "Customer records, purchase history and debtor tracking.",
     icon: UsersRound,
-    monthlyPrice: 700,
+    monthlyPrice: 30000,
   },
   hr: {
     key: "hr",
     label: "Human Resources",
     description: "Employee records, positions and branch assignments.",
     icon: Briefcase,
-    monthlyPrice: 1300,
+    monthlyPrice: 50000,
   },
   attendance: {
     key: "attendance",
     label: "Attendance",
     description: "Staff clock-in/clock-out and shift tracking.",
     icon: CalendarClock,
-    monthlyPrice: 700,
+    monthlyPrice: 30000,
   },
   payroll: {
     key: "payroll",
     label: "Payroll",
     description: "Salary runs, deductions and payslips.",
     icon: Wallet,
-    monthlyPrice: 1600,
+    monthlyPrice: 50000,
   },
 };
 

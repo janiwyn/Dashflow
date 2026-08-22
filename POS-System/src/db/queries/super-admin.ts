@@ -3,7 +3,7 @@ import "server-only";
 import { asc, count, desc, eq, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { branches, businesses, systemLogs, systemUpdates, users } from "@/db/schema";
+import { branches, businesses, products, sales, systemLogs, systemUpdates, users } from "@/db/schema";
 
 /**
  * Super-admin queries are deliberately NOT tenant-scoped — they span every
@@ -23,6 +23,8 @@ export type BusinessRow = {
   subscriptionEnd: string | null;
   subscriptionStatus: "active" | "pending" | "expired";
   branchCount: number;
+  planKey: string | null;
+  billingPeriod: "monthly" | "annual";
 };
 
 export async function getBusinesses(): Promise<BusinessRow[]> {
@@ -48,6 +50,8 @@ export async function getBusinesses(): Promise<BusinessRow[]> {
       subscriptionEnd: businesses.subscriptionEnd,
       subscriptionStatus: businesses.subscriptionStatus,
       branchCount: sql<number>`(select count(*) from ${branches} where ${branches}.business_id = ${businesses}.id)`,
+      planKey: businesses.planKey,
+      billingPeriod: businesses.billingPeriod,
     })
     .from(businesses)
     .orderBy(asc(businesses.id));
@@ -135,12 +139,28 @@ export async function getPlatformSummary() {
     .from(users)
     .where(eq(users.role, "admin"));
 
+  // Real platform-wide counts — what the Super Admin dashboard's stat tiles
+  // were hardcoding (totalBranches = 18, totalManagers = 24, totalProducts =
+  // 3820, totalSales = 41260) instead of ever querying.
+  const [branchRow] = await db.select({ total: count(branches.id) }).from(branches);
+  const [managerRow] = await db.select({ total: count(users.id) }).from(users).where(eq(users.role, "manager"));
+  const [userRow] = await db.select({ total: count(users.id) }).from(users);
+  const [productRow] = await db.select({ total: count(products.id) }).from(products);
+  const [saleRow] = await db.select({ total: count(sales.id) }).from(sales);
+  const [updateRow] = await db.select({ total: count(systemUpdates.id) }).from(systemUpdates);
+
   return {
     total: Number(row?.total ?? 0),
     active: Number(row?.active ?? 0),
     suspended: Number(row?.suspended ?? 0),
     expiring: Number(row?.expiring ?? 0),
     admins: Number(adminRow?.admins ?? 0),
+    branches: Number(branchRow?.total ?? 0),
+    managers: Number(managerRow?.total ?? 0),
+    users: Number(userRow?.total ?? 0),
+    products: Number(productRow?.total ?? 0),
+    sales: Number(saleRow?.total ?? 0),
+    updates: Number(updateRow?.total ?? 0),
   };
 }
 

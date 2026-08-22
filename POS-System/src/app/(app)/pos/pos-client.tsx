@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,10 @@ import {
   History,
   X,
   AlertTriangle,
+  Camera,
+  CameraOff,
+  ScanBarcode,
+  Keyboard,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -53,6 +57,13 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: typeof Bankn
 
 type HeldSale = { id: string; cart: Record<string, number>; heldAt: number };
 
+function isBarcodeDetectorSupported() {
+  return typeof window !== "undefined" && "BarcodeDetector" in window;
+}
+
+/** Formats a real barcode scanner is likely to send, plus QR as a fallback for in-store printed codes. */
+const BARCODE_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"];
+
 export default function Terminal({ categories, products, clockGate, customers }: Props) {
   const router = useRouter();
   const { format: currency } = useCurrency();
@@ -64,6 +75,16 @@ export default function Terminal({ categories, products, clockGate, customers }:
   const [heldSales, setHeldSales] = useState<HeldSale[]>([]);
   const [heldOpen, setHeldOpen] = useState(false);
   const [charging, startCharging] = useTransition();
+
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [cameraSupported] = useState(isBarcodeDetectorSupported);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [manualCode, setManualCode] = useState("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastScanRef = useRef<{ code: string; at: number } | null>(null);
 
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
@@ -98,6 +119,100 @@ export default function Terminal({ categories, products, clockGate, customers }:
       return;
     }
     bump(id, 1);
+  };
+
+  /** A scanned/typed code exact-matches a product's SKU — the same code printed on that product's shelf/barcode label. Shown with its price the way a real checkout scanner beeps and displays it. */
+  const scanLookup = (code: string): boolean => {
+    const value = code.trim();
+    if (!value) return false;
+    const product = byId.get(value) ?? products.find((p) => p.id.toLowerCase() === value.toLowerCase());
+    if (!product) {
+      toast.error(`No product matches code "${value}".`);
+      return false;
+    }
+    addToCart(product.id);
+    toast.success(`${product.name} — ${currency(product.price)}`);
+    return true;
+  };
+
+  const onSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = query.trim();
+    if (!value) return;
+    // A real scanner fills this field and fires Enter instantly. If the code
+    // exactly matches a product, treat it as a scan and clear the field for
+    // the next item. If it doesn't match anything, the cashier was just
+    // searching/typing — leave the live filter results as they are.
+    const product = byId.get(value) ?? products.find((p) => p.id.toLowerCase() === value.toLowerCase());
+    if (product) {
+      addToCart(product.id);
+      toast.success(`${product.name} — ${currency(product.price)}`);
+      setQuery("");
+    }
+  };
+
+  const stopCamera = () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCameraOn(false);
+  };
+
+  const startCamera = async () => {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraOn(true);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Detector = (window as any).BarcodeDetector;
+      const detector = new Detector({ formats: BARCODE_FORMATS });
+
+      const tick = async () => {
+        if (!videoRef.current || videoRef.current.readyState < 2) {
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
+        try {
+          const codes = await detector.detect(videoRef.current);
+          if (codes.length > 0) {
+            const value = codes[0].rawValue as string;
+            const now = Date.now();
+            // A held-up product stays in frame for many video frames — this
+            // stops the same code being re-scanned and re-added every ~16ms.
+            if (!(lastScanRef.current?.code === value && now - lastScanRef.current.at < 1500)) {
+              lastScanRef.current = { code: value, at: now };
+              scanLookup(value);
+            }
+          }
+        } catch {
+          // A single failed frame isn't worth surfacing — keep scanning.
+        }
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    } catch {
+      setCameraError("Couldn't access the camera. Check the browser's camera permission and try again.");
+      setCameraOn(false);
+    }
+  };
+
+  useEffect(() => stopCamera, []);
+
+  const onManualScanSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (scanLookup(manualCode)) setManualCode("");
+  };
+
+  const closeScanner = () => {
+    stopCamera();
+    setScannerOpen(false);
   };
 
   const holdSale = () => {
@@ -168,8 +283,8 @@ export default function Terminal({ categories, products, clockGate, customers }:
       )}
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-4">
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-            <div className="relative min-w-0">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+            <form onSubmit={onSearchSubmit} className="relative min-w-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={query}
@@ -177,7 +292,14 @@ export default function Terminal({ categories, products, clockGate, customers }:
                 placeholder="Scan barcode or search product"
                 className="h-11 rounded-xl bg-card pl-9"
               />
-            </div>
+            </form>
+            <Button
+              variant="outline"
+              className="h-11 shrink-0 rounded-xl"
+              onClick={() => setScannerOpen(true)}
+            >
+              <ScanBarcode className="size-4" /> Scan
+            </Button>
             <Button
               variant="outline"
               className="h-11 shrink-0 rounded-xl"
@@ -381,6 +503,62 @@ export default function Terminal({ categories, products, clockGate, customers }:
               })}
             </ul>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={scannerOpen} onOpenChange={(open) => (open ? setScannerOpen(true) : closeScanner())}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Scan barcode</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4">
+            {cameraOn ? (
+              <div className="relative w-full max-w-xs overflow-hidden rounded-2xl border-2 border-primary/50 bg-black">
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <video ref={videoRef} className="aspect-square w-full object-cover" muted playsInline />
+                <div className="pointer-events-none absolute inset-6 rounded-xl border-2 border-dashed border-white/70" />
+              </div>
+            ) : (
+              <div className="flex size-40 items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/40">
+                <ScanBarcode className="size-16 text-muted-foreground" />
+              </div>
+            )}
+
+            <p className="text-center text-sm text-muted-foreground">
+              {cameraOn
+                ? "Hold a product's barcode up to the camera — items add to the cart automatically"
+                : "Scan with a camera, or use a handheld scanner (it types into the field below)"}
+            </p>
+
+            {cameraSupported ? (
+              <Button onClick={cameraOn ? stopCamera : startCamera} variant={cameraOn ? "outline" : "default"} className="rounded-lg">
+                {cameraOn ? <CameraOff className="mr-2 size-4" /> : <Camera className="mr-2 size-4" />}
+                {cameraOn ? "Stop camera" : "Scan with camera"}
+              </Button>
+            ) : (
+              <p className="max-w-xs text-center text-xs text-muted-foreground">
+                Camera scanning isn&apos;t supported in this browser — try Chrome or Edge, or use a handheld
+                barcode scanner (it types into the field below like a keyboard).
+              </p>
+            )}
+            {cameraError && <p className="text-xs text-destructive">{cameraError}</p>}
+
+            <form onSubmit={onManualScanSubmit} className="flex w-full max-w-xs items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Keyboard className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value)}
+                  placeholder="Or type/scan SKU"
+                  className="h-10 rounded-lg pl-9"
+                  autoFocus
+                />
+              </div>
+              <Button type="submit" variant="outline" className="h-10 shrink-0 rounded-lg">
+                Add
+              </Button>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
     </AppShell>

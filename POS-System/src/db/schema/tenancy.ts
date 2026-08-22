@@ -6,6 +6,7 @@ import { createdAt, updatedAt } from "./_shared";
 export const businessStatus = pgEnum("business_status", ["active", "suspended"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "pending", "expired"]);
 export const branchStatus = pgEnum("branch_status", ["open", "closed"]);
+export const billingPeriod = pgEnum("billing_period", ["monthly", "annual"]);
 
 export const businesses = pgTable("businesses", {
   id: serial("id").primaryKey(),
@@ -16,12 +17,15 @@ export const businesses = pgTable("businesses", {
   /** KRA PIN, printed on invoices. */
   taxPin: text("tax_pin"),
   /** ISO 4217 code (KES, UGX, TZS, ...) — drives formatting across the app. */
-  currency: text("currency").notNull().default("KES"),
+  currency: text("currency").notNull().default("UGX"),
   status: businessStatus("status").notNull().default("active"),
   dateRegistered: date("date_registered").notNull().defaultNow(),
   subscriptionStart: date("subscription_start"),
   subscriptionEnd: date("subscription_end"),
   subscriptionStatus: subscriptionStatus("subscription_status").notNull().default("pending"),
+  /** One of PLAN_KEYS in src/lib/plans.ts, or null for a business built entirely from individual add-on modules with no package. Plain text (not an enum) since the plan catalog is editorial/marketing content that can change without a schema migration — validated at the app layer instead. */
+  planKey: text("plan_key"),
+  billingPeriod: billingPeriod("billing_period").notNull().default("monthly"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

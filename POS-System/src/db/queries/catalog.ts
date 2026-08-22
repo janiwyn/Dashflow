@@ -179,3 +179,42 @@ export async function getInventorySummary() {
     lowStock: num(row?.lowStock),
   };
 }
+
+/** In-stock / low-stock / out-of-stock product counts — the Inventory dashboard's stock-level donut. */
+export async function getStockLevelBreakdown() {
+  const businessId = await businessScope();
+  const branchId = await enforcedBranchId();
+  const where = branchId
+    ? and(eq(products.businessId, businessId), eq(products.branchId, branchId))
+    : eq(products.businessId, businessId);
+
+  const [row] = await db
+    .select({
+      healthy: sql<number>`count(*) filter (where ${products.stock} > ${products.lowStockThreshold})`,
+      low: sql<number>`count(*) filter (where ${products.stock} > 0 and ${products.stock} <= ${products.lowStockThreshold})`,
+      out: sql<number>`count(*) filter (where ${products.stock} = 0)`,
+    })
+    .from(products)
+    .where(where);
+
+  return { healthy: num(row?.healthy), low: num(row?.low), out: num(row?.out) };
+}
+
+/** Stock units and cost value per branch — the Inventory dashboard's branch overview. */
+export async function getStockByBranch() {
+  const businessId = await businessScope();
+
+  const rows = await db
+    .select({
+      name: sql<string>`coalesce(${branches.name}, 'Unassigned')`,
+      units: sql<number>`coalesce(sum(${products.stock}), 0)`,
+      value: sql<number>`coalesce(sum(${products.stock} * ${products.buyingPrice}), 0)`,
+    })
+    .from(products)
+    .leftJoin(branches, eq(products.branchId, branches.id))
+    .where(eq(products.businessId, businessId))
+    .groupBy(branches.name)
+    .orderBy(desc(sql`sum(${products.stock} * ${products.buyingPrice})`));
+
+  return rows.map((r) => ({ name: r.name, units: num(r.units), value: num(r.value) }));
+}

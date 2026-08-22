@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { branches, employees, payrollRecords, users } from "@/db/schema";
+import { branches, businesses, employees, payrollRecords, users } from "@/db/schema";
 
 import { businessScope, num } from "./_helpers";
 
@@ -131,13 +131,22 @@ export type UserAccountRow = {
   role: string;
   branch: string | null;
   branchId: number | null;
+  business: string | null;
+  businessId: number | null;
   status: string;
   createdAt: Date;
 };
 
-export async function getUserAccounts(): Promise<UserAccountRow[]> {
-  const businessId = await businessScope();
-  return db
+/**
+ * `allBusinesses` lets a super account reset any user's password, not just
+ * business 1's — without it, `businessScope()`'s `user.businessId ?? 1`
+ * fallback silently scoped this to a single tenant even for `super`, whose
+ * own resetUserPassword() action already explicitly allows a cross-business
+ * reset (`actor.role !== "super" && ...`). The action was already more
+ * capable than the page feeding it.
+ */
+export async function getUserAccounts(options?: { allBusinesses?: boolean }): Promise<UserAccountRow[]> {
+  const base = db
     .select({
       id: users.id,
       username: users.username,
@@ -146,13 +155,21 @@ export async function getUserAccounts(): Promise<UserAccountRow[]> {
       role: users.role,
       branch: branches.name,
       branchId: users.branchId,
+      business: businesses.name,
+      businessId: users.businessId,
       status: users.status,
       createdAt: users.createdAt,
     })
     .from(users)
     .leftJoin(branches, eq(users.branchId, branches.id))
-    .where(eq(users.businessId, businessId))
-    .orderBy(asc(users.name));
+    .leftJoin(businesses, eq(users.businessId, businesses.id));
+
+  if (options?.allBusinesses) {
+    return base.orderBy(asc(users.name));
+  }
+
+  const businessId = await businessScope();
+  return base.where(eq(users.businessId, businessId)).orderBy(asc(users.name));
 }
 
 /** Users not yet linked to an employee record — the "link login" dropdown. */

@@ -25,19 +25,28 @@ import { finishBusinessSignup } from "@/app/actions/signup";
 import { getSession, signUp } from "@/lib/auth-client";
 import { formatMoney } from "@/lib/currency";
 import { MODULE_CATALOG, modulesMonthlyTotal, type ModuleKey } from "@/lib/modules";
+import { annualPrice, PLAN_CATALOG, type PlanKey } from "@/lib/plans";
 
 type Props = {
   providers: ProviderAvailability;
   initialModules: ModuleKey[];
+  initialPlan: PlanKey | null;
+  initialBilling: "monthly" | "annual";
 };
 
-export default function SignupPage({ providers, initialModules }: Props) {
+export default function SignupPage({ providers, initialModules, initialPlan, initialBilling }: Props) {
   const router = useRouter();
-  const hasModules = initialModules.length > 0;
+  const plan = initialPlan ? PLAN_CATALOG[initialPlan] : null;
+  const planModules = plan?.moduleKeys ?? initialModules;
+  const hasModules = planModules.length > 0;
   const [role, setRole] = useState("admin");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
-  const monthlyTotal = modulesMonthlyTotal(initialModules);
+  const isCustomPricing = plan?.monthlyPrice === null;
+  const monthlyTotal = plan
+    ? plan.monthlyPrice ?? 0
+    : modulesMonthlyTotal(initialModules);
+  const payableTotal = plan && initialBilling === "annual" && plan.monthlyPrice !== null ? annualPrice(plan.monthlyPrice) : monthlyTotal;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,6 +85,8 @@ export default function SignupPage({ providers, initialModules }: Props) {
       businessName: String(form.get("business_name") ?? "").trim(),
       role: role === "manager" ? "manager" : "admin",
       moduleKeys: initialModules,
+      planKey: initialPlan ?? undefined,
+      billingPeriod: initialBilling,
     });
 
     if (!result.ok) {
@@ -119,12 +130,19 @@ export default function SignupPage({ providers, initialModules }: Props) {
             <div className="mb-6 rounded-xl border border-primary/25 bg-accent/40 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-primary">
-                  Your subscription
+                  {plan ? `${plan.label} plan` : "Your subscription"}
                 </p>
-                <p className="num text-sm font-semibold">{formatMoney(monthlyTotal, "KES")}/mo</p>
+                {isCustomPricing ? (
+                  <p className="num text-sm font-semibold">Custom pricing</p>
+                ) : (
+                  <p className="num text-sm font-semibold">
+                    {formatMoney(payableTotal, "UGX")}
+                    {plan ? (initialBilling === "annual" ? "/yr" : "/mo") : "/mo"}
+                  </p>
+                )}
               </div>
               <ul className="mt-2.5 flex flex-wrap gap-1.5">
-                {initialModules.map((key) => (
+                {planModules.map((key) => (
                   <li
                     key={key}
                     className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium"
@@ -133,6 +151,17 @@ export default function SignupPage({ providers, initialModules }: Props) {
                   </li>
                 ))}
               </ul>
+              {plan && (
+                <p className="mt-2.5 text-xs text-muted-foreground">
+                  Up to {plan.maxUsers ?? "many"} user{plan.maxUsers === 1 ? "" : "s"} ·{" "}
+                  {plan.maxBranches ? `up to ${plan.maxBranches} branch${plan.maxBranches === 1 ? "" : "es"}` : "multiple branches"}
+                </p>
+              )}
+              {isCustomPricing && (
+                <p className="mt-2.5 text-xs text-muted-foreground">
+                  Our team will follow up to confirm final pricing — nothing is charged at signup.
+                </p>
+              )}
               <p className="mt-2.5 text-xs text-muted-foreground">
                 These activate on your new business the moment you sign up.{" "}
                 <Link href="/subscribe" className="font-medium text-primary hover:underline">

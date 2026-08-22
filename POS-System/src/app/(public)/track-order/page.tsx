@@ -15,7 +15,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   const { ref } = await searchParams;
   const [trackableOrder, business] = await Promise.all([viewTrackableOrder(ref), getBusinessProfile()]);
   return (
-    <CurrencyProvider code={(business?.currency as CurrencyCode) ?? "KES"}>
+    <CurrencyProvider code={(business?.currency as CurrencyCode) ?? "UGX"}>
       <TrackOrderPage initialRef={ref ?? ""} trackableOrder={trackableOrder} notFound={Boolean(ref) && !trackableOrder} />
     </CurrencyProvider>
   );

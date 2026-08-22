@@ -1,26 +1,47 @@
 import type { Metadata } from "next";
 
-import { viewReportStats, viewRevenueSeries } from "@/db/queries/views";
+import {
+  viewIncomeStatementSummary,
+  viewMonthlyRevenueTrend,
+  viewReportStats,
+  viewRevenueSeries,
+  viewSalesAnalytics,
+} from "@/db/queries/views";
 import { longDate } from "@/lib/format";
 import ReportsPage from "./reports-client";
 import { requireRole } from "@/lib/session";
-import { requireModule } from "@/lib/module-access";
+import { hasModule, requireModule } from "@/lib/module-access";
 
 export const metadata: Metadata = {
   title: "Reports",
-  description: "Daily, weekly and branch-level performance reports for your retail business.",
+  description: "A full visual picture of how the business has been performing.",
 };
 
 export default async function Page() {
   await requireRole("super", "admin", "manager");
   await requireModule("sales");
 
-  const [stats, revenueSeries] = await Promise.all([viewReportStats(), viewRevenueSeries()]);
+  const accountingEnabled = await hasModule("accounting");
+
+  const [stats, revenueSeries, monthlyTrend, analytics, income] = await Promise.all([
+    viewReportStats(),
+    viewRevenueSeries(),
+    viewMonthlyRevenueTrend(6),
+    viewSalesAnalytics(),
+    accountingEnabled ? viewIncomeStatementSummary(30) : Promise.resolve(null),
+  ]);
 
   const today = new Date();
-  const weekAgo = new Date(today);
-  weekAgo.setDate(today.getDate() - 6);
-  const subtitle = `Week of ${longDate(weekAgo)} – ${longDate(today)}`;
+  const subtitle = `Full business overview as of ${longDate(today)}`;
 
-  return <ReportsPage stats={stats} revenueSeries={revenueSeries} subtitle={subtitle} />;
+  return (
+    <ReportsPage
+      stats={stats}
+      revenueSeries={revenueSeries}
+      monthlyTrend={monthlyTrend}
+      analytics={analytics}
+      income={income}
+      subtitle={subtitle}
+    />
+  );
 }

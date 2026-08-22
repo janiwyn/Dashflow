@@ -3,7 +3,7 @@ import "server-only";
 import { and, count, desc, eq, gte, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { branches, businesses, customers, products, saleItems, sales } from "@/db/schema";
+import { branches, businesses, categories, customers, products, saleItems, sales } from "@/db/schema";
 import { label } from "@/lib/format";
 
 import { businessScope, daysAgo, enforcedBranchId, num, startOfDay } from "./_helpers";
@@ -446,6 +446,146 @@ export async function getMySalesToday(cashierId: string): Promise<MySaleRow[]> {
     .limit(50);
 
   return rows.map((r) => ({ ...r, itemCount: num(r.itemCount), total: num(r.total) }));
+}
+
+/**
+ * Rolling-window profit (revenue − current buying-price cost), current
+ * window vs the equally-sized window before it — e.g. last 30 days vs the
+ * 30 days before that. Same cost-basis caveat as getGrossMarginTrend. Uses
+ * a rolling window rather than literal today/yesterday because a POS demo
+ * business can easily have zero receipts on the literal current calendar
+ * day while still having plenty of real recent activity.
+ */
+export async function getProfitStats(days = 30) {
+  const businessId = await businessScope();
+
+  async function profitFor(since: Date, until?: Date) {
+    const filters = [eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`, gte(sales.soldAt, since)];
+    if (until) filters.push(lte(sales.soldAt, until));
+
+    const [row] = await db
+      .select({
+        revenue: sql<number>`coalesce(sum(${saleItems.quantity} * ${saleItems.unitPrice}), 0)`,
+        cost: sql<number>`coalesce(sum(${saleItems.quantity} * ${products.buyingPrice}), 0)`,
+      })
+      .from(saleItems)
+      .innerJoin(sales, eq(saleItems.saleId, sales.id))
+      .leftJoin(products, eq(saleItems.productId, products.id))
+      .where(and(...filters));
+
+    return num(row?.revenue) - num(row?.cost);
+  }
+
+  const currentSince = daysAgo(days - 1);
+  const previousSince = daysAgo(days * 2 - 1);
+  const previousUntil = new Date(currentSince.getTime() - 1);
+
+  const [currentProfit, previousProfit] = await Promise.all([
+    profitFor(currentSince),
+    profitFor(previousSince, previousUntil),
+  ]);
+
+  return { currentProfit, previousProfit };
+}
+
+/** Revenue, receipts and distinct paying customers for a rolling window vs the window before it — the Sales dashboard's headline KPI row. Walk-ins (no customerId) aren't counted toward customers since there's no real identity to dedupe on. */
+export async function getSalesWindowStats(days = 30) {
+  const businessId = await businessScope();
+
+  async function windowStats(since: Date, until?: Date) {
+    const filters = [eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`, gte(sales.soldAt, since)];
+    if (until) filters.push(lte(sales.soldAt, until));
+
+    const [row] = await db
+      .select({
+        revenue: sql<number>`coalesce(sum(${sales.total}), 0)`,
+        receipts: count(sales.id),
+        customers: sql<number>`count(distinct ${sales.customerId})`,
+      })
+      .from(sales)
+      .where(and(...filters));
+
+    return { revenue: num(row?.revenue), receipts: num(row?.receipts), customers: num(row?.customers) };
+  }
+
+  const currentSince = daysAgo(days - 1);
+  const previousSince = daysAgo(days * 2 - 1);
+  const previousUntil = new Date(currentSince.getTime() - 1);
+
+  const [current, previous] = await Promise.all([
+    windowStats(currentSince),
+    windowStats(previousSince, previousUntil),
+  ]);
+
+  return { current, previous };
+}
+
+/** Revenue by product category for the trailing `days` window — the Sales dashboard's category breakdown. */
+export async function getSalesByCategory(days = 30) {
+  const businessId = await businessScope();
+  const since = daysAgo(days - 1);
+
+  const rows = await db
+    .select({
+      name: sql<string>`coalesce(${categories.name}, 'Uncategorised')`,
+      revenue: sql<number>`sum(${saleItems.quantity} * ${saleItems.unitPrice})`,
+    })
+    .from(saleItems)
+    .innerJoin(sales, eq(saleItems.saleId, sales.id))
+    .leftJoin(products, eq(saleItems.productId, products.id))
+    .leftJoin(categories, eq(products.categoryId, categories.id))
+    .where(and(eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`, gte(sales.soldAt, since)))
+    .groupBy(categories.name)
+    .orderBy(desc(sql`sum(${saleItems.quantity} * ${saleItems.unitPrice})`));
+
+  return rows.map((r) => ({ name: r.name, revenue: num(r.revenue) }));
+}
+
+/** Revenue by branch for the trailing `days` window — the Sales dashboard's per-branch breakdown. */
+export async function getSalesByBranchTotals(days = 30) {
+  const businessId = await businessScope();
+  const since = daysAgo(days - 1);
+
+  const rows = await db
+    .select({
+      name: sql<string>`coalesce(${branches.name}, 'Unassigned')`,
+      revenue: sql<number>`sum(${sales.total})`,
+    })
+    .from(sales)
+    .leftJoin(branches, eq(sales.branchId, branches.id))
+    .where(and(eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`, gte(sales.soldAt, since)))
+    .groupBy(branches.name)
+    .orderBy(desc(sql`sum(${sales.total})`));
+
+  return rows.map((r) => ({ name: r.name, revenue: num(r.revenue) }));
+}
+
+/** Daily revenue vs profit for the trailing `days` window — the Sales dashboard's Sales vs Profit chart. Same current-buying-price cost basis as getGrossMarginTrend. */
+export async function getProfitSeries(days = 14) {
+  const businessId = await businessScope();
+  const since = startOfDay(new Date());
+  since.setDate(since.getDate() - (days - 1));
+
+  const rows = await db
+    .select({
+      date: sql<string>`to_char(${sales.soldAt}, 'YYYY-MM-DD')`,
+      day: sql<string>`to_char(${sales.soldAt}, 'DD Mon')`,
+      revenue: sql<number>`coalesce(sum(${saleItems.quantity} * ${saleItems.unitPrice}), 0)`,
+      cost: sql<number>`coalesce(sum(${saleItems.quantity} * ${products.buyingPrice}), 0)`,
+    })
+    .from(saleItems)
+    .innerJoin(sales, eq(saleItems.saleId, sales.id))
+    .leftJoin(products, eq(saleItems.productId, products.id))
+    .where(and(eq(sales.businessId, businessId), sql`${sales.status} <> 'refunded'`, gte(sales.soldAt, since)))
+    .groupBy(sql`to_char(${sales.soldAt}, 'YYYY-MM-DD')`, sql`to_char(${sales.soldAt}, 'DD Mon')`)
+    .orderBy(sql`to_char(${sales.soldAt}, 'YYYY-MM-DD')`);
+
+  return rows.map((r) => ({
+    date: r.date,
+    day: r.day,
+    revenue: num(r.revenue),
+    profit: num(r.revenue) - num(r.cost),
+  }));
 }
 
 /** Takings attributed to one cashier today. */

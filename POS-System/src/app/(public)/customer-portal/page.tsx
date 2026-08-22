@@ -18,7 +18,7 @@ export default async function Page() {
     getBusinessProfile(),
   ]);
   return (
-    <CurrencyProvider code={(business?.currency as CurrencyCode) ?? "KES"}>
+    <CurrencyProvider code={(business?.currency as CurrencyCode) ?? "UGX"}>
       <CustomerPortalPage branches={branches} storefrontProducts={storefrontProducts} />
     </CurrencyProvider>
   );

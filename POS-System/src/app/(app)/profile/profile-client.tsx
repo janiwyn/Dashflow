@@ -3,14 +3,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { UserRound, Save } from "lucide-react";
+import { Building2, CalendarDays, Mail, Save, UserRound } from "lucide-react";
 
 import { updateOwnProfile } from "@/app/actions/users";
 import { AppShell } from "@/components/app-shell";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { viewProfile } from "@/db/queries/views";
 
 type Props = {
@@ -19,10 +20,6 @@ type Props = {
 
 export default function ProfilePage({ currentProfile }: Props) {
   const router = useRouter();
-  // The original form bound this field (and the header) to currentProfile.username — the
-  // separate login-handle column, e.g. "admin" — not the real display name ("Meridian
-  // Admin"). Saving silently overwrote users.name with whatever the username field held.
-  // updateOwnProfile only ever writes `name`, so this field has to reflect that column.
   const [name, setName] = useState(currentProfile.name);
   const [phone, setPhone] = useState(currentProfile.phone === "—" ? "" : currentProfile.phone);
   const [pending, startTransition] = useTransition();
@@ -46,43 +43,68 @@ export default function ProfilePage({ currentProfile }: Props) {
   };
 
   return (
-    <AppShell title="Edit Profile" subtitle={`${currentProfile.role} · ${currentProfile.branch}`}>
-      <div className="panel mx-auto max-w-xl p-6">
-        <div className="mb-6 flex items-center gap-4">
-          <Avatar className="size-16">
-            <AvatarFallback className="text-lg">{initials}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-semibold">{currentProfile.name}</p>
-            <p className="text-sm text-muted-foreground">{currentProfile.email}</p>
-            {currentProfile.hireDate && (
-              <p className="text-xs text-muted-foreground">Member since {currentProfile.hireDate}</p>
-            )}
+    <AppShell title="Edit Profile" subtitle="Manage your personal account details">
+      <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        {/* Identity summary */}
+        <div className="panel h-fit overflow-hidden">
+          <div className="h-20 bg-gradient-to-br from-primary/25 via-primary/10 to-transparent" />
+          <div className="-mt-10 px-6 pb-6">
+            <Avatar className="size-20 border-4 border-card shadow-card">
+              <AvatarFallback className="text-xl font-semibold">{initials}</AvatarFallback>
+            </Avatar>
+            <p className="mt-3 truncate text-lg font-semibold tracking-tight">{currentProfile.name}</p>
+            <Badge variant="secondary" className="mt-1.5">
+              {currentProfile.role}
+            </Badge>
+
+            <div className="mt-5 grid gap-3 border-t border-border pt-5 text-sm">
+              <div className="flex items-center gap-2.5 text-muted-foreground">
+                <Mail className="size-4 shrink-0" />
+                <span className="truncate">{currentProfile.email}</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-muted-foreground">
+                <Building2 className="size-4 shrink-0" />
+                <span className="truncate">{currentProfile.branch}</span>
+              </div>
+              {currentProfile.hireDate && (
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <CalendarDays className="size-4 shrink-0" />
+                  <span className="truncate">Member since {currentProfile.hireDate}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        <form className="grid gap-4" onSubmit={onSubmit}>
-          <div className="grid gap-1.5">
-            <Label>Full Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} name="name" />
+
+        {/* Editable details */}
+        <div className="panel min-w-0 p-6">
+          <div className="mb-5 flex items-center gap-2">
+            <UserRound className="size-4 text-muted-foreground" />
+            <h2 className="text-base font-semibold">Personal information</h2>
           </div>
-          <div className="grid gap-1.5">
-            <Label>Email</Label>
-            <Input type="email" defaultValue={currentProfile.email} name="email" disabled />
-            <p className="text-xs text-muted-foreground">Email is your sign-in identity and can&apos;t be changed here.</p>
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Phone</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} name="phone" />
-          </div>
-          <div>
-            <Button type="submit" disabled={pending} className="rounded-lg">
-              <Save className="size-4" /> {pending ? "Saving…" : "Update Profile"}
-            </Button>
-          </div>
-        </form>
-      </div>
-      <div className="mx-auto flex max-w-xl items-center gap-2 text-xs text-muted-foreground">
-        <UserRound className="size-3.5" /> Changes apply to your account only.
+          <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label>Full Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} name="name" className="rounded-lg" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Phone</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} name="phone" className="rounded-lg" />
+            </div>
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label>Email</Label>
+              <Input type="email" defaultValue={currentProfile.email} name="email" disabled className="rounded-lg" />
+              <p className="text-xs text-muted-foreground">Email is your sign-in identity and can&apos;t be changed here.</p>
+            </div>
+
+            <div className="flex flex-col-reverse items-start gap-3 border-t border-border pt-5 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">Changes apply to your account only.</p>
+              <Button type="submit" disabled={pending} className="rounded-lg">
+                <Save className="size-4" /> {pending ? "Saving…" : "Update Profile"}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </AppShell>
   );

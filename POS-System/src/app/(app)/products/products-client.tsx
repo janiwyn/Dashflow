@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useCurrency } from "@/components/currency-provider";
+import { useSessionUser } from "@/components/session-provider";
 import type { StockProduct } from "@/db/queries/views";
 import type { viewBranchNames, viewStockProducts } from "@/db/queries/views";
 
@@ -39,6 +40,7 @@ type Props = {
 export default function ProductsPage({ branches, stockProducts }: Props) {
   const router = useRouter();
   const { format: currency, code } = useCurrency();
+  const { hasMultipleBranches } = useSessionUser();
   const [rows, setRows] = useState<StockProduct[]>(stockProducts);
   const [branch, setBranch] = useState("All branches");
   const [open, setOpen] = useState(false);
@@ -100,7 +102,9 @@ export default function ProductsPage({ branches, stockProducts }: Props) {
   const columns: Column<StockProduct>[] = [
     { key: "id", header: "ID", render: (p) => <span className="num text-muted-foreground">P-{p.id}</span> },
     { key: "name", header: "Product", render: (p) => <span className="font-medium">{p.name}</span> },
-    { key: "branch", header: "Branch", render: (p) => <span className="text-muted-foreground">{p.branch}</span> },
+    ...(hasMultipleBranches
+      ? [{ key: "branch", header: "Branch", render: (p: StockProduct) => <span className="text-muted-foreground">{p.branch}</span> } as Column<StockProduct>]
+      : []),
     {
       key: "stock",
       header: "Stock",
@@ -142,7 +146,7 @@ export default function ProductsPage({ branches, stockProducts }: Props) {
   return (
     <AppShell
       title="Products"
-      subtitle={`${filtered.length} products · ${branch}`}
+      subtitle={hasMultipleBranches ? `${filtered.length} products · ${branch}` : `${filtered.length} products`}
       actions={
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -178,17 +182,19 @@ export default function ProductsPage({ branches, stockProducts }: Props) {
                   <Label>Stock</Label>
                   <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
                 </div>
-                <div className="grid gap-1.5">
-                  <Label>Branch</Label>
-                  <Select value={form.branch} onValueChange={(v) => setForm({ ...form, branch: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {branches.slice(1).map((b) => (
-                        <SelectItem key={b} value={b}>{b}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {hasMultipleBranches && (
+                  <div className="grid gap-1.5">
+                    <Label>Branch</Label>
+                    <Select value={form.branch} onValueChange={(v) => setForm({ ...form, branch: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {branches.slice(1).map((b) => (
+                          <SelectItem key={b} value={b}>{b}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>
@@ -203,7 +209,7 @@ export default function ProductsPage({ branches, stockProducts }: Props) {
       <section className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Stock value" value={currency(stockValue)} icon={Wallet} hint="at buying price" />
         <StatCard label="Low stock" value={String(lowStock)} icon={PackageX} hint="below 10 units" />
-        <StatCard label="Total SKUs" value={String(filtered.length)} icon={Boxes} hint={branch} />
+        <StatCard label="Total SKUs" value={String(filtered.length)} icon={Boxes} hint={hasMultipleBranches ? branch : "in stock"} />
       </section>
 
       <DataTable
@@ -212,14 +218,16 @@ export default function ProductsPage({ branches, stockProducts }: Props) {
         columns={columns}
         rows={filtered}
         toolbar={
-          <Select value={branch} onValueChange={setBranch}>
-            <SelectTrigger className="h-9 w-44 rounded-lg text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {branches.map((b) => (
-                <SelectItem key={b} value={b}>{b}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          hasMultipleBranches ? (
+            <Select value={branch} onValueChange={setBranch}>
+              <SelectTrigger className="h-9 w-44 rounded-lg text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {branches.map((b) => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : undefined
         }
       />
     </AppShell>
