@@ -124,15 +124,7 @@ function SiteNav({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> })
 function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
   return (
     <section className="relative overflow-hidden bg-[oklch(0.17_0.02_255)] text-[oklch(0.96_0.005_255)]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            "linear-gradient(oklch(1 0 0) 1px, transparent 1px), linear-gradient(90deg, oklch(1 0 0) 1px, transparent 1px)",
-          backgroundSize: "44px 44px",
-        }}
-      />
+
       <div
         aria-hidden
         className="pointer-events-none absolute -top-40 right-[-10%] size-[560px] rounded-full opacity-30 blur-[110px]"
@@ -206,8 +198,8 @@ function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
  */
 function HeroMockups() {
   return (
-    <div className="relative mx-auto h-[440px] w-full max-w-lg sm:h-[560px] lg:h-[600px]">
-      <div className="absolute left-0 top-4 w-[82%] -rotate-6 overflow-hidden rounded-xl border border-white/10 bg-[oklch(0.22_0.022_255)] shadow-2xl shadow-black/40">
+    <div className="group relative mx-auto h-[440px] w-full max-w-lg cursor-pointer sm:h-[560px] lg:h-[600px]">
+      <div className="absolute left-0 top-4 w-[82%] -rotate-6 overflow-hidden rounded-xl border border-white/10 bg-[oklch(0.22_0.022_255)] shadow-2xl shadow-black/40 transition-all duration-700 ease-out group-hover:-translate-x-12 group-hover:-translate-y-4 group-hover:-rotate-12 group-hover:scale-105 group-hover:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)]">
         <div className="flex items-center gap-1.5 border-b border-white/10 px-3 py-2">
           <span className="size-2 rounded-full bg-white/15" />
           <span className="size-2 rounded-full bg-white/15" />
@@ -222,7 +214,7 @@ function HeroMockups() {
         />
       </div>
 
-      <div className="absolute bottom-0 right-0 w-[52%] rotate-[6deg] overflow-hidden rounded-[1.8rem] border-[8px] border-neutral-900 bg-neutral-900 shadow-2xl shadow-black/50">
+      <div className="absolute bottom-0 right-0 w-[52%] rotate-[6deg] overflow-hidden rounded-[1.8rem] border-[8px] border-neutral-900 bg-neutral-900 shadow-2xl shadow-black/50 transition-all duration-700 ease-out group-hover:translate-x-10 group-hover:translate-y-6 group-hover:rotate-[14deg] group-hover:scale-105 group-hover:shadow-[0_30px_70px_-15px_rgba(0,0,0,0.8)]">
         <img
           src="/screenshots/pwa-overview.png"
           alt="The Dashflow POS mobile app's Overview screen, installed on a phone, in its dark theme"
