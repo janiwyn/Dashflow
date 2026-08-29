@@ -23,6 +23,11 @@ import {
   Store,
   ShoppingBag,
   Building2,
+  Rocket,
+  Zap,
+  Crown,
+  Sparkles,
+  Building,
 } from "lucide-react";
 
 import { HexMark } from "@/components/brand-mark";
@@ -335,86 +340,127 @@ function PhotoStrip() {
 
 /* -------------------------------- Packages ------------------------------- */
 
+const PLAN_ICONS: Record<string, typeof Rocket> = {
+  starter: Rocket,
+  retail: Zap,
+  business: Building,
+  professional: Crown,
+  enterprise: Sparkles,
+};
+
 function PackagesGrid() {
   return (
-    <section id="pricing" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Pricing</p>
-        <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
-          Pick the plan that fits your business.
+    <section id="pricing" className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Transparent Pricing</p>
+        <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight sm:text-4xl">
+          Pick the plan built for your scale
         </h2>
-        <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-          A small shop and a growing wholesaler shouldn&apos;t pay the same way. Every plan gets
-          the real, full version of each module it includes — plans differ in how many staff
-          logins and branches you get, not in what the software can do. Pay monthly, or annually
-          for two months free.
+        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+          Every plan includes the real, full version of its modules. Tiers scale with your team size and branches, not restricted features.
         </p>
       </div>
 
-      <div className="mt-14 grid gap-5 lg:grid-cols-5">
-        {PLAN_LIST.map((p) => (
-          <div
-            key={p.key}
-            className={`relative flex flex-col rounded-2xl border p-6 shadow-card ${
-              p.popular ? "border-primary bg-card ring-1 ring-primary/30" : "border-border bg-card"
-            }`}
-          >
-            {p.popular && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
-                Most popular
-              </span>
-            )}
-            <h3 className="text-base font-semibold tracking-tight">{p.label}</h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{p.tagline}</p>
-
-            <div className="mt-5">
-              {p.monthlyPrice !== null ? (
-                <>
-                  <span className="num font-[family-name:var(--font-display)] text-2xl font-semibold">
-                    {formatMoney(p.monthlyPrice, "UGX")}
-                  </span>
-                  <span className="text-sm text-muted-foreground">/mo</span>
-                </>
-              ) : (
-                <>
-                  <span className="num font-[family-name:var(--font-display)] text-xl font-semibold">
-                    From {formatMoney(p.startingPrice ?? 0, "UGX")}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">/mo · custom pricing</span>
-                </>
-              )}
-            </div>
-
-            <ul className="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
-              {p.highlights.map((h) => (
-                <li key={h} className="flex items-start gap-2">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                  {h}
-                </li>
-              ))}
-            </ul>
-
-            <Link
-              href={`/subscribe?plan=${p.key}`}
-              className={`mt-6 inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+      <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {PLAN_LIST.map((p) => {
+          const Icon = PLAN_ICONS[p.key] || Rocket;
+          return (
+            <div
+              key={p.key}
+              className={`group relative flex flex-col justify-between rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-2 ${
                 p.popular
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "border border-border text-foreground hover:bg-secondary"
+                  ? "border-primary bg-card shadow-lg ring-2 ring-primary/20 hover:border-primary hover:shadow-xl"
+                  : "border-border/80 bg-card hover:border-primary/50 hover:shadow-md"
               }`}
             >
-              {p.monthlyPrice !== null ? "Get started" : "Contact us"}
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-        ))}
+              {p.popular && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-sm">
+                  Most Popular
+                </div>
+              )}
+
+              <div>
+                {/* Header Icon + Label */}
+                <div className="flex items-center gap-3">
+                  <div className={`grid size-10 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-110 ${
+                    p.popular ? "bg-primary/15 text-primary" : "bg-secondary text-foreground/80"
+                  }`}>
+                    <Icon className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-foreground">
+                      {p.label}
+                    </h3>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs leading-relaxed text-muted-foreground min-h-[2.5rem]">
+                  {p.tagline}
+                </p>
+
+                {/* Price Display */}
+                <div className="mt-6 border-y border-border/60 py-4">
+                  {p.monthlyPrice !== null ? (
+                    <div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="num font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                          {formatMoney(p.monthlyPrice, "UGX")}
+                        </span>
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">per month</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="num font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                        From {formatMoney(p.startingPrice ?? 0, "UGX")}
+                      </span>
+                      <span className="block text-xs font-medium text-muted-foreground">per month · custom tier</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Feature Highlights */}
+                <div className="mt-6 space-y-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    What&apos;s included:
+                  </p>
+                  <ul className="space-y-2.5 text-xs text-muted-foreground">
+                    {p.highlights.map((h) => (
+                      <li key={h} className="flex items-start gap-2.5">
+                        <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+                          <Check className="size-2.5 stroke-[3]" />
+                        </span>
+                        <span className="leading-snug text-foreground/90 font-medium">{h}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Action CTA */}
+              <div className="mt-8 pt-2">
+                <Link
+                  href={`/subscribe?plan=${p.key}`}
+                  className={`group/btn flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-bold transition-all duration-200 active:scale-[0.98] ${
+                    p.popular
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "border border-border bg-secondary/50 text-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                  }`}
+                >
+                  <span>{p.monthlyPrice !== null ? "Get Started" : "Contact Sales"}</span>
+                  <ArrowRight className="size-3.5 transition-transform duration-200 group-hover/btn:translate-x-1" />
+                </Link>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <p className="mt-8 text-center text-sm text-muted-foreground">
-        Already have accounting software and only need POS and inventory? Skip the packages —{" "}
-        <a href="#modules" className="font-medium text-primary hover:underline">
-          build your own from individual modules
+      <p className="mt-12 text-center text-sm text-muted-foreground">
+        Already have accounting software and only need POS &amp; inventory?{" "}
+        <a href="#modules" className="font-semibold text-primary transition-underline hover:underline">
+          Build a custom plan from individual modules →
         </a>
-        .
       </p>
     </section>
   );
