@@ -16,6 +16,10 @@ import {
   Printer,
   Package,
   Fingerprint,
+  Tag,
+  LayoutGrid,
+  HelpCircle,
+  PackageSearch,
 } from "lucide-react";
 
 import { HexMark } from "@/components/brand-mark";
@@ -75,19 +79,23 @@ function SiteNav({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> })
         </Link>
 
         <nav className="hidden items-center gap-1 text-sm font-medium text-muted-foreground md:flex">
-          <a href="#pricing" className="group relative rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+          <a href="#pricing" className="group relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            <Tag className="size-4 text-muted-foreground/70 transition-transform duration-200 group-hover:scale-110 group-hover:text-primary" />
             Pricing
             <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
           </a>
-          <a href="#product" className="group relative rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+          <a href="#product" className="group relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            <LayoutGrid className="size-4 text-muted-foreground/70 transition-transform duration-200 group-hover:scale-110 group-hover:text-primary" />
             Product
             <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
           </a>
-          <a href="#faq" className="group relative rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+          <a href="#faq" className="group relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            <HelpCircle className="size-4 text-muted-foreground/70 transition-transform duration-200 group-hover:scale-110 group-hover:text-primary" />
             FAQ
             <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
           </a>
-          <Link href="/track-order" className="group relative rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+          <Link href="/track-order" className="group relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            <PackageSearch className="size-4 text-muted-foreground/70 transition-transform duration-200 group-hover:scale-110 group-hover:text-primary" />
             Track an order
             <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
           </Link>
@@ -101,26 +109,26 @@ function SiteNav({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> })
               </span>
               <Link
                 href="/dashboard"
-                className="hidden items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 md:inline-flex"
+                className="group hidden items-center gap-2 rounded-xl bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-primary/90 active:scale-95 md:inline-flex"
               >
                 Go to dashboard
-                <ArrowRight className="size-3.5" />
+                <ArrowRight className="size-3.5 transition-transform duration-200 ease-out group-hover:translate-x-1" />
               </Link>
             </>
           ) : (
             <>
               <Link
                 href="/login"
-                className="hidden rounded-lg px-3.5 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary md:inline-flex"
+                className="hidden rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-foreground/80 transition-all duration-200 hover:border-border hover:bg-secondary hover:text-foreground active:scale-95 md:inline-flex"
               >
                 Log in
               </Link>
               <Link
                 href="/signup"
-                className="hidden items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 md:inline-flex"
+                className="group hidden items-center gap-2 rounded-xl bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-primary/90 active:scale-95 md:inline-flex"
               >
                 Sign up free
-                <ArrowRight className="size-3.5" />
+                <ArrowRight className="size-3.5 transition-transform duration-200 ease-out group-hover:translate-x-1" />
               </Link>
             </>
           )}
@@ -145,15 +153,7 @@ function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
 
       <div className="relative mx-auto grid max-w-6xl gap-16 px-4 pb-24 pt-16 sm:px-6 sm:pt-20 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pb-32 lg:pt-24">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/70">
-            <span className="relative flex size-1.5">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
-            </span>
-            Built for multi-branch retail in East &amp; West Africa
-          </span>
-
-          <h1 className="mt-6 font-[family-name:var(--font-display)] text-[2.5rem] font-semibold leading-[1.08] tracking-tight sm:text-6xl">
+          <h1 className="font-[family-name:var(--font-display)] text-[2.5rem] font-semibold leading-[1.08] tracking-tight sm:text-6xl">
             Run every branch<br />from one dashboard.
           </h1>
 
@@ -166,22 +166,22 @@ function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
               href={user ? "/dashboard" : "/subscribe"}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
+              className="group inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-primary/90 active:scale-[0.98]"
             >
               {user ? "Go to your dashboard" : "Choose your plan"}
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4 transition-transform duration-200 ease-out group-hover:translate-x-1" />
             </Link>
             {user ? (
               <Link
                 href="/subscribe"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white/85 transition-colors hover:bg-white/5"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white/90 transition-all duration-200 hover:border-white/40 hover:bg-white/10 active:scale-[0.98]"
               >
                 Add more modules
               </Link>
             ) : (
               <a
                 href="#pricing"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white/85 transition-colors hover:bg-white/5"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white/90 transition-all duration-200 hover:border-white/40 hover:bg-white/10 active:scale-[0.98]"
               >
                 See pricing
               </a>
