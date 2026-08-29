@@ -36,7 +36,16 @@ export const metadata: Metadata = {
     "Point of sale, inventory, staff and multi-branch reporting for wholesale, supermarkets and retail businesses across Kenya, Uganda, Tanzania, Rwanda, Nigeria and Ghana \u2014 in your own currency.",
 };
 
-const CITIES = ["Nairobi", "Kampala", "Dar es Salaam", "Kigali", "Lagos", "Accra", "Mombasa", "Jinja"];
+const CITIES_WITH_FLAGS = [
+  { name: "Nairobi", flag: "🇰🇪" },
+  { name: "Kampala", flag: "🇺🇬" },
+  { name: "Dar es Salaam", flag: "🇹🇿" },
+  { name: "Kigali", flag: "🇷🇼" },
+  { name: "Lagos", flag: "🇳🇬" },
+  { name: "Accra", flag: "🇬🇭" },
+  { name: "Mombasa", flag: "🇰🇪" },
+  { name: "Jinja", flag: "🇺🇬" },
+];
 
 export default async function MarketingHome() {
   // Signed-in visitors can still browse the marketing site \u2014 like most SaaS
@@ -241,14 +250,14 @@ function HeroMockups() {
 /* ------------------------------- City marquee ------------------------------ */
 
 function CityMarquee() {
-  const loop = [...CITIES, ...CITIES];
+  const loop = [...CITIES_WITH_FLAGS, ...CITIES_WITH_FLAGS];
   return (
     <div className="overflow-hidden border-b border-border bg-secondary/40 py-3">
       <div className="marquee flex w-max items-center gap-10 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
-        {loop.map((city, i) => (
+        {loop.map((item, i) => (
           <span key={i} className="flex items-center gap-2 whitespace-nowrap">
-            <span className="size-1 rounded-full bg-primary/60" />
-            {city}
+            <span className="text-base leading-none" role="img" aria-label={`${item.name} flag`}>{item.flag}</span>
+            {item.name}
           </span>
         ))}
       </div>
