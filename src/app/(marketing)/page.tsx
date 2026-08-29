@@ -20,6 +20,9 @@ import {
   LayoutGrid,
   HelpCircle,
   PackageSearch,
+  Store,
+  ShoppingBag,
+  Building2,
 } from "lucide-react";
 
 import { HexMark } from "@/components/brand-mark";
@@ -261,14 +264,6 @@ function CityMarquee() {
           </span>
         ))}
       </div>
-      <style>{`
-        .marquee { animation: dashflow-marquee 32s linear infinite; }
-        @media (prefers-reduced-motion: reduce) { .marquee { animation: none; } }
-        @keyframes dashflow-marquee {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -279,37 +274,59 @@ const REAL_PHOTOS = [
   {
     src: "https://images.unsplash.com/photo-1687422808311-a776f467a468?auto=format&fit=crop&w=900&q=80",
     alt: "A shop owner at her counter",
-    caption: "Independent shops",
+    title: "Independent Shops",
+    description: "Single-till setups, corner stores, and boutiques managing inventory, sales, and daily takings.",
   },
   {
     src: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=900&q=80",
     alt: "Stocked supermarket aisle",
-    caption: "Supermarkets & wholesalers",
+    title: "Supermarkets & Wholesalers",
+    description: "Multi-lane checkout counters, barcode scanning, bulk price tiers, and automated reordering.",
   },
   {
     src: "https://images.unsplash.com/photo-1759334928681-dc7ad674138e?auto=format&fit=crop&w=900&q=80",
     alt: "A shopkeeper among his stock",
-    caption: "Growing retail chains",
+    title: "Growing Retail Chains",
+    description: "Centralized owner dashboard, stock transfers between branches, and staff permissions.",
   },
 ];
 
 function PhotoStrip() {
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+    <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-2xl text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Target Businesses</p>
+        <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
+          Built for every scale of retail
+        </h2>
+        <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+          Whether you run a single neighbourhood counter or manage multiple supermarket branches across East &amp; West Africa.
+        </p>
+      </div>
+
+      <div className="mt-12 grid gap-6 md:grid-cols-3 sm:gap-8">
         {REAL_PHOTOS.map((p) => (
-          <figure key={p.src} className="group relative overflow-hidden rounded-2xl">
-            <img
-              src={p.src}
-              alt={p.alt}
-              loading="lazy"
-              className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:h-64"
-            />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0" />
-            <figcaption className="absolute bottom-3 left-4 text-sm font-semibold text-white">
-              {p.caption}
-            </figcaption>
-          </figure>
+          <div
+            key={p.title}
+            className="group cursor-pointer overflow-hidden rounded-2xl border border-border/80 bg-card p-4 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-primary/50 hover:bg-secondary/30 hover:shadow-lg"
+          >
+            <div className="h-48 w-full overflow-hidden rounded-xl bg-muted sm:h-52">
+              <img
+                src={p.src}
+                alt={p.alt}
+                loading="lazy"
+                className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+              />
+            </div>
+            <div className="px-1 pt-4 pb-1">
+              <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-foreground transition-colors duration-200 group-hover:text-primary">
+                {p.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground transition-colors duration-200 group-hover:text-foreground/80">
+                {p.description}
+              </p>
+            </div>
+          </div>
         ))}
       </div>
     </section>

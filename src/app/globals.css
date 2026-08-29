@@ -177,6 +177,15 @@
   }
 }
 
+@utility marquee {
+  animation: dashflow-marquee 32s linear infinite;
+}
+
+@keyframes dashflow-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
 @utility panel {
   background-color: var(--color-card);
   border: 1px solid var(--color-border);
