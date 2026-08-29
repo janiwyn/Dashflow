@@ -75,10 +75,22 @@ function SiteNav({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> })
         </Link>
 
         <nav className="hidden items-center gap-1 text-sm font-medium text-muted-foreground md:flex">
-          <a href="#pricing" className="rounded-lg px-3.5 py-2 transition-colors hover:bg-secondary hover:text-foreground">Pricing</a>
-          <a href="#product" className="rounded-lg px-3.5 py-2 transition-colors hover:bg-secondary hover:text-foreground">Product</a>
-          <a href="#faq" className="rounded-lg px-3.5 py-2 transition-colors hover:bg-secondary hover:text-foreground">FAQ</a>
-          <Link href="/track-order" className="rounded-lg px-3.5 py-2 transition-colors hover:bg-secondary hover:text-foreground">Track an order</Link>
+          <a href="#pricing" className="group relative rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            Pricing
+            <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
+          </a>
+          <a href="#product" className="group relative rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            Product
+            <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
+          </a>
+          <a href="#faq" className="group relative rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            FAQ
+            <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
+          </a>
+          <Link href="/track-order" className="group relative rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            Track an order
+            <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2">
