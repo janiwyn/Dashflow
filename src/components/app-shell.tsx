@@ -1,14 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Bell, Search, Plus } from "lucide-react";
+import { Bell, Plus } from "lucide-react";
 import Link from "next/link";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { GlobalSearch } from "@/components/global-search";
 import { useSessionUser } from "@/components/session-provider";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 export function AppShell({
   title,
@@ -44,13 +44,7 @@ export function AppShell({
           <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur print:hidden">
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
               <SidebarTrigger className="shrink-0" />
-              <div className="relative min-w-0 max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder={isSuper ? "Search businesses, admins…" : "Search products, receipts, customers…"}
-                  className="h-9 rounded-lg border-border bg-background pl-9 text-sm"
-                />
-              </div>
+              <GlobalSearch isSuper={isSuper} />
               <div className="flex shrink-0 items-center gap-2">
                 {!isSuper && (
                   <>
