@@ -479,6 +479,11 @@
     }
     #qr-camera-on { border: 2px solid var(--brand); background: #000; }
     .qr-viewfinder { position: absolute; inset: 20px; border: 2px dashed rgba(255,255,255,0.8); border-radius: 12px; pointer-events: none; }
+    .scan-unsupported-icon {
+      width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 14px; background: var(--panel-2);
+      display: flex; align-items: center; justify-content: center; color: var(--muted);
+    }
+    .scan-unsupported-icon svg { width: 26px; height: 26px; }
     .qr-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 4px; }
 
     /* --- Sidebar: slides in from the left, one entry per subscribed module. --- */
@@ -1334,22 +1339,35 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <div style="text-align:center;">
-            <div id="scan-camera-off" class="qr-frame">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:64px;height:64px;color:var(--muted);"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M3 12h18"/></svg>
+          <div style="text-align:center; overflow-y:auto; padding:16px 18px 18px;">
+            <div id="scan-camera-area">
+              <div id="scan-camera-off" class="qr-frame">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:64px;height:64px;color:var(--muted);"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M3 12h18"/></svg>
+              </div>
+              <div id="scan-camera-on" class="qr-frame hidden" style="padding:0; overflow:hidden;">
+                <video id="scan-video" muted playsinline autoplay style="width:100%; height:100%; object-fit:cover;"></video>
+                <div class="qr-viewfinder"></div>
+              </div>
+
+              <p class="tagline" id="scan-hint" style="margin-top:12px;">Hold a product's barcode up to the camera — items add to the cart automatically</p>
+
+              <button type="button" class="btn-primary" id="scan-camera-toggle" style="margin-top:4px;">Scan with camera</button>
+              <p class="error" id="scan-camera-error"></p>
             </div>
-            <div id="scan-camera-on" class="qr-frame hidden" style="padding:0; overflow:hidden;">
-              <video id="scan-video" muted playsinline autoplay style="width:100%; height:100%; object-fit:cover;"></video>
-              <div class="qr-viewfinder"></div>
+
+            <!-- Shown instead of the camera area on browsers without BarcodeDetector (notably
+                 Safari/iOS) — a dashed empty camera box with no button under it read as broken,
+                 so this is a purpose-built empty state that hands off cleanly to the manual field. -->
+            <div id="scan-camera-unsupported" class="hidden">
+              <div class="scan-unsupported-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>
+              </div>
+              <p style="font-weight:700; margin:0;">Camera scanning isn't available here</p>
+              <p class="tagline" style="margin:4px 0 0;">This browser doesn't support live barcode scanning. Type a SKU below, or use a handheld scanner — it types straight into the field.</p>
             </div>
 
-            <p class="tagline" id="scan-hint" style="margin-top:12px;">Hold a product's barcode up to the camera — items add to the cart automatically</p>
-
-            <button type="button" class="btn-primary" id="scan-camera-toggle" style="margin-top:4px;">Scan with camera</button>
-            <p class="error" id="scan-camera-error"></p>
-
-            <form id="scan-manual-form" style="display:flex; gap:8px; margin-top:14px;">
-              <input type="text" id="scan-manual-code" placeholder="Or type/scan SKU" style="flex:1;" autocomplete="off" />
+            <form id="scan-manual-form" style="display:flex; gap:8px; margin-top:16px;">
+              <input type="text" id="scan-manual-code" placeholder="Type or scan SKU" style="flex:1;" autocomplete="off" />
               <button type="submit" class="btn-secondary">Add</button>
             </form>
           </div>
@@ -4322,10 +4340,8 @@
     }
 
     function openScanModal() {
-      if (!scanCameraSupported()) {
-        document.getElementById("scan-camera-toggle").classList.add("hidden");
-        document.getElementById("scan-hint").textContent = "Camera scanning isn't supported in this browser — try Chrome or Edge, or use a handheld barcode scanner (it types into the field below like a keyboard).";
-      }
+      document.getElementById("scan-camera-area").classList.toggle("hidden", !scanCameraSupported());
+      document.getElementById("scan-camera-unsupported").classList.toggle("hidden", scanCameraSupported());
       document.getElementById("scan-modal").classList.remove("hidden");
       document.getElementById("scan-modal-backdrop").classList.remove("hidden");
       document.getElementById("scan-manual-code").focus();
