@@ -16,6 +16,18 @@ import {
   Printer,
   Package,
   Fingerprint,
+  Tag,
+  LayoutGrid,
+  HelpCircle,
+  PackageSearch,
+  Store,
+  ShoppingBag,
+  Building2,
+  Rocket,
+  Zap,
+  Crown,
+  Sparkles,
+  Building,
 } from "lucide-react";
 
 import { HexMark } from "@/components/brand-mark";
@@ -32,7 +44,16 @@ export const metadata: Metadata = {
     "Point of sale, inventory, staff and multi-branch reporting for wholesale, supermarkets and retail businesses across Kenya, Uganda, Tanzania, Rwanda, Nigeria and Ghana \u2014 in your own currency.",
 };
 
-const CITIES = ["Nairobi", "Kampala", "Dar es Salaam", "Kigali", "Lagos", "Accra", "Mombasa", "Jinja"];
+const CITIES_WITH_FLAGS = [
+  { name: "Nairobi", flag: "🇰🇪" },
+  { name: "Kampala", flag: "🇺🇬" },
+  { name: "Dar es Salaam", flag: "🇹🇿" },
+  { name: "Kigali", flag: "🇷🇼" },
+  { name: "Lagos", flag: "🇳🇬" },
+  { name: "Accra", flag: "🇬🇭" },
+  { name: "Mombasa", flag: "🇰🇪" },
+  { name: "Jinja", flag: "🇺🇬" },
+];
 
 export default async function MarketingHome() {
   // Signed-in visitors can still browse the marketing site \u2014 like most SaaS
@@ -75,10 +96,26 @@ function SiteNav({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> })
         </Link>
 
         <nav className="hidden items-center gap-1 text-sm font-medium text-muted-foreground md:flex">
-          <a href="#pricing" className="rounded-lg px-3.5 py-2 transition-colors hover:bg-secondary hover:text-foreground">Pricing</a>
-          <a href="#product" className="rounded-lg px-3.5 py-2 transition-colors hover:bg-secondary hover:text-foreground">Product</a>
-          <a href="#faq" className="rounded-lg px-3.5 py-2 transition-colors hover:bg-secondary hover:text-foreground">FAQ</a>
-          <Link href="/track-order" className="rounded-lg px-3.5 py-2 transition-colors hover:bg-secondary hover:text-foreground">Track an order</Link>
+          <a href="#pricing" className="group relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            <Tag className="size-4 text-muted-foreground/70 transition-transform duration-200 group-hover:scale-110 group-hover:text-primary" />
+            Pricing
+            <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
+          </a>
+          <a href="#product" className="group relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            <LayoutGrid className="size-4 text-muted-foreground/70 transition-transform duration-200 group-hover:scale-110 group-hover:text-primary" />
+            Product
+            <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
+          </a>
+          <a href="#faq" className="group relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            <HelpCircle className="size-4 text-muted-foreground/70 transition-transform duration-200 group-hover:scale-110 group-hover:text-primary" />
+            FAQ
+            <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
+          </a>
+          <Link href="/track-order" className="group relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 transition-colors hover:text-foreground">
+            <PackageSearch className="size-4 text-muted-foreground/70 transition-transform duration-200 group-hover:scale-110 group-hover:text-primary" />
+            Track an order
+            <span className="absolute inset-x-3.5 bottom-0 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 ease-out group-hover:scale-x-100" />
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -89,26 +126,26 @@ function SiteNav({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> })
               </span>
               <Link
                 href="/dashboard"
-                className="hidden items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 md:inline-flex"
+                className="group hidden items-center gap-2 rounded-xl bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-primary/90 active:scale-95 md:inline-flex"
               >
                 Go to dashboard
-                <ArrowRight className="size-3.5" />
+                <ArrowRight className="size-3.5 transition-transform duration-200 ease-out group-hover:translate-x-1" />
               </Link>
             </>
           ) : (
             <>
               <Link
                 href="/login"
-                className="hidden rounded-lg px-3.5 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary md:inline-flex"
+                className="hidden rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-foreground/80 transition-all duration-200 hover:border-border hover:bg-secondary hover:text-foreground active:scale-95 md:inline-flex"
               >
                 Log in
               </Link>
               <Link
                 href="/signup"
-                className="hidden items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 md:inline-flex"
+                className="group hidden items-center gap-2 rounded-xl bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-primary/90 active:scale-95 md:inline-flex"
               >
                 Sign up free
-                <ArrowRight className="size-3.5" />
+                <ArrowRight className="size-3.5 transition-transform duration-200 ease-out group-hover:translate-x-1" />
               </Link>
             </>
           )}
@@ -124,15 +161,7 @@ function SiteNav({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> })
 function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
   return (
     <section className="relative overflow-hidden bg-[oklch(0.17_0.02_255)] text-[oklch(0.96_0.005_255)]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            "linear-gradient(oklch(1 0 0) 1px, transparent 1px), linear-gradient(90deg, oklch(1 0 0) 1px, transparent 1px)",
-          backgroundSize: "44px 44px",
-        }}
-      />
+
       <div
         aria-hidden
         className="pointer-events-none absolute -top-40 right-[-10%] size-[560px] rounded-full opacity-30 blur-[110px]"
@@ -141,15 +170,7 @@ function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
 
       <div className="relative mx-auto grid max-w-6xl gap-16 px-4 pb-24 pt-16 sm:px-6 sm:pt-20 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pb-32 lg:pt-24">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/70">
-            <span className="relative flex size-1.5">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
-            </span>
-            Built for multi-branch retail in East &amp; West Africa
-          </span>
-
-          <h1 className="mt-6 font-[family-name:var(--font-display)] text-[2.5rem] font-semibold leading-[1.08] tracking-tight sm:text-6xl">
+          <h1 className="font-[family-name:var(--font-display)] text-[2.5rem] font-semibold leading-[1.08] tracking-tight sm:text-6xl">
             Run every branch<br />from one dashboard.
           </h1>
 
@@ -162,22 +183,22 @@ function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
               href={user ? "/dashboard" : "/subscribe"}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
+              className="group inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-primary/90 active:scale-[0.98]"
             >
               {user ? "Go to your dashboard" : "Choose your plan"}
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4 transition-transform duration-200 ease-out group-hover:translate-x-1" />
             </Link>
             {user ? (
               <Link
                 href="/subscribe"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white/85 transition-colors hover:bg-white/5"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white/90 transition-all duration-200 hover:border-white/40 hover:bg-white/10 active:scale-[0.98]"
               >
                 Add more modules
               </Link>
             ) : (
               <a
                 href="#pricing"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-semibold text-white/85 transition-colors hover:bg-white/5"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white/90 transition-all duration-200 hover:border-white/40 hover:bg-white/10 active:scale-[0.98]"
               >
                 See pricing
               </a>
@@ -206,8 +227,8 @@ function Hero({ user }: { user: Awaited<ReturnType<typeof getCurrentUser>> }) {
  */
 function HeroMockups() {
   return (
-    <div className="relative mx-auto h-[440px] w-full max-w-lg sm:h-[560px] lg:h-[600px]">
-      <div className="absolute left-0 top-4 w-[82%] -rotate-6 overflow-hidden rounded-xl border border-white/10 bg-[oklch(0.22_0.022_255)] shadow-2xl shadow-black/40">
+    <div className="group relative mx-auto h-[440px] w-full max-w-lg cursor-pointer sm:h-[560px] lg:h-[600px]">
+      <div className="absolute left-0 top-4 w-[82%] -rotate-6 overflow-hidden rounded-xl border border-white/10 bg-[oklch(0.22_0.022_255)] shadow-2xl shadow-black/40 transition-all duration-700 ease-out group-hover:-translate-x-12 group-hover:-translate-y-4 group-hover:-rotate-12 group-hover:scale-105 group-hover:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)]">
         <div className="flex items-center gap-1.5 border-b border-white/10 px-3 py-2">
           <span className="size-2 rounded-full bg-white/15" />
           <span className="size-2 rounded-full bg-white/15" />
@@ -222,7 +243,7 @@ function HeroMockups() {
         />
       </div>
 
-      <div className="absolute bottom-0 right-0 w-[52%] rotate-[6deg] overflow-hidden rounded-[1.8rem] border-[8px] border-neutral-900 bg-neutral-900 shadow-2xl shadow-black/50">
+      <div className="absolute bottom-0 right-0 w-[52%] rotate-[6deg] overflow-hidden rounded-[1.8rem] border-[8px] border-neutral-900 bg-neutral-900 shadow-2xl shadow-black/50 transition-all duration-700 ease-out group-hover:translate-x-10 group-hover:translate-y-6 group-hover:rotate-[14deg] group-hover:scale-105 group-hover:shadow-[0_30px_70px_-15px_rgba(0,0,0,0.8)]">
         <img
           src="/screenshots/pwa-overview.png"
           alt="The Dashflow POS mobile app's Overview screen, installed on a phone, in its dark theme"
@@ -237,25 +258,17 @@ function HeroMockups() {
 /* ------------------------------- City marquee ------------------------------ */
 
 function CityMarquee() {
-  const loop = [...CITIES, ...CITIES];
+  const loop = [...CITIES_WITH_FLAGS, ...CITIES_WITH_FLAGS];
   return (
     <div className="overflow-hidden border-b border-border bg-secondary/40 py-3">
       <div className="marquee flex w-max items-center gap-10 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
-        {loop.map((city, i) => (
+        {loop.map((item, i) => (
           <span key={i} className="flex items-center gap-2 whitespace-nowrap">
-            <span className="size-1 rounded-full bg-primary/60" />
-            {city}
+            <span className="text-base leading-none" role="img" aria-label={`${item.name} flag`}>{item.flag}</span>
+            {item.name}
           </span>
         ))}
       </div>
-      <style>{`
-        .marquee { animation: dashflow-marquee 32s linear infinite; }
-        @media (prefers-reduced-motion: reduce) { .marquee { animation: none; } }
-        @keyframes dashflow-marquee {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -266,37 +279,59 @@ const REAL_PHOTOS = [
   {
     src: "https://images.unsplash.com/photo-1687422808311-a776f467a468?auto=format&fit=crop&w=900&q=80",
     alt: "A shop owner at her counter",
-    caption: "Independent shops",
+    title: "Independent Shops",
+    description: "Single-till setups, corner stores, and boutiques managing inventory, sales, and daily takings.",
   },
   {
     src: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=900&q=80",
     alt: "Stocked supermarket aisle",
-    caption: "Supermarkets & wholesalers",
+    title: "Supermarkets & Wholesalers",
+    description: "Multi-lane checkout counters, barcode scanning, bulk price tiers, and automated reordering.",
   },
   {
     src: "https://images.unsplash.com/photo-1759334928681-dc7ad674138e?auto=format&fit=crop&w=900&q=80",
     alt: "A shopkeeper among his stock",
-    caption: "Growing retail chains",
+    title: "Growing Retail Chains",
+    description: "Centralized owner dashboard, stock transfers between branches, and staff permissions.",
   },
 ];
 
 function PhotoStrip() {
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+    <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-2xl text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Target Businesses</p>
+        <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
+          Built for every scale of retail
+        </h2>
+        <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+          Whether you run a single neighbourhood counter or manage multiple supermarket branches across East &amp; West Africa.
+        </p>
+      </div>
+
+      <div className="mt-12 grid gap-6 md:grid-cols-3 sm:gap-8">
         {REAL_PHOTOS.map((p) => (
-          <figure key={p.src} className="group relative overflow-hidden rounded-2xl">
-            <img
-              src={p.src}
-              alt={p.alt}
-              loading="lazy"
-              className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:h-64"
-            />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0" />
-            <figcaption className="absolute bottom-3 left-4 text-sm font-semibold text-white">
-              {p.caption}
-            </figcaption>
-          </figure>
+          <div
+            key={p.title}
+            className="group cursor-pointer overflow-hidden rounded-2xl border border-border/80 bg-card p-4 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-primary/50 hover:bg-secondary/30 hover:shadow-lg"
+          >
+            <div className="h-48 w-full overflow-hidden rounded-xl bg-muted sm:h-52">
+              <img
+                src={p.src}
+                alt={p.alt}
+                loading="lazy"
+                className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+              />
+            </div>
+            <div className="px-1 pt-4 pb-1">
+              <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-foreground transition-colors duration-200 group-hover:text-primary">
+                {p.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground transition-colors duration-200 group-hover:text-foreground/80">
+                {p.description}
+              </p>
+            </div>
+          </div>
         ))}
       </div>
     </section>
@@ -305,86 +340,127 @@ function PhotoStrip() {
 
 /* -------------------------------- Packages ------------------------------- */
 
+const PLAN_ICONS: Record<string, typeof Rocket> = {
+  starter: Rocket,
+  retail: Zap,
+  business: Building,
+  professional: Crown,
+  enterprise: Sparkles,
+};
+
 function PackagesGrid() {
   return (
-    <section id="pricing" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Pricing</p>
-        <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
-          Pick the plan that fits your business.
+    <section id="pricing" className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Transparent Pricing</p>
+        <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight sm:text-4xl">
+          Pick the plan built for your scale
         </h2>
-        <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-          A small shop and a growing wholesaler shouldn&apos;t pay the same way. Every plan gets
-          the real, full version of each module it includes — plans differ in how many staff
-          logins and branches you get, not in what the software can do. Pay monthly, or annually
-          for two months free.
+        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+          Every plan includes the real, full version of its modules. Tiers scale with your team size and branches, not restricted features.
         </p>
       </div>
 
-      <div className="mt-14 grid gap-5 lg:grid-cols-5">
-        {PLAN_LIST.map((p) => (
-          <div
-            key={p.key}
-            className={`relative flex flex-col rounded-2xl border p-6 shadow-card ${
-              p.popular ? "border-primary bg-card ring-1 ring-primary/30" : "border-border bg-card"
-            }`}
-          >
-            {p.popular && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
-                Most popular
-              </span>
-            )}
-            <h3 className="text-base font-semibold tracking-tight">{p.label}</h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{p.tagline}</p>
-
-            <div className="mt-5">
-              {p.monthlyPrice !== null ? (
-                <>
-                  <span className="num font-[family-name:var(--font-display)] text-2xl font-semibold">
-                    {formatMoney(p.monthlyPrice, "UGX")}
-                  </span>
-                  <span className="text-sm text-muted-foreground">/mo</span>
-                </>
-              ) : (
-                <>
-                  <span className="num font-[family-name:var(--font-display)] text-xl font-semibold">
-                    From {formatMoney(p.startingPrice ?? 0, "UGX")}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">/mo · custom pricing</span>
-                </>
-              )}
-            </div>
-
-            <ul className="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
-              {p.highlights.map((h) => (
-                <li key={h} className="flex items-start gap-2">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                  {h}
-                </li>
-              ))}
-            </ul>
-
-            <Link
-              href={`/subscribe?plan=${p.key}`}
-              className={`mt-6 inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+      <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {PLAN_LIST.map((p) => {
+          const Icon = PLAN_ICONS[p.key] || Rocket;
+          return (
+            <div
+              key={p.key}
+              className={`group relative flex flex-col justify-between rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-2 ${
                 p.popular
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "border border-border text-foreground hover:bg-secondary"
+                  ? "border-primary bg-card shadow-lg ring-2 ring-primary/20 hover:border-primary hover:shadow-xl"
+                  : "border-border/80 bg-card hover:border-primary/50 hover:shadow-md"
               }`}
             >
-              {p.monthlyPrice !== null ? "Get started" : "Contact us"}
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-        ))}
+              {p.popular && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-sm">
+                  Most Popular
+                </div>
+              )}
+
+              <div>
+                {/* Header Icon + Label */}
+                <div className="flex items-center gap-3">
+                  <div className={`grid size-10 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-110 ${
+                    p.popular ? "bg-primary/15 text-primary" : "bg-secondary text-foreground/80"
+                  }`}>
+                    <Icon className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-foreground">
+                      {p.label}
+                    </h3>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs leading-relaxed text-muted-foreground min-h-[2.5rem]">
+                  {p.tagline}
+                </p>
+
+                {/* Price Display */}
+                <div className="mt-6 border-y border-border/60 py-4">
+                  {p.monthlyPrice !== null ? (
+                    <div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="num font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                          {formatMoney(p.monthlyPrice, "UGX")}
+                        </span>
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">per month</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="num font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                        From {formatMoney(p.startingPrice ?? 0, "UGX")}
+                      </span>
+                      <span className="block text-xs font-medium text-muted-foreground">per month · custom tier</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Feature Highlights */}
+                <div className="mt-6 space-y-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    What&apos;s included:
+                  </p>
+                  <ul className="space-y-2.5 text-xs text-muted-foreground">
+                    {p.highlights.map((h) => (
+                      <li key={h} className="flex items-start gap-2.5">
+                        <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+                          <Check className="size-2.5 stroke-[3]" />
+                        </span>
+                        <span className="leading-snug text-foreground/90 font-medium">{h}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Action CTA */}
+              <div className="mt-8 pt-2">
+                <Link
+                  href={`/subscribe?plan=${p.key}`}
+                  className={`group/btn flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-bold transition-all duration-200 active:scale-[0.98] ${
+                    p.popular
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "border border-border bg-secondary/50 text-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                  }`}
+                >
+                  <span>{p.monthlyPrice !== null ? "Get Started" : "Contact Sales"}</span>
+                  <ArrowRight className="size-3.5 transition-transform duration-200 group-hover/btn:translate-x-1" />
+                </Link>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <p className="mt-8 text-center text-sm text-muted-foreground">
-        Already have accounting software and only need POS and inventory? Skip the packages —{" "}
-        <a href="#modules" className="font-medium text-primary hover:underline">
-          build your own from individual modules
+      <p className="mt-12 text-center text-sm text-muted-foreground">
+        Already have accounting software and only need POS &amp; inventory?{" "}
+        <a href="#modules" className="font-semibold text-primary transition-underline hover:underline">
+          Build a custom plan from individual modules →
         </a>
-        .
       </p>
     </section>
   );
