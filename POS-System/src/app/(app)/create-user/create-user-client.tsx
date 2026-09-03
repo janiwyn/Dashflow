@@ -69,7 +69,7 @@ export default function CreateUserPage({ branches, initialAccounts }: Props) {
     <AppShell title="Create User" subtitle="Provision a new system account">
       <div className="panel max-w-xl p-6">
         {notice && <div className="mb-4 rounded-lg bg-accent px-4 py-2 text-sm">{notice}</div>}
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        <form onSubmit={handleSubmit} method="post" className="grid gap-4">
           <div className="grid gap-1.5"><Label>Full name</Label><Input name="username" required /></div>
           <div className="grid gap-1.5"><Label>Email</Label><Input type="email" name="email" required /></div>
           <div className="grid gap-1.5"><Label>Password</Label><Input type="password" name="password" minLength={8} required /></div>

@@ -43,7 +43,7 @@ export default function AddBusinessPage() {
   return (
     <AppShell title="Add New Business" subtitle="Register a new tenant business on the platform">
       <div className="panel min-w-0 p-6">
-        <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={onSubmit} method="post" className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5 sm:col-span-2">
             <Label htmlFor="name">Business Name <span className="text-destructive">*</span></Label>
             <Input id="name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

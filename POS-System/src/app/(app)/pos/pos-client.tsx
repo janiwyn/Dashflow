@@ -284,7 +284,7 @@ export default function Terminal({ categories, products, clockGate, customers }:
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-4">
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-            <form onSubmit={onSearchSubmit} className="relative min-w-0">
+            <form onSubmit={onSearchSubmit} method="post" className="relative min-w-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={query}
@@ -543,7 +543,7 @@ export default function Terminal({ categories, products, clockGate, customers }:
             )}
             {cameraError && <p className="text-xs text-destructive">{cameraError}</p>}
 
-            <form onSubmit={onManualScanSubmit} className="flex w-full max-w-xs items-center gap-2">
+            <form onSubmit={onManualScanSubmit} method="post" className="flex w-full max-w-xs items-center gap-2">
               <div className="relative min-w-0 flex-1">
                 <Keyboard className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input

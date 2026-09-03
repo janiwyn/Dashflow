@@ -144,7 +144,7 @@ export default function PayrollPage({ employees, initialRecords }: Props) {
         </Button>
       </div>
 
-      <form onSubmit={handleSave} className="panel grid gap-3 p-5">
+      <form onSubmit={handleSave} method="post" className="panel grid gap-3 p-5">
         <h2 className="text-base font-semibold">Add / Update Payroll Record</h2>
         <p className="text-xs text-muted-foreground">Saving again for the same employee and month updates that record instead of duplicating it.</p>
         <div className="grid gap-1.5 sm:max-w-sm">

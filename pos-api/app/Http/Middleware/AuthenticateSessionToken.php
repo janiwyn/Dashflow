@@ -33,6 +33,15 @@ class AuthenticateSessionToken
             return response()->json(['message' => 'Account is not active.'], 403);
         }
 
+        // Same access rule as the web app's (app)/layout.tsx (src/lib/subscription.ts,
+        // hasActiveAccess()) — checked here so it's enforced everywhere the PWA calls
+        // in, not just once at login. The super role runs the platform rather than one
+        // tenant, so it's exempt here exactly like it is on the web side.
+        $business = $session->user->role !== 'super' ? $session->user->business : null;
+        if ($business && ($business->status !== 'active' || ! $business->subscription_end || $business->subscription_end < now()->toDateString())) {
+            return response()->json(['message' => 'Your subscription has ended. Renew from the Dashflow POS web dashboard to keep using the app.'], 402);
+        }
+
         $request->attributes->set('authUser', $session->user);
 
         return $next($request);

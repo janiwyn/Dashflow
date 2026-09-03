@@ -57,7 +57,7 @@ export function SupplierFormDialog({ trigger, categories, supplier, onSaved }: P
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit supplier" : "Add supplier"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={submit} className="grid gap-3">
+        <form onSubmit={submit} method="post" className="grid gap-3">
           <div className="grid gap-1.5">
             <Label>Supplier name</Label>
             <Input name="name" defaultValue={supplier?.name} required />

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Package, Settings2, ShieldAlert, Timer, Wallet } from "lucide-react";
+import { CreditCard, Hourglass, Package, Settings2, ShieldAlert, Timer, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -52,7 +52,11 @@ function businessMonthlyCost(business: Business, modules: ModuleKey[]): number |
 
 function StatusBadge({ status }: { status: Business["subscriptionStatus"] }) {
   const tone =
-    status === "active" ? "bg-success/12 text-success" : status === "pending" ? "bg-warning/15 text-warning-foreground" : "bg-destructive/12 text-destructive";
+    status === "active" || status === "trialing"
+      ? "bg-success/12 text-success"
+      : status === "pending"
+        ? "bg-warning/15 text-warning-foreground"
+        : "bg-destructive/12 text-destructive";
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${tone}`}>{status}</span>;
 }
 
@@ -296,18 +300,20 @@ export default function SubscriptionPage({ seed, modules }: Props) {
 
   const stats = useMemo(() => {
     let active = 0;
+    let trialing = 0;
     let pending = 0;
     let expired = 0;
     let packaged = 0;
     let mrr = 0;
     for (const b of rows) {
       if (b.subscriptionStatus === "active") active += 1;
+      else if (b.subscriptionStatus === "trialing") trialing += 1;
       else if (b.subscriptionStatus === "pending") pending += 1;
       else expired += 1;
       if (isPlanKey(b.planKey)) packaged += 1;
       mrr += businessMonthlyCost(b, moduleMap[b.id] ?? []) ?? 0;
     }
-    return { active, pending, expired, packaged, aLaCarte: rows.length - packaged, mrr };
+    return { active, trialing, pending, expired, packaged, aLaCarte: rows.length - packaged, mrr };
   }, [rows, moduleMap]);
 
   const update = (id: number, patch: Partial<Business>) => {
@@ -410,6 +416,7 @@ export default function SubscriptionPage({ seed, modules }: Props) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="trialing">Trialing</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="expired">Expired</SelectItem>
           </SelectContent>
@@ -444,6 +451,7 @@ export default function SubscriptionPage({ seed, modules }: Props) {
     >
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard label="Active Subscriptions" value={String(stats.active)} icon={CreditCard} hint="paying and current" />
+        <StatCard label="On Trial" value={String(stats.trialing)} icon={Hourglass} hint="14-day free trial" />
         <StatCard label="Pending" value={String(stats.pending)} icon={Timer} hint="not yet activated" />
         <StatCard label="Expired" value={String(stats.expired)} icon={ShieldAlert} hint="needs renewal" />
         <StatCard label="On a Package" value={String(stats.packaged)} icon={Package} hint={`${stats.aLaCarte} à la carte`} />

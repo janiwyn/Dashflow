@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { parseModuleKeys } from "@/lib/modules";
 import { isPlanKey } from "@/lib/plans";
 import { getCurrentUser } from "@/lib/session";
+import { daysUntil, hasActiveAccess } from "@/lib/subscription";
 
 import SubscribePage from "./subscribe-client";
 
@@ -18,9 +19,9 @@ export const metadata: Metadata = {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ modules?: string; plan?: string }>;
+  searchParams: Promise<{ modules?: string; plan?: string; renew?: string }>;
 }) {
-  const { modules, plan } = await searchParams;
+  const { modules, plan, renew } = await searchParams;
   const user = await getCurrentUser();
 
   // A signed-in admin/manager is adding to their own business, not creating
@@ -28,9 +29,16 @@ export default async function Page({
   // from the picker rather than offered again.
   const existingModules = user?.businessId ? Array.from(await getActiveModuleKeys(user.businessId)) : [];
 
-  const existingPlanKey = user?.businessId
-    ? (await db.select({ planKey: businesses.planKey }).from(businesses).where(eq(businesses.id, user.businessId)).limit(1))[0]?.planKey ?? null
-    : null;
+  const businessRow = user?.businessId
+    ? (
+        await db
+          .select({ planKey: businesses.planKey, status: businesses.status, subscriptionEnd: businesses.subscriptionEnd })
+          .from(businesses)
+          .where(eq(businesses.id, user.businessId))
+          .limit(1)
+      )[0]
+    : undefined;
+  const existingPlanKey = businessRow?.planKey ?? null;
 
   const initialModules = parseModuleKeys(modules).filter((k) => !existingModules.includes(k));
   const initialPlan = isPlanKey(plan) ? plan : null;
@@ -46,6 +54,13 @@ export default async function Page({
       initialPlan={initialPlan}
       existingPlanKey={isPlanKey(existingPlanKey) ? existingPlanKey : null}
       isLoggedIn={Boolean(user)}
+      renewing={renew === "1"}
+      // Distinguishes "your trial/subscription already lapsed" from "you're
+      // paying ahead of time" — both land here via the same ?renew=1 link
+      // (the (app) layout's lockout redirect, and Settings' "Pay now" while
+      // still on a trial), but they need different banner copy.
+      stillHasAccess={businessRow ? hasActiveAccess(businessRow) : true}
+      trialDaysLeft={businessRow?.subscriptionEnd ? daysUntil(businessRow.subscriptionEnd) : null}
     />
   );
 }

@@ -22,6 +22,10 @@ export const auth = betterAuth({
   appName: "Meridian POS",
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  // Lets this dev server be reached from another device on the same LAN
+  // (e.g. a phone testing a real payment prompt) without better-auth
+  // rejecting the request for an Origin that doesn't match baseURL exactly.
+  trustedOrigins: process.env.LAN_DEV_ORIGIN ? [process.env.LAN_DEV_ORIGIN] : undefined,
 
   database: drizzleAdapter(db, {
     provider: "pg",

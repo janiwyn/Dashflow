@@ -4,7 +4,7 @@ import { date, integer, pgEnum, pgTable, serial, text } from "drizzle-orm/pg-cor
 import { createdAt, updatedAt } from "./_shared";
 
 export const businessStatus = pgEnum("business_status", ["active", "suspended"]);
-export const subscriptionStatus = pgEnum("subscription_status", ["active", "pending", "expired"]);
+export const subscriptionStatus = pgEnum("subscription_status", ["trialing", "active", "pending", "expired"]);
 export const branchStatus = pgEnum("branch_status", ["open", "closed"]);
 export const billingPeriod = pgEnum("billing_period", ["monthly", "annual"]);
 

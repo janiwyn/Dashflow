@@ -181,7 +181,7 @@ export default function SystemUpdatesPage({ logs: seedLogs, updates: seedUpdates
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <ActionCard icon={UploadCloud} title="Upload New System Update">
-          <form onSubmit={upload} className="flex flex-col gap-2">
+          <form onSubmit={upload} method="post" className="flex flex-col gap-2">
             <Input
               type="file"
               className="h-9 text-xs"

@@ -111,7 +111,7 @@ export default function EmployeesPage({ branches, initialEmployees, systemUsers 
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader><DialogTitle>Add Employee</DialogTitle></DialogHeader>
-            <form onSubmit={handleSubmit} className="grid gap-3">
+            <form onSubmit={handleSubmit} method="post" className="grid gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-1.5"><Label>Full Name</Label><Input name="name" required /></div>
                 <div className="grid gap-1.5"><Label>Email</Label><Input type="email" name="email" required={loginMode === "new"} /></div>

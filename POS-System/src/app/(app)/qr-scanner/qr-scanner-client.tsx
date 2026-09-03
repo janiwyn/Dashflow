@@ -180,7 +180,7 @@ export default function QrScannerPage({ remoteOrders, initialRef }: Props) {
           )}
           {cameraError && <p className="text-xs text-destructive">{cameraError}</p>}
 
-          <form onSubmit={onManualSubmit} className="flex w-full max-w-sm items-center gap-2">
+          <form onSubmit={onManualSubmit} method="post" className="flex w-full max-w-sm items-center gap-2">
             <div className="relative min-w-0 flex-1">
               <Keyboard className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input

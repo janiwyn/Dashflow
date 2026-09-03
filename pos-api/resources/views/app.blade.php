@@ -572,7 +572,7 @@
             <p class="tagline">Secure login portal</p>
           </div>
 
-          <form id="login-form">
+          <form id="login-form" method="post">
             <div class="field">
               <label for="login-email">Email</label>
               <div class="input-icon">
@@ -601,7 +601,7 @@
             <p class="tagline">Set up your business in minutes</p>
           </div>
 
-          <form id="signup-form">
+          <form id="signup-form" method="post">
             <div class="field">
               <label for="signup-username">Username</label>
               <div class="input-icon">
@@ -662,6 +662,20 @@
           Tip: use your browser menu → <strong>Add to Home screen</strong> to install this app.
         </p>
         <button id="install-btn" class="btn-secondary hidden" style="margin-top:4px;">Install app</button>
+      </div>
+    </section>
+
+    <!-- Shown instead of the app once the business's trial or paid subscription
+         has lapsed — payment itself only happens on the web dashboard, so this
+         is informational, not a checkout. -->
+    <section id="subscription-expired-screen" class="hidden" style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
+      <div class="card" style="max-width:360px; text-align:center; padding:28px 24px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--panel-2);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--muted);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:26px;height:26px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        </div>
+        <p style="font-weight:800; font-size:1.05rem; margin:0;">Your subscription has ended</p>
+        <p class="tagline" id="subscription-expired-message" style="margin-top:8px;">Renew from the Dashflow POS web dashboard to keep using the app.</p>
+        <button type="button" class="btn-primary" id="subscription-expired-logout" style="width:100%; margin-top:18px;">Log out</button>
       </div>
     </section>
 
@@ -826,7 +840,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="product-form" style="overflow-y:auto; padding:6px 18px 18px;">
+          <form id="product-form" method="post" style="overflow-y:auto; padding:6px 18px 18px;">
             <input type="hidden" id="product-id" />
             <div class="field"><label for="product-name">Product name</label><input type="text" id="product-name" required /></div>
             <div class="field" style="margin-top:10px;">
@@ -1098,7 +1112,7 @@
             <button type="button" class="btn-primary" id="qr-camera-toggle" style="margin-top:4px;">Scan with camera</button>
             <p class="error" id="qr-camera-error"></p>
 
-            <form id="qr-manual-form" style="display:flex; gap:8px; margin-top:14px;">
+            <form id="qr-manual-form" method="post" style="display:flex; gap:8px; margin-top:14px;">
               <input type="text" id="qr-manual-ref" placeholder="Or type/scan order reference" style="flex:1;" autocomplete="off" />
               <button type="submit" class="btn-secondary">Look up</button>
             </form>
@@ -1157,7 +1171,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="proof-add-form" style="overflow-y:auto; padding:6px 18px 18px;">
+          <form id="proof-add-form" method="post" style="overflow-y:auto; padding:6px 18px 18px;">
             <div class="field"><label for="proof-reference">Order reference</label><input type="text" id="proof-reference" placeholder="e.g. RO-1234" required /></div>
             <div class="field" style="margin-top:10px;"><label for="proof-customer">Customer name</label><input type="text" id="proof-customer" required /></div>
             <div class="field" style="margin-top:10px;"><label for="proof-phone">Phone</label><input type="text" id="proof-phone" placeholder="0772 345 678" /></div>
@@ -1216,7 +1230,7 @@
 
           <div class="card" id="till-tab-create">
             <div class="section-title" style="margin-top:0;">Create &amp; assign till</div>
-            <form id="till-create-form">
+            <form id="till-create-form" method="post">
               <div class="field"><label for="till-name">Till name</label><input type="text" id="till-name" placeholder="e.g. Till 05" required /></div>
               <div class="field" style="margin-top:10px;">
                 <label for="till-branch">Branch</label>
@@ -1366,7 +1380,7 @@
               <p class="tagline" style="margin:4px 0 0;">This browser doesn't support live barcode scanning. Type a SKU below, or use a handheld scanner — it types straight into the field.</p>
             </div>
 
-            <form id="scan-manual-form" style="display:flex; gap:8px; margin-top:16px;">
+            <form id="scan-manual-form" method="post" style="display:flex; gap:8px; margin-top:16px;">
               <input type="text" id="scan-manual-code" placeholder="Type or scan SKU" style="flex:1;" autocomplete="off" />
               <button type="submit" class="btn-secondary">Add</button>
             </form>
@@ -1402,7 +1416,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="supplier-form" style="overflow-y:auto; padding:6px 18px 18px;">
+          <form id="supplier-form" method="post" style="overflow-y:auto; padding:6px 18px 18px;">
             <input type="hidden" id="supplier-id" />
             <div class="field"><label for="supplier-name">Supplier name</label><input type="text" id="supplier-name" required /></div>
             <div class="field" style="margin-top:10px;">
@@ -1448,7 +1462,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="po-form" style="overflow-y:auto; padding:6px 18px 18px;">
+          <form id="po-form" method="post" style="overflow-y:auto; padding:6px 18px 18px;">
             <div class="field">
               <label for="po-supplier">Supplier <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
               <select id="po-supplier"><option value="">No supplier</option></select>
@@ -1520,7 +1534,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="debtor-form" style="overflow-y:auto; padding:6px 18px 18px;">
+          <form id="debtor-form" method="post" style="overflow-y:auto; padding:6px 18px 18px;">
             <div class="field"><label for="debtor-name">Debtor name</label><input type="text" id="debtor-name" required /></div>
             <div class="qr-field-grid" style="margin-top:10px;">
               <div class="field"><label for="debtor-phone">Phone</label><input type="text" id="debtor-phone" placeholder="0712 345 678" /></div>
@@ -1598,7 +1612,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="customer-form" style="overflow-y:auto; padding:6px 18px 18px;">
+          <form id="customer-form" method="post" style="overflow-y:auto; padding:6px 18px 18px;">
             <input type="hidden" id="customer-id" />
             <div class="field"><label for="customer-name">Customer name</label><input type="text" id="customer-name" required /></div>
             <div class="field" style="margin-top:10px;">
@@ -1662,7 +1676,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="employee-form" style="overflow-y:auto; padding:6px 18px 18px;">
+          <form id="employee-form" method="post" style="overflow-y:auto; padding:6px 18px 18px;">
             <input type="hidden" id="employee-id" />
             <div class="field"><label for="employee-name">Full name</label><input type="text" id="employee-name" required /></div>
             <div class="field" style="margin-top:10px;"><label for="employee-position">Position</label><input type="text" id="employee-position" required /></div>
@@ -1804,7 +1818,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="payroll-form" style="overflow-y:auto; padding:6px 18px 18px;">
+          <form id="payroll-form" method="post" style="overflow-y:auto; padding:6px 18px 18px;">
             <div class="field">
               <label for="payroll-employee">Employee</label>
               <select id="payroll-employee" required><option value="">Select employee</option></select>
@@ -1918,7 +1932,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="account-form" style="padding:6px 18px 18px;">
+          <form id="account-form" method="post" style="padding:6px 18px 18px;">
             <div class="field"><label for="account-name">Account name</label><input type="text" id="account-name" required /></div>
             <div class="field" style="margin-top:10px;">
               <label for="account-type">Type</label>
@@ -1956,7 +1970,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="transaction-form" style="padding:6px 18px 18px;">
+          <form id="transaction-form" method="post" style="padding:6px 18px 18px;">
             <div class="field">
               <label for="transaction-type">Type</label>
               <select id="transaction-type"><option value="income">Income</option><option value="expense">Expense</option></select>
@@ -1977,7 +1991,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="cashbook-form" style="padding:6px 18px 18px;">
+          <form id="cashbook-form" method="post" style="padding:6px 18px 18px;">
             <div class="field"><label for="cashbook-particulars">Particulars</label><input type="text" id="cashbook-particulars" required /></div>
             <div class="qr-field-grid" style="margin-top:10px;">
               <div class="field"><label for="cashbook-cash-in">Cash in</label><input type="number" id="cashbook-cash-in" min="0" step="0.01" value="0" /></div>
@@ -2026,7 +2040,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <form id="branch-form" style="padding:6px 18px 18px;">
+          <form id="branch-form" method="post" style="padding:6px 18px 18px;">
             <input type="hidden" id="branch-id" />
             <div class="field"><label for="branch-name">Branch name</label><input type="text" id="branch-name" placeholder="e.g. Eldoret — Town Centre" required /></div>
             <div class="field" style="margin-top:10px;"><label for="branch-location">Location</label><input type="text" id="branch-location" placeholder="e.g. Uganda Rd, Eldoret" /></div>
@@ -2426,6 +2440,11 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const message = data.message || (data.errors && Object.values(data.errors)[0]?.[0]) || "Something went wrong.";
+        // Every authenticated endpoint returns this once a business's trial/paid
+        // period has lapsed (see AuthenticateSessionToken on the API side) — caught
+        // centrally here so any panel's first load after expiry triggers the
+        // lockout screen, not just a dead-end error toast.
+        if (res.status === 402) showSubscriptionExpired(message);
         const error = new Error(message);
         error.fields = data.errors ? Object.keys(data.errors) : [];
         throw error;
@@ -2436,6 +2455,21 @@
     /* ---------------- Login ---------------- */
     const loginScreen = document.getElementById("login-screen");
     const mainScreen = document.getElementById("main-screen");
+    const subscriptionExpiredScreen = document.getElementById("subscription-expired-screen");
+
+    function showSubscriptionExpired(message) {
+      SESSION_GEN++;
+      loginScreen.classList.add("hidden");
+      mainScreen.classList.add("hidden");
+      subscriptionExpiredScreen.classList.remove("hidden");
+      if (message) document.getElementById("subscription-expired-message").textContent = message;
+    }
+    document.getElementById("subscription-expired-logout").addEventListener("click", () => {
+      localStorage.removeItem("dashflow_token");
+      TOKEN = null;
+      subscriptionExpiredScreen.classList.add("hidden");
+      showLogin();
+    });
 
     async function tryResumeSession() {
       if (!TOKEN) return showLogin();
@@ -2460,6 +2494,7 @@
       clearInterval(clockTimer);
       loginScreen.classList.remove("hidden");
       mainScreen.classList.add("hidden");
+      subscriptionExpiredScreen.classList.add("hidden");
       document.getElementById("signup-form-wrap").classList.add("hidden");
       document.getElementById("login-form-wrap").classList.remove("hidden");
       document.getElementById("auth-hero-text").textContent = LOGIN_HERO_TEXT;

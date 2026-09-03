@@ -120,7 +120,7 @@ export default function NewPasswordPage({
                 </div>
               )}
 
-              <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+              <form className="flex flex-col gap-4" method="post" onSubmit={onSubmit}>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="password">New password</Label>
                   <div className="relative">

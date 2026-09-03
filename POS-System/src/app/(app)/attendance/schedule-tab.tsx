@@ -345,7 +345,7 @@ function ShiftTemplates({
             </DialogTrigger>
             <DialogContent className="max-w-sm">
               <DialogHeader><DialogTitle>{editing ? "Edit shift" : "New shift"}</DialogTitle></DialogHeader>
-              <form onSubmit={submit} className="grid gap-3">
+              <form onSubmit={submit} method="post" className="grid gap-3">
                 <div className="grid gap-1.5">
                   <Label>Name</Label>
                   <Input name="name" defaultValue={editing?.name ?? ""} placeholder="e.g. Morning" required />
