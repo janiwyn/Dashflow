@@ -8,15 +8,9 @@ import { setBusinessModuleKeys } from "@/db/queries/modules";
 import { MODULE_KEYS, type ModuleKey } from "@/lib/modules";
 import { isPlanKey, PLAN_CATALOG, type PlanKey } from "@/lib/plans";
 import { getCurrentUser } from "@/lib/session";
+import { trialEndFor } from "@/lib/subscription";
 
 import type { ActionResult } from "./users";
-
-function subscriptionEndFor(start: Date, billingPeriod: "monthly" | "annual"): string {
-  const end = new Date(start);
-  if (billingPeriod === "annual") end.setFullYear(end.getFullYear() + 1);
-  else end.setMonth(end.getMonth() + 1);
-  return end.toISOString().slice(0, 10);
-}
 
 /**
  * Completes a self-service signup for the "new business" path (admin or
@@ -65,9 +59,13 @@ export async function completeBusinessSignup(
     .values({
       name,
       status: "active",
-      subscriptionStatus: moduleKeys.length > 0 ? "active" : "pending",
+      // Every new business gets a 14-day free trial regardless of what
+      // modules/plan it picks at signup — payment only becomes required once
+      // that runs out (see src/lib/subscription.ts and /subscribe's
+      // "renewing" flow, which is where the real NexumPay charge happens).
+      subscriptionStatus: "trialing",
       subscriptionStart: start.toISOString().slice(0, 10),
-      subscriptionEnd: moduleKeys.length > 0 ? subscriptionEndFor(start, billingPeriod) : null,
+      subscriptionEnd: trialEndFor(start),
       planKey: plan,
       billingPeriod,
     })

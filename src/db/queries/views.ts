@@ -857,7 +857,7 @@ export type Business = {
   status: "active" | "suspended";
   subscriptionStart: string;
   subscriptionEnd: string;
-  subscriptionStatus: "active" | "pending" | "expired";
+  subscriptionStatus: "trialing" | "active" | "pending" | "expired";
   branchCount: number;
   planKey: string | null;
   billingPeriod: "monthly" | "annual";

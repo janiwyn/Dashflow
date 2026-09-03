@@ -47,7 +47,7 @@ export default function EditAdminPage({ admin }: { admin: AdminRow }) {
   return (
     <AppShell title="Edit Admin" subtitle={`${admin.name} · ${admin.businessName ?? "—"}`}>
       <div className="panel min-w-0 max-w-xl p-6">
-        <form onSubmit={onSubmit} className="grid gap-4">
+        <form onSubmit={onSubmit} method="post" className="grid gap-4">
           <div className="grid gap-1.5">
             <Label htmlFor="email">Email</Label>
             <Input

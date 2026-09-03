@@ -21,7 +21,7 @@ export type BusinessRow = {
   status: "active" | "suspended";
   subscriptionStart: string | null;
   subscriptionEnd: string | null;
-  subscriptionStatus: "active" | "pending" | "expired";
+  subscriptionStatus: "trialing" | "active" | "pending" | "expired";
   branchCount: number;
   planKey: string | null;
   billingPeriod: "monthly" | "annual";

@@ -54,7 +54,7 @@ export function CustomerFormDialog({ trigger, customer, onSaved }: Props) {
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit customer" : "Add customer"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={submit} className="grid gap-3">
+        <form onSubmit={submit} method="post" className="grid gap-3">
           <div className="grid gap-1.5">
             <Label>Customer name</Label>
             <Input name="name" defaultValue={customer?.name} required />

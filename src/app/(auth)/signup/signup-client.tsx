@@ -188,7 +188,7 @@ export default function SignupPage({ providers, initialModules, initialPlan, ini
 
           <AuthDivider label="or sign up with email" />
 
-          <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+          <form className="flex flex-col gap-4" method="post" onSubmit={onSubmit}>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="username">Username</Label>
               <Input

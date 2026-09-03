@@ -72,7 +72,7 @@ export async function updateSubscription(input: {
   id: number;
   start: string | null;
   end: string | null;
-  status: "active" | "pending" | "expired";
+  status: "trialing" | "active" | "pending" | "expired";
 }): Promise<ActionResult> {
   await requireRole("super");
 

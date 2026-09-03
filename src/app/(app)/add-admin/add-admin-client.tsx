@@ -52,7 +52,7 @@ export default function AddAdminPage({ businesses }: Props) {
   return (
     <AppShell title="Add New Admin" subtitle="Create a new business admin account">
       <div className="panel min-w-0 max-w-xl border-l-4 border-l-primary p-6">
-        <form onSubmit={onSubmit} className="grid gap-4">
+        <form onSubmit={onSubmit} method="post" className="grid gap-4">
           <div className="grid gap-1.5">
             <Label htmlFor="username">Admin Name <span className="text-destructive">*</span></Label>
             <Input id="username" required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />

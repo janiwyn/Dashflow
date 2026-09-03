@@ -54,7 +54,7 @@ export default function TrackOrderPage({ initialRef, trackableOrder, notFound }:
           <h1 className="flex items-center gap-2 text-base font-semibold">
             <Search className="size-4 text-primary" /> Track your order
           </h1>
-          <form onSubmit={submit} className="mt-4 space-y-3">
+          <form onSubmit={submit} method="post" className="mt-4 space-y-3">
             <Input
               value={ref}
               onChange={(e) => setRef(e.target.value)}

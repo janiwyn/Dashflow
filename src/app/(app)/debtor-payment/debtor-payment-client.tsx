@@ -272,7 +272,7 @@ function AddDebtorDialog({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Add debtor</DialogTitle></DialogHeader>
-        <form onSubmit={submit} className="grid gap-3">
+        <form onSubmit={submit} method="post" className="grid gap-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5"><Label>Name</Label><Input name="name" required /></div>
             <div className="grid gap-1.5"><Label>Phone</Label><Input name="phone" placeholder="0712 345 678" /></div>

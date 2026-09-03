@@ -53,7 +53,7 @@ export default function BranchEditPage({ branch }: { branch: BranchRow }) {
             {error}
           </div>
         )}
-        <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+        <form className="flex flex-col gap-4" method="post" onSubmit={onSubmit}>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="name">Branch name</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />

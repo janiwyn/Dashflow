@@ -247,7 +247,7 @@ function AddPaymentProofDialog({
         <DialogHeader>
           <DialogTitle>Log a payment proof</DialogTitle>
         </DialogHeader>
-        <form onSubmit={submit} className="grid gap-3">
+        <form onSubmit={submit} method="post" className="grid gap-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5"><Label>Order reference</Label><Input name="reference" placeholder="e.g. RO-1234" required /></div>
             <div className="grid gap-1.5">

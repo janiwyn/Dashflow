@@ -62,7 +62,7 @@ export default function CreateBranchPage() {
             {message.text}
           </div>
         )}
-        <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+        <form className="flex flex-col gap-4" method="post" onSubmit={onSubmit}>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="name">Branch name</Label>
             <Input id="name" name="name" required placeholder="e.g. Eldoret — Town Centre" />

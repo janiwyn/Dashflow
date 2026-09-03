@@ -42,7 +42,7 @@ export default function EditBusinessPage({ business }: { business: BusinessRow }
   return (
     <AppShell title="Edit Business" subtitle={`Business #${business.id} · ${business.name}`}>
       <div className="panel min-w-0 max-w-2xl border-l-4 border-l-primary p-6">
-        <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={onSubmit} method="post" className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5 sm:col-span-2">
             <Label htmlFor="name">Business Name</Label>
             <Input

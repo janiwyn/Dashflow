@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
-import { addModulesToMyBusiness, subscribeToPlan } from "@/app/actions/subscribe";
+import { checkSubscriptionPaymentStatus, initiateSubscriptionPayment, type PaymentInput } from "@/app/actions/billing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,14 +27,34 @@ type Props = {
   existingPlanKey: PlanKey | null;
   /** A signed-in admin/manager adding to their own business, vs. a visitor creating one via /signup. */
   isLoggedIn: boolean;
+  /** True when arriving via a "pay/renew" link rather than just browsing plans. */
+  renewing: boolean;
+  /** Whether the business can still use the app right now — false only when the (app) layout's lockout actually redirected here. */
+  stillHasAccess: boolean;
+  /** Days left on the current trial/subscription, for the "pay ahead of time" banner. */
+  trialDaysLeft: number | null;
 };
 
-export default function SubscribePage({ initialModules, existingModules, initialPlan, existingPlanKey, isLoggedIn }: Props) {
+export default function SubscribePage({
+  initialModules,
+  existingModules,
+  initialPlan,
+  existingPlanKey,
+  isLoggedIn,
+  renewing,
+  stillHasAccess,
+  trialDaysLeft,
+}: Props) {
   const router = useRouter();
   // Packages are the primary path now — only start on the à-la-carte picker
   // if the visitor arrived with specific modules chosen (e.g. from "build
-  // your own" on the marketing page) and no package in mind.
-  const [mode, setMode] = useState<Mode>(initialPlan || initialModules.length === 0 ? "package" : "custom");
+  // your own" on the marketing page), or already runs à la carte with no
+  // package at all (someone who signed up with just one module and wants to
+  // pay for exactly that shouldn't land on a package picker that doesn't
+  // match what they actually have).
+  const [mode, setMode] = useState<Mode>(
+    initialPlan ? "package" : initialModules.length > 0 || (!existingPlanKey && existingModules.length > 0) ? "custom" : "package",
+  );
   const [billing, setBilling] = useState<BillingPeriod>("monthly");
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>(initialPlan ?? existingPlanKey ?? "retail");
   const [selected, setSelected] = useState<Set<ModuleKey>>(new Set(initialModules));
@@ -42,7 +62,12 @@ export default function SubscribePage({ initialModules, existingModules, initial
   const [paying, setPaying] = useState(false);
   const owned = useMemo(() => new Set(existingModules), [existingModules]);
 
-  const keys = useMemo(() => Array.from(selected), [selected]);
+  // What paying actually covers: everything already active plus anything
+  // newly picked — not just the new picks. A business that already owns
+  // "pos" and adds nothing new is still paying to keep "pos", not paying
+  // for zero modules (which used to leave the button permanently disabled
+  // for exactly the "pay for what I already signed up with" case).
+  const keys = useMemo(() => Array.from(new Set([...existingModules, ...selected])), [existingModules, selected]);
   const customTotal = modulesMonthlyTotal(keys);
 
   const toggle = (key: ModuleKey) => {
@@ -55,38 +80,61 @@ export default function SubscribePage({ initialModules, existingModules, initial
     });
   };
 
+  const plan = PLAN_LIST.find((p) => p.key === selectedPlan)!;
+  const isCustomPricing = mode === "package" && plan.monthlyPrice === null;
+
   async function onPay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPaying(true);
-    // No live payment gateway is wired up yet — this stands in for the
-    // M-Pesa STK push confirmation so the flow can be built and tested end
-    // to end. Swap for a real charge before going live.
-    await new Promise((resolve) => setTimeout(resolve, 1300));
 
-    if (isLoggedIn) {
-      // Already have an account — apply straight to it instead of routing
-      // through /signup, which would just bounce a signed-in visitor to
-      // /dashboard and silently drop what they just "paid" for.
-      const result =
-        mode === "package"
-          ? await subscribeToPlan(selectedPlan, billing)
-          : await addModulesToMyBusiness(keys);
-      setPaying(false);
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
+    if (!isLoggedIn) {
+      // Brand-new businesses get 14 days free before any payment is
+      // required (see src/lib/subscription.ts) — nothing to charge yet,
+      // just carry the choice through to account creation.
+      if (mode === "package") {
+        router.push(`/signup?plan=${selectedPlan}&billing=${billing}`);
+      } else {
+        router.push(`/signup?modules=${keys.join(",")}`);
       }
-      toast.success(result.message);
-      router.push("/dashboard");
-      router.refresh();
       return;
     }
 
-    if (mode === "package") {
-      router.push(`/signup?plan=${selectedPlan}&billing=${billing}`);
-    } else {
-      router.push(`/signup?modules=${keys.join(",")}`);
+    if (isCustomPricing) {
+      // Enterprise pricing is negotiated, not auto-charged — this is a lead,
+      // not a checkout.
+      toast.success("Thanks — our team will reach out shortly to confirm Enterprise pricing.");
+      return;
     }
+
+    const phone = String(new FormData(event.currentTarget).get("phone") ?? "").trim();
+    setPaying(true);
+
+    const input: PaymentInput = mode === "package" ? { kind: "plan", planKey: selectedPlan, billingPeriod: billing } : { kind: "modules", moduleKeys: keys };
+    const started = await initiateSubscriptionPayment(input, phone);
+    if (!started.ok) {
+      setPaying(false);
+      toast.error(started.message);
+      return;
+    }
+
+    // Mobile money prompts can take a while to approve — poll for up to ~2 minutes.
+    for (let attempt = 0; attempt < 30; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+      const result = await checkSubscriptionPaymentStatus(started.reference);
+      if (result.status === "success") {
+        setPaying(false);
+        toast.success("Payment confirmed — your plan is active.");
+        router.push("/dashboard");
+        router.refresh();
+        return;
+      }
+      if (result.status === "failed") {
+        setPaying(false);
+        toast.error(result.message);
+        return;
+      }
+    }
+    setPaying(false);
+    toast.error("We didn't get confirmation in time. Check your phone, then try again if it didn't go through.");
   }
 
   return (
@@ -114,6 +162,21 @@ export default function SubscribePage({ initialModules, existingModules, initial
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
+        {renewing && !stillHasAccess && (
+          <div className="mb-8 rounded-2xl border border-warning/30 bg-warning/10 px-5 py-4 text-center text-sm text-warning-foreground">
+            <span className="font-semibold">Your free trial has ended.</span> Pick a plan below and pay to keep using Dashflow POS.
+          </div>
+        )}
+        {renewing && stillHasAccess && (
+          <div className="mb-8 rounded-2xl border border-success/30 bg-success/10 px-5 py-4 text-center text-sm text-success">
+            <span className="font-semibold">
+              {trialDaysLeft !== null && trialDaysLeft >= 0
+                ? `You still have ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} of access.`
+                : "You still have active access."}
+            </span>{" "}
+            Pay now and it carries straight on — no interruption when it runs out.
+          </div>
+        )}
         {step === "select" ? (
           mode === "package" ? (
             <PackageStep
@@ -131,6 +194,7 @@ export default function SubscribePage({ initialModules, existingModules, initial
               selected={selected}
               owned={owned}
               total={customTotal}
+              canContinue={keys.length > 0}
               isLoggedIn={isLoggedIn}
               onToggle={toggle}
               onSwitchToPackage={() => setMode("package")}
@@ -286,6 +350,7 @@ function SelectStep({
   selected,
   owned,
   total,
+  canContinue,
   isLoggedIn,
   onToggle,
   onSwitchToPackage,
@@ -294,11 +359,13 @@ function SelectStep({
   selected: Set<ModuleKey>;
   owned: Set<ModuleKey>;
   total: number;
+  canContinue: boolean;
   isLoggedIn: boolean;
   onToggle: (key: ModuleKey) => void;
   onSwitchToPackage: () => void;
   onContinue: () => void;
 }) {
+  const totalCount = owned.size + selected.size;
   return (
     <>
       <div className="text-center">
@@ -308,7 +375,7 @@ function SelectStep({
         </h1>
         <p className="mt-3 text-[15px] text-muted-foreground">
           {isLoggedIn
-            ? "Modules you already subscribe to are marked Active. Pick more to add them to your account."
+            ? "Modules you already subscribe to are marked Active — pay to keep them, and pick more to add to your account."
             : "Pick as many or as few as your business needs today — add the rest later from Settings."}
         </p>
         <button type="button" onClick={onSwitchToPackage} className="mt-3 text-sm font-medium text-primary hover:underline">
@@ -362,8 +429,9 @@ function SelectStep({
 
       <div className="sticky bottom-4 mt-10 flex flex-col items-center gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-lift backdrop-blur sm:flex-row sm:justify-between">
         <p className="text-sm">
-          <span className="font-semibold">{selected.size}</span> module{selected.size === 1 ? "" : "s"} selected
-          {selected.size > 0 && (
+          <span className="font-semibold">{totalCount}</span> module{totalCount === 1 ? "" : "s"}
+          {selected.size > 0 && owned.size > 0 ? ` (${owned.size} active, ${selected.size} new)` : owned.size > 0 ? " active" : " selected"}
+          {totalCount > 0 && (
             <span className="num ml-2 font-semibold text-primary">{formatMoney(total, "UGX")}/mo</span>
           )}
         </p>
@@ -376,7 +444,7 @@ function SelectStep({
           </Link>
           <Button
             onClick={onContinue}
-            disabled={selected.size === 0}
+            disabled={!canContinue}
             className="rounded-lg"
           >
             Continue to payment
@@ -465,28 +533,33 @@ function PayStep({
       {isCustomPricing ? (
         <div className="mt-6 flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">
-            Enterprise pricing depends on branches, users and integrations — create your account now and our team will follow up to confirm final pricing. Nothing is charged until then.
+            Enterprise pricing depends on branches, users and integrations — {isLoggedIn ? "let us know and" : "create your account now and"} our team will follow up to confirm final pricing. Nothing is charged automatically.
           </p>
-          <form onSubmit={onPay}>
+          <form onSubmit={onPay} method="post">
             <Button type="submit" disabled={paying} className="w-full rounded-lg">
-              {paying ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" /> Setting up…
-                </>
-              ) : isLoggedIn ? (
-                "Switch to Enterprise"
-              ) : (
-                "Create account"
-              )}
+              {isLoggedIn ? "Request Enterprise pricing" : "Create account"}
             </Button>
           </form>
         </div>
+      ) : !isLoggedIn ? (
+        <form onSubmit={onPay} method="post" className="mt-6 flex flex-col gap-4">
+          <p className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
+            Free for your first 14 days — no payment needed today.
+          </p>
+          <Button type="submit" className="rounded-lg">
+            Start my free trial
+            <ArrowRight className="size-4" />
+          </Button>
+          <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+            <ShieldCheck className="size-3.5" /> You&apos;ll set up your login next — payment only starts after day 14.
+          </p>
+        </form>
       ) : (
-        <form onSubmit={onPay} className="mt-6 flex flex-col gap-4">
+        <form onSubmit={onPay} method="post" className="mt-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="mpesa-phone">M-Pesa phone number</Label>
+            <Label htmlFor="momo-phone">Mobile money phone number</Label>
             <Input
-              id="mpesa-phone"
+              id="momo-phone"
               name="phone"
               required
               className="rounded-lg"
@@ -508,10 +581,7 @@ function PayStep({
           </Button>
 
           <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-            <ShieldCheck className="size-3.5" />
-            {isLoggedIn
-              ? "These activate on your account immediately after payment."
-              : "You'll set up your login right after payment."}
+            <ShieldCheck className="size-3.5" /> This activates on your account immediately after payment.
           </p>
         </form>
       )}

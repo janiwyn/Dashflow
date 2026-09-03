@@ -199,7 +199,7 @@ export default function CustomerPortalPage({ branches, storefrontProducts }: Pro
           <DialogHeader>
             <DialogTitle>Complete your order</DialogTitle>
           </DialogHeader>
-          <form onSubmit={submitOrder} className="grid gap-3">
+          <form onSubmit={submitOrder} method="post" className="grid gap-3">
             <div className="grid gap-1.5">
               <Label>Your name</Label>
               <Input name="name" required />

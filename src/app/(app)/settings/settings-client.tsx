@@ -27,6 +27,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { currencyMeta, formatMoney } from "@/lib/currency";
 import { MODULE_CATALOG, MODULE_TILE_STYLE, modulesMonthlyTotal, type ModuleKey } from "@/lib/modules";
 import { annualPrice, isPlanKey, PLAN_CATALOG } from "@/lib/plans";
+import { daysUntil } from "@/lib/subscription";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -149,7 +150,7 @@ function ProfileTab({ currentProfile }: { currentProfile: Props["currentProfile"
           <UserRound className="size-4 text-muted-foreground" />
           <h2 className="text-base font-semibold">Personal information</h2>
         </div>
-        <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={onSubmit} method="post" className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <Label>Full Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} name="name" className="rounded-lg" />
@@ -211,7 +212,7 @@ function BusinessTab({ settings, readOnly }: { settings: BusinessSettings; readO
   };
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-2">
+    <form onSubmit={onSubmit} method="post" className="grid gap-6 lg:grid-cols-2">
       {readOnly && (
         <p className="lg:col-span-2 text-xs text-muted-foreground">
           Only admins can change business details — you&apos;re viewing this read-only.
@@ -355,11 +356,14 @@ function SubscriptionPanel({
     : `${formatMoney(modulesMonthlyTotal(activeModules), settings.currency)}/mo`;
 
   const statusTone =
-    settings.subscriptionStatus === "active"
+    settings.subscriptionStatus === "active" || settings.subscriptionStatus === "trialing"
       ? "bg-success/12 text-success"
       : settings.subscriptionStatus === "pending"
         ? "bg-warning/15 text-warning-foreground"
         : "bg-destructive/12 text-destructive";
+
+  const daysLeft = settings.subscriptionEnd ? daysUntil(settings.subscriptionEnd) : null;
+  const onTrial = settings.subscriptionStatus === "trialing";
 
   return (
     <div className="panel min-w-0 p-6">
@@ -374,6 +378,20 @@ function SubscriptionPanel({
           </Button>
         )}
       </div>
+
+      {!readOnly && onTrial && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3">
+          <p className="text-sm text-success">
+            <span className="font-semibold">
+              {daysLeft !== null && daysLeft >= 0 ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} left in your free trial.` : "You're on a free trial."}
+            </span>{" "}
+            Pay now so access never gets interrupted when it ends.
+          </p>
+          <Button asChild size="sm" className="rounded-lg shrink-0">
+            <Link href="/subscribe?renew=1">Pay now</Link>
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div>
