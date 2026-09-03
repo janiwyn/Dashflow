@@ -851,6 +851,7 @@ export type Business = {
   name: string;
   adminName: string | null;
   adminEmail: string | null;
+  adminPhone: string | null;
   phone: string;
   address: string;
   dateRegistered: string;
@@ -870,6 +871,7 @@ export async function viewBusinesses(): Promise<Business[]> {
     name: b.name,
     adminName: b.adminName,
     adminEmail: b.adminEmail,
+    adminPhone: b.adminPhone,
     phone: b.phone ?? "—",
     address: b.address ?? "—",
     dateRegistered: b.dateRegistered,

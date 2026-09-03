@@ -19,6 +19,22 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   return session?.user ?? null;
 }
 
+/**
+ * The session cookie caches the user object for up to 5 minutes
+ * (session.cookieCache in src/lib/auth.ts) — fine for things like a display
+ * name, but a real problem for a field that gates access (mustChangePassword,
+ * business subscription state): a server action can update the database and
+ * still have the very next page load read the stale cached value, since
+ * Server Actions run in a separate request from whatever reads the session
+ * next. Call this at the end of any action that changes such a field, from
+ * within the same action (Server Actions, unlike plain Server Components,
+ * are allowed to set cookies) — it re-reads from the database and rewrites
+ * the cookie cache with the fresh value immediately.
+ */
+export async function refreshSessionCookie(): Promise<void> {
+  await auth.api.getSession({ headers: await headers(), query: { disableCookieCache: true } });
+}
+
 /** Use in any server component that must not render for signed-out visitors. */
 export async function requireUser(): Promise<SessionUser> {
   const user = await getCurrentUser();

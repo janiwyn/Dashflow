@@ -7,7 +7,6 @@ const PUBLIC_PREFIXES = [
   "/signup",
   "/subscribe",
   "/forgot-password",
-  "/new-password",
   "/customer-portal",
   "/track-order",
 ];

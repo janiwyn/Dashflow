@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
 
+import { requireUser } from "@/lib/session";
+
 import NewPasswordPage from "./new-password-client";
 
 export const metadata: Metadata = {
   title: "Set a new password",
-  description: "Choose a new password for your Meridian POS account.",
+  description: "Choose a new password for your Dashflow POS account.",
 };
 
-/** Reading the token server-side keeps the form in the SSR payload. */
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string; error?: string }>;
-}) {
-  const { token, error } = await searchParams;
-  return <NewPasswordPage token={token ?? null} linkError={error ?? null} />;
+/** Reached only by a signed-in user — after an SMS password reset (or an admin's reset) leaves them on a temporary password, requireUser() is what actually gates this. */
+export default async function Page() {
+  await requireUser();
+  return <NewPasswordPage />;
 }

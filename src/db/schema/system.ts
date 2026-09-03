@@ -34,6 +34,23 @@ export const smsLogs = pgTable("sms_logs", {
 });
 
 /**
+ * Platform-originated SMS to a business's own admin (e.g. "your trial ends
+ * in 3 days") — kept separate from `sms_logs`, which is a business's own log
+ * of texts IT sent to ITS customers. Mixing the two would make a business's
+ * own SMS history show messages it never sent, to its own admin's number.
+ */
+export const subscriptionAlerts = pgTable("subscription_alerts", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id")
+    .notNull()
+    .references(() => businesses.id, { onDelete: "cascade" }),
+  recipient: text("recipient").notNull(),
+  message: text("message").notNull(),
+  status: smsStatus("status").notNull().default("queued"),
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Operational alerts surfaced on /notification and /order-notifications.
  * `kind` decides which of the optional columns are meaningful.
  */
@@ -73,11 +90,16 @@ export const smsLogsRelations = relations(smsLogs, ({ one }) => ({
   business: one(businesses, { fields: [smsLogs.businessId], references: [businesses.id] }),
 }));
 
+export const subscriptionAlertsRelations = relations(subscriptionAlerts, ({ one }) => ({
+  business: one(businesses, { fields: [subscriptionAlerts.businessId], references: [businesses.id] }),
+}));
+
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   business: one(businesses, { fields: [notifications.businessId], references: [businesses.id] }),
   branch: one(branches, { fields: [notifications.branchId], references: [branches.id] }),
 }));
 
 export type SmsLog = typeof smsLogs.$inferSelect;
+export type SubscriptionAlert = typeof subscriptionAlerts.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type SystemUpdate = typeof systemUpdates.$inferSelect;

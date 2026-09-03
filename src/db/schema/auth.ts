@@ -26,6 +26,11 @@ export const users = pgTable("user", {
   role: userRole("role").notNull().default("staff"),
   status: userStatus("status").notNull().default("active"),
   theme: userTheme("theme").notNull().default("light"),
+  /** Set when an admin manually resets someone's password to the shared default — forces the "set a new password" step on next login before anything else is reachable. Not used by the self-service SMS flow below, which verifies a one-time code and sets the real password directly, never creating a session on a shared/guessable value. */
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
+  /** One-time code texted by the self-service "forgot password" flow — hashed, short-lived, and unrelated to the actual login credential until verifyAndSetPassword() confirms it. */
+  resetCode: text("reset_code"),
+  resetCodeExpiresAt: timestamp("reset_code_expires_at", { withTimezone: true }),
   businessId: integer("business_id").references(() => businesses.id, { onDelete: "set null" }),
   branchId: integer("branch_id").references(() => branches.id, { onDelete: "set null" }),
 
