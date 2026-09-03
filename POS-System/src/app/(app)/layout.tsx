@@ -32,6 +32,13 @@ const initialsOf = (name: string) =>
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await requireUser();
 
+  // A temporary password (SMS reset, or an admin's manual reset) is only
+  // ever meant to get someone back in, not to stay on — this catches direct
+  // navigation to any (app) route, not just the login redirect.
+  if (user.mustChangePassword) {
+    redirect("/new-password");
+  }
+
   const [branchRow, businessRow, activeModules, branchCount] = await Promise.all([
     user.branchId
       ? db.select({ name: branches.name }).from(branches).where(eq(branches.id, user.branchId)).limit(1).then((r) => r[0])

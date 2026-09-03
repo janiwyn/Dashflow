@@ -15,6 +15,7 @@ export type BusinessRow = {
   name: string;
   adminName: string | null;
   adminEmail: string | null;
+  adminPhone: string | null;
   phone: string | null;
   address: string | null;
   dateRegistered: string;
@@ -39,6 +40,11 @@ export async function getBusinesses(): Promise<BusinessRow[]> {
       )`,
       adminEmail: sql<string | null>`(
         select ${users}.email from ${users}
+        where ${users}.business_id = ${businesses}.id and ${users}.role = 'admin'
+        order by ${users}.created_at limit 1
+      )`,
+      adminPhone: sql<string | null>`(
+        select ${users}.phone from ${users}
         where ${users}.business_id = ${businesses}.id and ${users}.role = 'admin'
         order by ${users}.created_at limit 1
       )`,

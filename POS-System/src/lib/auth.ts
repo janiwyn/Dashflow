@@ -37,15 +37,14 @@ export const auth = betterAuth({
     },
   }),
 
+  // "Forgot password" doesn't use better-auth's own emailed-link reset flow —
+  // there's no mail transport configured in this app at all. Instead
+  // requestSmsPasswordReset() (src/app/actions/users.ts) texts a temporary
+  // password via AlieSMS, and the credential is written directly, the same
+  // way an admin's manual reset already worked.
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
-    resetPasswordTokenExpiresIn: 60 * 60,
-    // No mail transport is wired up yet. Logging the link keeps the flow usable
-    // in development; swap this for your provider's send call in production.
-    sendResetPassword: async ({ user, url }) => {
-      console.info(`[auth] password reset for ${user.email}: ${url}`);
-    },
   },
 
   socialProviders: {
@@ -89,6 +88,7 @@ export const auth = betterAuth({
       role: { type: "string", required: false, defaultValue: "staff", input: false },
       status: { type: "string", required: false, defaultValue: "active", input: false },
       theme: { type: "string", required: false, defaultValue: "light" },
+      mustChangePassword: { type: "boolean", required: false, defaultValue: false, input: false },
       businessId: { type: "number", required: false, input: false },
       branchId: { type: "number", required: false, input: false },
     },

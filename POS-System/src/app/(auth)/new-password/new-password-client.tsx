@@ -1,26 +1,19 @@
 "use client";
 
-import { CheckCircle2, Lock, ShieldAlert, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Lock, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { setOwnPassword } from "@/app/actions/users";
 import { AuthPanel } from "@/components/auth/auth-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { resetPassword } from "@/lib/auth-client";
 
 const MIN_LENGTH = 8;
 
-export default function NewPasswordPage({
-  token,
-  linkError,
-}: {
-  /** better-auth appends these when it redirects here from the emailed link. */
-  token: string | null;
-  linkError: string | null;
-}) {
+export default function NewPasswordPage() {
   const router = useRouter();
 
   const [pending, setPending] = useState(false);
@@ -43,17 +36,13 @@ export default function NewPasswordPage({
       setError("Passwords do not match.");
       return;
     }
-    if (!token) {
-      setError("This reset link is missing its token. Request a new one.");
-      return;
-    }
 
     setPending(true);
-    const { error: resetError } = await resetPassword({ newPassword: password, token });
+    const result = await setOwnPassword(password);
     setPending(false);
 
-    if (resetError) {
-      setError(resetError.message ?? "This reset link is invalid or has expired.");
+    if (!result.ok) {
+      setError(result.message);
       return;
     }
 
@@ -61,13 +50,11 @@ export default function NewPasswordPage({
     router.refresh();
   }
 
-  const invalidLink = !token || Boolean(linkError);
-
   return (
     <div className="grid min-h-screen w-full lg:grid-cols-2">
       <AuthPanel
         headline="Choose a new password."
-        blurb="Pick something you don't use anywhere else. You'll be signed out of other devices the next time their session expires."
+        blurb="You're currently signed in with a temporary password — pick something only you know before continuing."
         footnote={
           <>
             <ShieldCheck className="size-4 shrink-0" />
@@ -84,25 +71,9 @@ export default function NewPasswordPage({
                 <CheckCircle2 className="size-6" />
               </div>
               <h2 className="text-2xl font-bold tracking-tight">Password updated</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                You can now sign in with your new password.
-              </p>
+              <p className="mt-2 text-sm text-muted-foreground">You're all set — continuing to your dashboard.</p>
               <Button asChild className="mt-6 w-full rounded-lg">
-                <Link href="/login">Go to sign in</Link>
-              </Button>
-            </>
-          ) : invalidLink ? (
-            <>
-              <div className="mb-6 grid size-12 place-items-center rounded-xl bg-destructive/12 text-destructive">
-                <ShieldAlert className="size-6" />
-              </div>
-              <h2 className="text-2xl font-bold tracking-tight">This link isn&apos;t valid</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Reset links expire after an hour and can only be used once. Request a fresh one to
-                continue.
-              </p>
-              <Button asChild className="mt-6 w-full rounded-lg">
-                <Link href="/forgot-password">Request a new link</Link>
+                <Link href="/dashboard">Continue</Link>
               </Button>
             </>
           ) : (
@@ -110,7 +81,7 @@ export default function NewPasswordPage({
               <div className="mb-8 text-center lg:text-left">
                 <h2 className="text-2xl font-bold tracking-tight">Set a new password</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Almost done — choose a password to finish.
+                  You're using a temporary password — set your own to keep using Dashflow POS.
                 </p>
               </div>
 
@@ -159,12 +130,6 @@ export default function NewPasswordPage({
                   {pending ? "Updating…" : "Update password"}
                 </Button>
               </form>
-
-              <p className="mt-6 text-center text-sm text-muted-foreground">
-                <Link href="/login" className="font-medium text-primary hover:underline">
-                  Back to sign in
-                </Link>
-              </p>
             </>
           )}
         </div>

@@ -1,13 +1,14 @@
 "use server";
 
 import { hashPassword } from "better-auth/crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { accounts, businesses, systemLogs, systemUpdates, users } from "@/db/schema";
+import { accounts, businesses, subscriptionAlerts, systemLogs, systemUpdates, users } from "@/db/schema";
 import { businessExists, setBusinessModuleKeys } from "@/db/queries/modules";
 import { DEFAULT_PASSWORD } from "@/lib/auth-constants";
+import { sendBatchSms } from "@/lib/aliesms";
 import { MODULE_KEYS, type ModuleKey } from "@/lib/modules";
 import { isPlanKey, PLAN_CATALOG, type PlanKey } from "@/lib/plans";
 import { requireRole } from "@/lib/session";
@@ -92,6 +93,78 @@ export async function updateSubscription(input: {
   revalidatePath("/manage-business");
   revalidatePath("/super");
   return { ok: true, message: "Subscription updated." };
+}
+
+/**
+ * Texts a single business's admin (or its own business number, if the admin
+ * has none on file) an alert — the trial/subscription-expiry warning this is
+ * for, or anything else worth a heads-up. Logged to subscription_alerts,
+ * deliberately separate from sms_logs — that table is a business's own log
+ * of texts IT sent to ITS customers, and a platform-sent alert showing up
+ * there would look like the business texted its own admin.
+ */
+export async function sendSubscriptionAlert(input: {
+  businessId: number;
+  phone: string;
+  message: string;
+}): Promise<ActionResult> {
+  await requireRole("super");
+
+  const phone = input.phone.trim();
+  const message = input.message.trim();
+  if (!phone) return { ok: false, message: "No phone number on file for this business." };
+  if (!message) return { ok: false, message: "Write a message first." };
+
+  const result = await sendBatchSms({
+    batchName: `Subscription alert — business #${input.businessId}`,
+    message,
+    recipients: [phone],
+  });
+
+  await db.insert(subscriptionAlerts).values({
+    businessId: input.businessId,
+    recipient: phone,
+    message,
+    status: result.ok ? "sent" : "failed",
+  });
+
+  if (!result.ok) return { ok: false, message: result.error };
+
+  revalidatePath("/subscription");
+  return { ok: true, message: "Alert sent." };
+}
+
+/** Same thing, blasted to several businesses at once — e.g. everyone whose trial ends this week. */
+export async function sendBulkSubscriptionAlerts(input: {
+  targets: { businessId: number; phone: string }[];
+  message: string;
+}): Promise<ActionResult> {
+  await requireRole("super");
+
+  const message = input.message.trim();
+  if (!message) return { ok: false, message: "Write a message first." };
+  const targets = input.targets.filter((t) => t.phone.trim());
+  if (targets.length === 0) return { ok: false, message: "None of the selected businesses have a phone number on file." };
+
+  const result = await sendBatchSms({
+    batchName: `Subscription alert — ${targets.length} businesses`,
+    message,
+    recipients: targets.map((t) => t.phone.trim()),
+  });
+
+  await db.insert(subscriptionAlerts).values(
+    targets.map((t) => ({
+      businessId: t.businessId,
+      recipient: t.phone.trim(),
+      message,
+      status: (result.ok ? "sent" : "failed") as "sent" | "failed",
+    })),
+  );
+
+  if (!result.ok) return { ok: false, message: result.error };
+
+  revalidatePath("/subscription");
+  return { ok: true, message: `Alert sent to ${targets.length} business${targets.length === 1 ? "" : "es"}.` };
 }
 
 /**

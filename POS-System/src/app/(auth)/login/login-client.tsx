@@ -33,7 +33,7 @@ export default function LoginPage({
     setPending(true);
 
     const form = new FormData(event.currentTarget);
-    const { error: authError } = await signIn.email({
+    const { data, error: authError } = await signIn.email({
       email: String(form.get("email") ?? "").trim(),
       password: String(form.get("password") ?? ""),
     });
@@ -44,7 +44,9 @@ export default function LoginPage({
       return;
     }
 
-    router.push(next);
+    // A password that was reset (self-service SMS, or an admin's reset) is
+    // only ever meant to get someone back in, not to stay on indefinitely.
+    router.push(data?.user?.mustChangePassword ? "/new-password" : next);
     router.refresh();
   }
 

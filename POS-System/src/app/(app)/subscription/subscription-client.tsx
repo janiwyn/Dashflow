@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Hourglass, Package, Settings2, ShieldAlert, Timer, Wallet } from "lucide-react";
+import { CreditCard, Hourglass, MessageSquareWarning, Package, Settings2, ShieldAlert, Timer, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -20,12 +20,20 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { setBusinessPlan, updateBusinessModules, updateSubscription } from "@/app/actions/super-admin";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  sendBulkSubscriptionAlerts,
+  sendSubscriptionAlert,
+  setBusinessPlan,
+  updateBusinessModules,
+  updateSubscription,
+} from "@/app/actions/super-admin";
 import type { Business } from "@/db/queries/views";
 import type { viewBusinesses } from "@/db/queries/views";
 import { formatMoney } from "@/lib/currency";
 import { MODULE_CATALOG, MODULE_LIST, MODULE_TILE_STYLE, modulesMonthlyTotal, type ModuleKey } from "@/lib/modules";
 import { annualPrice, isPlanKey, PLAN_LIST, type PlanKey } from "@/lib/plans";
+import { daysUntil } from "@/lib/subscription";
 
 type Props = {
   seed: Awaited<ReturnType<typeof viewBusinesses>>;
@@ -281,6 +289,163 @@ function ModulesCell({
   );
 }
 
+/** subscriptionEnd is "—" for null (see viewBusinesses) — daysUntil() needs a real date or null. */
+function daysLeftOf(business: Business): number | null {
+  return business.subscriptionEnd === "—" ? null : daysUntil(business.subscriptionEnd);
+}
+
+function phoneFor(business: Business): string {
+  return business.adminPhone?.trim() || (business.phone !== "—" ? business.phone : "");
+}
+
+function defaultAlertMessage(business: Business, daysLeft: number | null): string {
+  if (daysLeft === null) return `Hi, this is Dashflow POS regarding ${business.name}'s subscription — please reach out to us.`;
+  if (daysLeft < 0) return `Hi, this is Dashflow POS. ${business.name}'s subscription has ended — renew from Settings > Subscription to restore access.`;
+  if (daysLeft === 0) return `Hi, this is Dashflow POS. ${business.name}'s trial ends today — pay now from Settings > Subscription to avoid losing access.`;
+  return `Hi, this is Dashflow POS. ${business.name}'s trial ends in ${daysLeft} day${daysLeft === 1 ? "" : "s"} — pay now from Settings > Subscription so access is never interrupted.`;
+}
+
+function ExpiryBadge({ daysLeft }: { daysLeft: number | null }) {
+  if (daysLeft === null) return <span className="text-xs text-muted-foreground">—</span>;
+  const tone = daysLeft < 0 ? "bg-destructive/12 text-destructive" : daysLeft <= 3 ? "bg-warning/15 text-warning-foreground" : "bg-muted text-muted-foreground";
+  const label = daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? "Ends today" : `${daysLeft}d left`;
+  return <span className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{label}</span>;
+}
+
+function AlertCell({ business, daysLeft }: { business: Business; daysLeft: number | null }) {
+  const [open, setOpen] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const send = () => {
+    startTransition(async () => {
+      const result = await sendSubscriptionAlert({ businessId: business.id, phone, message });
+      if (result.ok) {
+        toast.success(result.message);
+        setOpen(false);
+      } else {
+        toast.error(result.message);
+      }
+    });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          setPhone(phoneFor(business));
+          setMessage(defaultAlertMessage(business, daysLeft));
+        }
+      }}
+    >
+      <Button variant="outline" size="sm" className="h-8 rounded-md" onClick={() => setOpen(true)}>
+        <MessageSquareWarning className="size-3.5" /> Alert
+      </Button>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Send alert — {business.name}</DialogTitle>
+          <DialogDescription>Sent by SMS to the number below.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 py-2">
+          <div className="grid gap-1.5">
+            <label className="text-sm font-medium">Phone number</label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07XX XXX XXX" />
+          </div>
+          <div className="grid gap-1.5">
+            <label className="text-sm font-medium">Message</label>
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button onClick={send} disabled={isPending || !phone.trim() || !message.trim()}>
+            {isPending ? "Sending…" : "Send alert"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkAlertDialog({ businesses }: { businesses: Business[] }) {
+  const [open, setOpen] = useState(false);
+  const [threshold, setThreshold] = useState(7);
+  const [message, setMessage] = useState(
+    "Hi, this is Dashflow POS. Your trial or subscription is ending soon — pay now from Settings > Subscription so access is never interrupted.",
+  );
+  const [isPending, startTransition] = useTransition();
+
+  const targets = useMemo(
+    () => businesses.filter((b) => {
+      const d = daysLeftOf(b);
+      return d !== null && d <= threshold;
+    }),
+    [businesses, threshold],
+  );
+  const withPhone = useMemo(() => targets.filter((b) => phoneFor(b)), [targets]);
+
+  const send = () => {
+    startTransition(async () => {
+      const result = await sendBulkSubscriptionAlerts({
+        targets: withPhone.map((b) => ({ businessId: b.id, phone: phoneFor(b) })),
+        message,
+      });
+      if (result.ok) {
+        toast.success(result.message);
+        setOpen(false);
+      } else {
+        toast.error(result.message);
+      }
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button variant="outline" size="sm" className="h-9 rounded-lg" onClick={() => setOpen(true)}>
+        <MessageSquareWarning className="size-4" /> Alert expiring businesses
+      </Button>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Alert businesses expiring soon</DialogTitle>
+          <DialogDescription>Texts every business whose trial or subscription ends within the window below — or has already ended.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 py-2">
+          <div className="grid gap-1.5">
+            <label className="text-sm font-medium">Within how many days</label>
+            <Input
+              type="number"
+              min={0}
+              value={threshold}
+              onChange={(e) => setThreshold(Math.max(0, Number(e.target.value) || 0))}
+              className="w-24"
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {targets.length} business{targets.length === 1 ? "" : "es"} match — {withPhone.length} {withPhone.length === 1 ? "has" : "have"} a phone number on file.
+          </p>
+          <div className="grid gap-1.5">
+            <label className="text-sm font-medium">Message</label>
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button onClick={send} disabled={isPending || withPhone.length === 0 || !message.trim()}>
+            {isPending ? "Sending…" : `Send to ${withPhone.length}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function SubscriptionPage({ seed, modules }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState<Business[]>(seed);
@@ -407,6 +572,11 @@ export default function SubscriptionPage({ seed, modules }: Props) {
       ),
     },
     {
+      key: "expiry",
+      header: "Expiry",
+      render: (r) => <ExpiryBadge daysLeft={daysLeftOf(r)} />,
+    },
+    {
       key: "status",
       header: "Status",
       render: (r) => (
@@ -427,9 +597,12 @@ export default function SubscriptionPage({ seed, modules }: Props) {
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <Button size="sm" className="h-8 rounded-md" disabled={savingId === r.id} onClick={() => save(r)}>
-          {savingId === r.id ? "Saving…" : "Update"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" className="h-8 rounded-md" disabled={savingId === r.id} onClick={() => save(r)}>
+            {savingId === r.id ? "Saving…" : "Update"}
+          </Button>
+          <AlertCell business={r} daysLeft={daysLeftOf(r)} />
+        </div>
       ),
     },
   ];
@@ -439,13 +612,16 @@ export default function SubscriptionPage({ seed, modules }: Props) {
       title="Business Subscriptions"
       subtitle="Track subscription periods and manage packages and modules for every business"
       actions={
-        <div className="w-64">
-          <Input
-            placeholder="Search by business or email"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-9 rounded-lg"
-          />
+        <div className="flex items-center gap-2">
+          <BulkAlertDialog businesses={rows} />
+          <div className="w-64">
+            <Input
+              placeholder="Search by business or email"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 rounded-lg"
+            />
+          </div>
         </div>
       }
     >
